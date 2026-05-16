@@ -1,8 +1,13 @@
 {
   "buildCommand": "",
-  "installCommand": "",
+  "installCommand": "npm install",
   "outputDirectory": ".",
   "framework": null,
+  "functions": {
+    "api/**/*.js": {
+      "runtime": "@vercel/node@3"
+    }
+  },
   "rewrites": [
     { "source": "/admin", "destination": "/admin.html" }
   ],

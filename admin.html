@@ -708,8 +708,8 @@
     // ── Reset Match ────────────────────────────────────
     async function resetMatch(matchday, homeId, awayId) {
       try {
-        const res = await fetch('/api/admin/match/reset', {
-          method: 'PUT',
+        const res = await fetch('/api/admin/match', {
+          method: 'DELETE',
           headers: {
             'Content-Type': 'application/json',
             'X-Admin-Key': adminKey,
