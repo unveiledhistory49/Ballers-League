@@ -1,0 +1,742 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <meta name="description" content="Ballers League Admin Panel — Manage fixtures and results">
+  <title>Ballers League — Admin</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Outfit:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+
+  <style>
+    /* ── Reset ──────────────────────────────────────────── */
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --bg-primary: #050505;
+      --bg-secondary: #0a0a0a;
+      --bg-card: #0f0f0f;
+      --bg-card-hover: #141414;
+      --bg-elevated: #1a1a1a;
+      --bg-input: #111111;
+      --border-subtle: rgba(255,255,255,0.06);
+      --border-medium: rgba(255,255,255,0.1);
+      --border-accent: rgba(255,255,255,0.15);
+      --border-focus: rgba(200,168,78,0.5);
+      --text-primary: #ffffff;
+      --text-secondary: rgba(255,255,255,0.65);
+      --text-muted: rgba(255,255,255,0.35);
+      --accent-gold: #c8a84e;
+      --accent-gold-dim: rgba(200,168,78,0.15);
+      --dot-win: #00d26a;
+      --dot-loss: #e63946;
+      --font-display: 'Outfit', sans-serif;
+      --font-body: 'Inter', sans-serif;
+      --ease-out: cubic-bezier(0.16,1,0.3,1);
+    }
+
+    html { font-size: 14px; -webkit-font-smoothing: antialiased; }
+    body {
+      font-family: var(--font-body);
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      min-height: 100vh;
+      line-height: 1.5;
+    }
+
+    /* ── Login Screen ──────────────────────────────────── */
+    #login-screen {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      padding: 20px;
+    }
+
+    .login-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-medium);
+      border-radius: 20px;
+      padding: 40px 32px;
+      width: 100%;
+      max-width: 380px;
+      text-align: center;
+      animation: fadeIn 0.5s ease;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(16px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .login-card .logo-icon {
+      width: 56px; height: 56px; margin: 0 auto 16px;
+    }
+
+    .login-card h1 {
+      font-family: var(--font-display);
+      font-size: 1.5rem;
+      font-weight: 800;
+      margin-bottom: 4px;
+    }
+
+    .login-card .subtitle {
+      color: var(--text-muted);
+      font-size: 0.8rem;
+      margin-bottom: 28px;
+    }
+
+    .login-card input {
+      width: 100%;
+      padding: 14px 16px;
+      background: var(--bg-input);
+      border: 1px solid var(--border-medium);
+      border-radius: 12px;
+      color: var(--text-primary);
+      font-family: var(--font-body);
+      font-size: 0.9rem;
+      text-align: center;
+      letter-spacing: 0.15em;
+      outline: none;
+      transition: border-color 0.3s ease;
+    }
+
+    .login-card input:focus {
+      border-color: var(--border-focus);
+    }
+
+    .login-card input::placeholder {
+      color: var(--text-muted);
+      letter-spacing: 0.05em;
+    }
+
+    .login-card button {
+      width: 100%;
+      padding: 14px;
+      margin-top: 16px;
+      background: var(--accent-gold);
+      color: #000;
+      border: none;
+      border-radius: 12px;
+      font-family: var(--font-body);
+      font-size: 0.85rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.25s ease;
+    }
+
+    .login-card button:hover {
+      background: #d4b65c;
+      transform: translateY(-1px);
+    }
+
+    .login-card button:active { transform: translateY(0); }
+
+    .login-error {
+      color: var(--dot-loss);
+      font-size: 0.75rem;
+      margin-top: 12px;
+      min-height: 20px;
+    }
+
+    /* ── Admin Panel ──────────────────────────────────── */
+    #admin-panel { display: none; }
+
+    .admin-header {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: var(--bg-primary);
+      border-bottom: 1px solid var(--border-subtle);
+      padding: 16px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      backdrop-filter: blur(20px);
+    }
+
+    .admin-header-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .admin-header h1 {
+      font-family: var(--font-display);
+      font-size: 1.15rem;
+      font-weight: 700;
+    }
+
+    .admin-badge {
+      font-size: 0.6rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--accent-gold);
+      background: var(--accent-gold-dim);
+      padding: 3px 10px;
+      border-radius: 4px;
+    }
+
+    .btn-logout {
+      background: none;
+      border: 1px solid var(--border-medium);
+      color: var(--text-secondary);
+      padding: 8px 16px;
+      border-radius: 8px;
+      font-family: var(--font-body);
+      font-size: 0.75rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .btn-logout:hover {
+      border-color: var(--dot-loss);
+      color: var(--dot-loss);
+    }
+
+    .btn-back {
+      background: none;
+      border: 1px solid var(--border-medium);
+      color: var(--text-secondary);
+      padding: 8px 16px;
+      border-radius: 8px;
+      font-family: var(--font-body);
+      font-size: 0.75rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .btn-back:hover {
+      border-color: var(--accent-gold);
+      color: var(--accent-gold);
+    }
+
+    .admin-header-actions {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    /* ── Matchday Navigation ──────────────────────────── */
+    .admin-matchday-nav {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 20px;
+      gap: 12px;
+    }
+
+    .admin-md-arrow {
+      width: 40px;
+      height: 40px;
+      border-radius: 12px;
+      background: var(--bg-card);
+      border: 1px solid var(--border-medium);
+      color: var(--text-primary);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.25s var(--ease-out);
+      flex-shrink: 0;
+      font-size: 1.1rem;
+    }
+
+    .admin-md-arrow:hover {
+      background: var(--bg-elevated);
+      border-color: var(--border-accent);
+    }
+
+    .admin-md-arrow:disabled {
+      opacity: 0.2;
+      pointer-events: none;
+    }
+
+    .admin-md-info {
+      text-align: center;
+      flex: 1;
+    }
+
+    .admin-md-info .md-title {
+      font-family: var(--font-display);
+      font-weight: 700;
+      font-size: 1.1rem;
+    }
+
+    .admin-md-info .md-sub {
+      font-size: 0.7rem;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+
+    /* ── Match Cards ──────────────────────────────────── */
+    .admin-matches {
+      padding: 0 20px 100px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .match-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: 16px;
+      padding: 20px;
+      transition: all 0.25s ease;
+      animation: cardFade 0.3s ease;
+    }
+
+    @keyframes cardFade {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .match-card.completed {
+      border-color: rgba(0, 210, 106, 0.15);
+    }
+
+    .match-teams {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+    }
+
+    .match-team-info {
+      flex: 1;
+      text-align: center;
+    }
+
+    .match-team-name {
+      font-weight: 700;
+      font-size: 0.85rem;
+      line-height: 1.2;
+    }
+
+    .match-team-club {
+      font-size: 0.65rem;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+
+    .match-vs {
+      padding: 0 16px;
+      font-size: 0.7rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+    }
+
+    /* Score Inputs */
+    .match-score-row {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+    }
+
+    .score-input {
+      width: 56px;
+      height: 48px;
+      background: var(--bg-input);
+      border: 1px solid var(--border-medium);
+      border-radius: 10px;
+      color: var(--text-primary);
+      font-family: var(--font-display);
+      font-size: 1.3rem;
+      font-weight: 800;
+      text-align: center;
+      outline: none;
+      transition: border-color 0.3s ease;
+      -moz-appearance: textfield;
+    }
+
+    .score-input::-webkit-outer-spin-button,
+    .score-input::-webkit-inner-spin-button {
+      -webkit-appearance: none;
+      margin: 0;
+    }
+
+    .score-input:focus {
+      border-color: var(--border-focus);
+    }
+
+    .score-dash {
+      font-size: 1.2rem;
+      color: var(--text-muted);
+      font-weight: 300;
+    }
+
+    /* Action Buttons */
+    .match-actions {
+      display: flex;
+      gap: 8px;
+      margin-top: 16px;
+    }
+
+    .btn-save {
+      flex: 1;
+      padding: 12px;
+      background: var(--dot-win);
+      color: #000;
+      border: none;
+      border-radius: 10px;
+      font-family: var(--font-body);
+      font-size: 0.78rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .btn-save:hover { background: #00e676; transform: translateY(-1px); }
+    .btn-save:active { transform: translateY(0); }
+    .btn-save:disabled {
+      opacity: 0.4;
+      pointer-events: none;
+    }
+
+    .btn-reset {
+      padding: 12px 16px;
+      background: none;
+      border: 1px solid var(--border-medium);
+      color: var(--text-secondary);
+      border-radius: 10px;
+      font-family: var(--font-body);
+      font-size: 0.78rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .btn-reset:hover {
+      border-color: var(--dot-loss);
+      color: var(--dot-loss);
+    }
+
+    /* Status indicator */
+    .match-status {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      margin-top: 12px;
+      font-size: 0.7rem;
+      font-weight: 600;
+    }
+
+    .status-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+    }
+
+    .status-upcoming .status-dot { background: var(--text-muted); }
+    .status-upcoming { color: var(--text-muted); }
+
+    .status-completed .status-dot { background: var(--dot-win); }
+    .status-completed { color: var(--dot-win); }
+
+    /* Toast */
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%) translateY(100px);
+      background: var(--bg-elevated);
+      border: 1px solid var(--border-medium);
+      color: var(--text-primary);
+      padding: 14px 24px;
+      border-radius: 12px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      z-index: 1000;
+      transition: transform 0.4s var(--ease-out), opacity 0.4s ease;
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .toast.show {
+      transform: translateX(-50%) translateY(0);
+      opacity: 1;
+    }
+
+    .toast.success { border-color: rgba(0,210,106,0.3); }
+    .toast.error { border-color: rgba(230,57,70,0.3); }
+
+    /* ── Responsive ──────────────────────────────────── */
+    @media (min-width: 600px) {
+      html { font-size: 15px; }
+      .admin-matches { padding: 0 24px 100px; }
+      .admin-matchday-nav { padding: 20px 24px; }
+      .login-card { padding: 48px 40px; }
+    }
+
+    @media (min-width: 960px) {
+      .admin-matches {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ═══════════════════ LOGIN SCREEN ═══════════════════ -->
+  <div id="login-screen">
+    <div class="login-card">
+      <div class="logo-icon">
+        <svg viewBox="0 0 56 56" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="28" cy="28" r="27" stroke="white" stroke-width="1.5"/>
+          <path d="M28 8 L34 20 L48 23 L38 33 L41 48 L28 41 L15 48 L18 33 L8 23 L22 20 Z" fill="white" opacity="0.9"/>
+        </svg>
+      </div>
+      <h1>Admin Panel</h1>
+      <p class="subtitle">Ballers League — Season 1</p>
+      <input type="password" id="login-key" placeholder="Enter admin key" autocomplete="off" />
+      <button id="btn-login" onclick="handleLogin()">Sign In</button>
+      <p class="login-error" id="login-error"></p>
+    </div>
+  </div>
+
+  <!-- ═══════════════════ ADMIN PANEL ═══════════════════ -->
+  <div id="admin-panel">
+    <header class="admin-header">
+      <div class="admin-header-left">
+        <h1>Admin Panel</h1>
+        <span class="admin-badge">Season 1</span>
+      </div>
+      <div class="admin-header-actions">
+        <a href="/" class="btn-back">
+          <span>← Site</span>
+        </a>
+        <button class="btn-logout" onclick="handleLogout()">Sign Out</button>
+      </div>
+    </header>
+
+    <div class="admin-matchday-nav">
+      <button class="admin-md-arrow" id="admin-prev" onclick="adminChangeMatchday(-1)">‹</button>
+      <div class="admin-md-info">
+        <div class="md-title" id="admin-md-title">Matchday 1</div>
+        <div class="md-sub" id="admin-md-sub">1 / 22</div>
+      </div>
+      <button class="admin-md-arrow" id="admin-next" onclick="adminChangeMatchday(1)">›</button>
+    </div>
+
+    <div class="admin-matches" id="admin-matches">
+      <!-- Injected by JS -->
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div class="toast" id="toast"></div>
+
+  <script>
+    // ── State ──────────────────────────────────────────
+    let adminKey = '';
+    let leagueData = null;
+    let adminMatchday = 0;
+
+    // ── Login ─────────────────────────────────────────
+    document.getElementById('login-key').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') handleLogin();
+    });
+
+    async function handleLogin() {
+      const key = document.getElementById('login-key').value.trim();
+      if (!key) return;
+
+      try {
+        const res = await fetch('/api/admin/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ key }),
+        });
+
+        const data = await res.json();
+
+        if (data.success) {
+          adminKey = key;
+          document.getElementById('login-screen').style.display = 'none';
+          document.getElementById('admin-panel').style.display = 'block';
+          await loadLeagueData();
+        } else {
+          document.getElementById('login-error').textContent = 'Invalid admin key';
+          document.getElementById('login-key').value = '';
+          document.getElementById('login-key').focus();
+        }
+      } catch (err) {
+        document.getElementById('login-error').textContent = 'Server connection failed';
+      }
+    }
+
+    function handleLogout() {
+      adminKey = '';
+      leagueData = null;
+      document.getElementById('admin-panel').style.display = 'none';
+      document.getElementById('login-screen').style.display = 'flex';
+      document.getElementById('login-key').value = '';
+      document.getElementById('login-error').textContent = '';
+    }
+
+    // ── Load Data ─────────────────────────────────────
+    async function loadLeagueData() {
+      try {
+        const res = await fetch('/api/data');
+        leagueData = await res.json();
+        renderAdminMatchday();
+      } catch (err) {
+        showToast('Failed to load data', 'error');
+      }
+    }
+
+    // ── Matchday Navigation ───────────────────────────
+    function adminChangeMatchday(delta) {
+      const newIdx = adminMatchday + delta;
+      if (newIdx < 0 || newIdx >= leagueData.fixtures.length) return;
+      adminMatchday = newIdx;
+      renderAdminMatchday();
+    }
+
+    // ── Render ─────────────────────────────────────────
+    function renderAdminMatchday() {
+      const fixtures = leagueData.fixtures;
+      const md = fixtures[adminMatchday];
+
+      document.getElementById('admin-md-title').textContent = `Matchday ${md.matchday}`;
+      document.getElementById('admin-md-sub').textContent = `${adminMatchday + 1} / ${fixtures.length}`;
+      document.getElementById('admin-prev').disabled = adminMatchday === 0;
+      document.getElementById('admin-next').disabled = adminMatchday === fixtures.length - 1;
+
+      const container = document.getElementById('admin-matches');
+      container.innerHTML = '';
+
+      md.matches.forEach((match, idx) => {
+        const card = document.createElement('div');
+        card.className = `match-card ${match.status === 'completed' ? 'completed' : ''}`;
+        card.style.animationDelay = `${idx * 0.05}s`;
+
+        const homeVal = match.homeScore !== null ? match.homeScore : '';
+        const awayVal = match.awayScore !== null ? match.awayScore : '';
+
+        card.innerHTML = `
+          <div class="match-teams">
+            <div class="match-team-info">
+              <div class="match-team-name">${match.home.player}</div>
+              <div class="match-team-club">${match.home.club}</div>
+            </div>
+            <div class="match-vs">VS</div>
+            <div class="match-team-info">
+              <div class="match-team-name">${match.away.player}</div>
+              <div class="match-team-club">${match.away.club}</div>
+            </div>
+          </div>
+          <div class="match-score-row">
+            <input type="number" class="score-input" id="home-${match.home.id}-${match.away.id}"
+              value="${homeVal}" min="0" max="99" placeholder="0">
+            <span class="score-dash">—</span>
+            <input type="number" class="score-input" id="away-${match.home.id}-${match.away.id}"
+              value="${awayVal}" min="0" max="99" placeholder="0">
+          </div>
+          <div class="match-actions">
+            <button class="btn-save" onclick="saveMatch(${md.matchday}, ${match.home.id}, ${match.away.id})">
+              Save Result
+            </button>
+            <button class="btn-reset" onclick="resetMatch(${md.matchday}, ${match.home.id}, ${match.away.id})">
+              Reset
+            </button>
+          </div>
+          <div class="match-status ${match.status === 'completed' ? 'status-completed' : 'status-upcoming'}">
+            <span class="status-dot"></span>
+            <span>${match.status === 'completed' ? 'Completed' : 'Upcoming'}</span>
+          </div>
+        `;
+
+        container.appendChild(card);
+      });
+    }
+
+    // ── Save Match ─────────────────────────────────────
+    async function saveMatch(matchday, homeId, awayId) {
+      const homeScore = document.getElementById(`home-${homeId}-${awayId}`).value;
+      const awayScore = document.getElementById(`away-${homeId}-${awayId}`).value;
+
+      if (homeScore === '' || awayScore === '') {
+        showToast('Enter both scores', 'error');
+        return;
+      }
+
+      try {
+        const res = await fetch('/api/admin/match', {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Admin-Key': adminKey,
+          },
+          body: JSON.stringify({
+            matchday,
+            homeId,
+            awayId,
+            homeScore: parseInt(homeScore),
+            awayScore: parseInt(awayScore),
+          }),
+        });
+
+        const data = await res.json();
+
+        if (data.success) {
+          showToast(data.message, 'success');
+          await loadLeagueData(); // Refresh
+        } else {
+          showToast(data.error || 'Failed to save', 'error');
+        }
+      } catch (err) {
+        showToast('Server error', 'error');
+      }
+    }
+
+    // ── Reset Match ────────────────────────────────────
+    async function resetMatch(matchday, homeId, awayId) {
+      try {
+        const res = await fetch('/api/admin/match/reset', {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Admin-Key': adminKey,
+          },
+          body: JSON.stringify({ matchday, homeId, awayId }),
+        });
+
+        const data = await res.json();
+
+        if (data.success) {
+          showToast('Match reset', 'success');
+          await loadLeagueData();
+        } else {
+          showToast(data.error || 'Failed to reset', 'error');
+        }
+      } catch (err) {
+        showToast('Server error', 'error');
+      }
+    }
+
+    // ── Toast ──────────────────────────────────────────
+    function showToast(message, type = 'success') {
+      const toast = document.getElementById('toast');
+      toast.textContent = message;
+      toast.className = `toast ${type} show`;
+      setTimeout(() => toast.classList.remove('show'), 2500);
+    }
+  </script>
+</body>
+</html>

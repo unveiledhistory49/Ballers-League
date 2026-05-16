@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <meta name="description" content="Ballers League - The ultimate eFootball Mobile league. Live standings, fixtures, and match results.">
+  <title>Ballers League — Season 1</title>
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Outfit:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- HEADER -->
+  <!-- ═══════════════════════════════════════════ -->
+  <header id="main-header">
+    <div class="header-inner">
+      <div class="league-brand">
+        <div class="league-logo">
+          <svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="20" cy="20" r="19" stroke="white" stroke-width="1.5"/>
+            <path d="M20 5 L25 15 L35 17 L28 25 L30 35 L20 30 L10 35 L12 25 L5 17 L15 15 Z" fill="white" opacity="0.9"/>
+          </svg>
+        </div>
+        <div class="league-title">
+          <h1>Ballers League</h1>
+          <span class="season-badge">Season 1</span>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- NAVIGATION TABS -->
+  <!-- ═══════════════════════════════════════════ -->
+  <nav id="main-nav">
+    <div class="nav-inner">
+      <button id="nav-standings" class="nav-tab active" onclick="switchPage('standings')">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+          <rect x="1" y="1" width="4" height="14" rx="1" opacity="0.9"/>
+          <rect x="6" y="5" width="4" height="10" rx="1" opacity="0.7"/>
+          <rect x="11" y="3" width="4" height="12" rx="1" opacity="0.8"/>
+        </svg>
+        <span>Standings</span>
+      </button>
+      <button id="nav-fixtures" class="nav-tab" onclick="switchPage('fixtures')">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+          <rect x="1" y="2" width="14" height="12" rx="2" stroke="currentColor" stroke-width="1.2" fill="none"/>
+          <line x1="1" y1="6" x2="15" y2="6" stroke="currentColor" stroke-width="1.2"/>
+          <line x1="5" y1="2" x2="5" y2="14" stroke="currentColor" stroke-width="0.8" opacity="0.4"/>
+          <line x1="11" y1="2" x2="11" y2="14" stroke="currentColor" stroke-width="0.8" opacity="0.4"/>
+        </svg>
+        <span>Fixtures</span>
+      </button>
+    </div>
+  </nav>
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- PAGE: STANDINGS -->
+  <!-- ═══════════════════════════════════════════ -->
+  <main id="page-standings" class="page active">
+    <div class="page-content">
+      <div class="standings-header">
+        <div class="standings-title-row">
+          <h2>League Table</h2>
+          <span class="matchday-label" id="standings-matchday">Matchday 0 of 22</span>
+        </div>
+      </div>
+
+      <!-- Table Header -->
+      <div class="table-header">
+        <div class="col-pos">#</div>
+        <div class="col-club">Club</div>
+        <div class="col-stat">P</div>
+        <div class="col-stat">W</div>
+        <div class="col-stat">D</div>
+        <div class="col-stat">L</div>
+        <div class="col-gls">GLS</div>
+        <div class="col-pts">PTS</div>
+        <div class="col-form">Last 5</div>
+      </div>
+
+      <!-- Table Body -->
+      <div id="standings-body" class="table-body">
+        <!-- Rows injected by JS -->
+      </div>
+    </div>
+  </main>
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- PAGE: FIXTURES -->
+  <!-- ═══════════════════════════════════════════ -->
+  <main id="page-fixtures" class="page">
+    <div class="page-content">
+      <div class="fixtures-header">
+        <h2>Fixtures & Results</h2>
+      </div>
+
+      <!-- Matchday Carousel -->
+      <div class="matchday-nav">
+        <button id="btn-prev-md" class="md-arrow" onclick="changeMatchday(-1)" aria-label="Previous matchday">
+          <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+            <path d="M13 4 L7 10 L13 16" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+          </svg>
+        </button>
+        <div class="md-indicator">
+          <span class="md-label" id="fixture-matchday-label">Matchday 1</span>
+          <span class="md-counter" id="fixture-matchday-counter">1 / 22</span>
+        </div>
+        <button id="btn-next-md" class="md-arrow" onclick="changeMatchday(1)" aria-label="Next matchday">
+          <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+            <path d="M7 4 L13 10 L7 16" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+          </svg>
+        </button>
+      </div>
+
+      <!-- Fixture Cards -->
+      <div id="fixtures-container" class="fixtures-container">
+        <!-- Injected by JS -->
+      </div>
+
+      <!-- Swipe Hint -->
+      <div class="swipe-hint" id="swipe-hint">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" opacity="0.5">
+          <path d="M3 8 L0 5 M0 5 L0 11 M0 11 L3 8 M13 8 L16 5 M16 5 L16 11 M16 11 L13 8" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+        </svg>
+        <span>Swipe to navigate</span>
+      </div>
+    </div>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>
