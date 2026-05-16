@@ -289,10 +289,22 @@ body {
 }
 
 /* ── Table ────────────────────────────────────────────────────── */
+.table-scroll-wrapper {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Hide scrollbar but keep functionality */
+.table-scroll-wrapper::-webkit-scrollbar {
+  height: 0;
+  display: none;
+}
+
 .table-header {
   display: flex;
   align-items: center;
   padding: 10px 16px;
+  min-width: 580px;
   background: var(--bg-secondary);
   border-top: 1px solid var(--border-subtle);
   border-bottom: 1px solid var(--border-subtle);
@@ -317,6 +329,7 @@ body {
   display: flex;
   align-items: center;
   padding: 12px 16px;
+  min-width: 580px;
   border-bottom: 1px solid var(--border-subtle);
   transition: background 0.2s ease;
   animation: rowSlideIn 0.4s var(--ease-out) forwards;
