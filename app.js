@@ -50,8 +50,16 @@ const clubLogos = {
 // ── Init ───────────────────────────────────────────────────────
 document.addEventListener("DOMContentLoaded", async () => {
   try {
-    const res = await fetch("/api/data");
-    leagueData = await res.json();
+    // Try API first (local Express server), fall back to static fixtures.json (Vercel)
+    let res;
+    try {
+      res = await fetch("/api/data");
+      if (!res.ok) throw new Error("API not available");
+      leagueData = await res.json();
+    } catch {
+      res = await fetch("/fixtures.json");
+      leagueData = await res.json();
+    }
     renderStandings();
     renderFixtures();
     setupSwipeGestures();
