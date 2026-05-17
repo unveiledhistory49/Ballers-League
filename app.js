@@ -389,3 +389,240 @@ document.addEventListener("keydown", (e) => {
     changeMatchday(1);
   }
 });
+
+// ═══════════════════════════════════════════════════════════════
+// SNAPSHOT DOWNLOAD
+// ═══════════════════════════════════════════════════════════════
+
+function showSnapshotOverlay() {
+  const overlay = document.createElement("div");
+  overlay.className = "snapshot-overlay";
+  overlay.id = "snapshot-overlay";
+  overlay.innerHTML = `
+    <div class="snapshot-toast">
+      <div class="snapshot-spinner"></div>
+      <span>Rendering snapshot…</span>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+}
+
+function hideSnapshotOverlay() {
+  const overlay = document.getElementById("snapshot-overlay");
+  if (overlay) {
+    overlay.style.opacity = "0";
+    overlay.style.transition = "opacity 0.3s ease";
+    setTimeout(() => overlay.remove(), 300);
+  }
+}
+
+function buildSnapshotHeader(subtitleText) {
+  return `
+    <div class="snap-header">
+      <svg class="snap-logo" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="20" cy="20" r="19" stroke="white" stroke-width="1.5"/>
+        <path d="M20 5 L25 15 L35 17 L28 25 L30 35 L20 30 L10 35 L12 25 L5 17 L15 15 Z" fill="white" opacity="0.9"/>
+      </svg>
+      <div class="snap-title-wrap">
+        <h3>Ballers League</h3>
+        <div class="snap-subtitle">${subtitleText}</div>
+      </div>
+      <div class="snap-badge">Season 1</div>
+    </div>
+  `;
+}
+
+function buildStandingsSnapshot() {
+  const { standings, lastCompletedMatchday } = computeStandings();
+  const totalMDs = leagueData.fixtures.length;
+
+  let html = buildSnapshotHeader(`Standings — Matchday ${lastCompletedMatchday} of ${totalMDs}`);
+
+  // Table header
+  html += `
+    <div class="snap-table-header">
+      <span style="width:28px;text-align:center">#</span>
+      <span style="flex:1;padding-left:8px">Club</span>
+      <span style="width:26px;text-align:center">P</span>
+      <span style="width:26px;text-align:center">W</span>
+      <span style="width:26px;text-align:center">D</span>
+      <span style="width:26px;text-align:center">L</span>
+      <span style="width:46px;text-align:center">GLS</span>
+      <span style="width:32px;text-align:center">PTS</span>
+      <span style="width:70px;text-align:right">Last 5</span>
+    </div>
+  `;
+
+  // Rows
+  standings.forEach((team, idx) => {
+    const pos = idx + 1;
+    const zoneClass = pos <= 4 ? "snap-top" : (pos >= standings.length - 2 ? "snap-danger" : "");
+    
+    let posHTML;
+    if (pos <= 3) {
+      posHTML = `<span class="snap-pos-badge snap-pos-${pos}">${pos}</span>`;
+    } else {
+      posHTML = `${pos}`;
+    }
+
+    const logoSrc = clubLogos[team.club];
+    const logoHTML = logoSrc
+      ? `<img src="${logoSrc}" alt="${team.club}">`
+      : `<span style="font-size:8px;font-weight:700;color:rgba(255,255,255,0.5)">${(clubShort[team.club] || team.club.substring(0,3).toUpperCase())}</span>`;
+
+    const last5 = (team.form || []).slice(-5);
+    const formDots = Array.from({ length: 5 }, (_, i) => {
+      const r = last5[i];
+      if (!r) return `<span class="snap-form-dot e"></span>`;
+      const cls = r === "W" ? "w" : r === "D" ? "d" : "l";
+      return `<span class="snap-form-dot ${cls}"></span>`;
+    }).join("");
+
+    html += `
+      <div class="snap-row ${zoneClass}">
+        <div class="snap-col-pos">${posHTML}</div>
+        <div class="snap-col-club">
+          <div class="snap-club-logo">${logoHTML}</div>
+          <div class="snap-club-info">
+            <span class="snap-club-player">${team.player}</span>
+            <span class="snap-club-team">${team.club}</span>
+          </div>
+        </div>
+        <div class="snap-col-stat">${team.played}</div>
+        <div class="snap-col-stat">${team.wins}</div>
+        <div class="snap-col-stat">${team.draws}</div>
+        <div class="snap-col-stat">${team.losses}</div>
+        <div class="snap-col-gls">${team.goalsFor}:${team.goalsAgainst}</div>
+        <div class="snap-col-pts">${team.points}</div>
+        <div class="snap-col-form">${formDots}</div>
+      </div>
+    `;
+  });
+
+  html += `<div class="snap-footer">ballersleague.vercel.app · ${new Date().toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}</div>`;
+
+  return html;
+}
+
+function buildFixturesSnapshot() {
+  const md = leagueData.fixtures[currentMatchday];
+  if (!md) return "";
+
+  let html = buildSnapshotHeader(`Matchday ${md.matchday} — Fixtures & Results`);
+
+  html += `<div class="snap-fix-title">Matchday ${md.matchday}</div>`;
+
+  md.matches.forEach(match => {
+    const homeLogoSrc = clubLogos[match.home.club];
+    const awayLogoSrc = clubLogos[match.away.club];
+    const homeLogoHTML = homeLogoSrc
+      ? `<img src="${homeLogoSrc}" alt="${match.home.club}">`
+      : `<span style="font-size:9px;font-weight:700;color:rgba(255,255,255,0.5)">${(clubShort[match.home.club] || match.home.club.substring(0,3).toUpperCase())}</span>`;
+    const awayLogoHTML = awayLogoSrc
+      ? `<img src="${awayLogoSrc}" alt="${match.away.club}">`
+      : `<span style="font-size:9px;font-weight:700;color:rgba(255,255,255,0.5)">${(clubShort[match.away.club] || match.away.club.substring(0,3).toUpperCase())}</span>`;
+
+    let scoreHTML;
+    if (match.status === "completed" && match.homeScore !== null) {
+      scoreHTML = `
+        <div class="snap-score-nums">
+          <span>${match.homeScore}</span>
+          <span class="snap-score-sep">-</span>
+          <span>${match.awayScore}</span>
+        </div>
+        <span class="snap-score-ft">FT</span>
+      `;
+    } else {
+      scoreHTML = `<span class="snap-score-vs">VS</span>`;
+    }
+
+    html += `
+      <div class="snap-fixture-card">
+        <div class="snap-fix-labels">
+          <span>Home</span>
+          <span>Away</span>
+        </div>
+        <div class="snap-fix-match">
+          <div class="snap-fix-team">
+            <div class="snap-fix-logo">${homeLogoHTML}</div>
+            <span class="snap-fix-player">${match.home.player}</span>
+            <span class="snap-fix-club">${match.home.club}</span>
+          </div>
+          <div class="snap-fix-score">${scoreHTML}</div>
+          <div class="snap-fix-team">
+            <div class="snap-fix-logo">${awayLogoHTML}</div>
+            <span class="snap-fix-player">${match.away.player}</span>
+            <span class="snap-fix-club">${match.away.club}</span>
+          </div>
+        </div>
+      </div>
+    `;
+  });
+
+  html += `<div class="snap-footer">ballersleague.vercel.app · ${new Date().toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}</div>`;
+
+  return html;
+}
+
+async function downloadSnapshot(type) {
+  if (!leagueData) return;
+
+  const btn = document.getElementById(type === "standings" ? "btn-download-standings" : "btn-download-fixtures");
+  btn.classList.add("downloading");
+  showSnapshotOverlay();
+
+  // Build the off-screen render container
+  let container = document.getElementById("snapshot-container");
+  if (container) container.remove();
+
+  container = document.createElement("div");
+  container.id = "snapshot-container";
+  container.className = "snapshot-render";
+  container.innerHTML = type === "standings" ? buildStandingsSnapshot() : buildFixturesSnapshot();
+  document.body.appendChild(container);
+
+  // Wait for images to load
+  const images = container.querySelectorAll("img");
+  if (images.length > 0) {
+    await Promise.all(
+      Array.from(images).map(img => {
+        if (img.complete) return Promise.resolve();
+        return new Promise(resolve => {
+          img.onload = resolve;
+          img.onerror = resolve;
+        });
+      })
+    );
+  }
+
+  // Small delay to ensure layout is painted
+  await new Promise(r => setTimeout(r, 100));
+
+  try {
+    const canvas = await html2canvas(container, {
+      backgroundColor: "#050505",
+      scale: 2,
+      useCORS: true,
+      logging: false,
+      width: 480,
+      windowWidth: 480,
+    });
+
+    // Download
+    const link = document.createElement("a");
+    const filename = type === "standings"
+      ? `ballers-league-standings.png`
+      : `ballers-league-matchday-${leagueData.fixtures[currentMatchday].matchday}.png`;
+    link.download = filename;
+    link.href = canvas.toDataURL("image/png");
+    link.click();
+  } catch (err) {
+    console.error("Snapshot failed:", err);
+    alert("Failed to generate snapshot. Please try again.");
+  } finally {
+    container.remove();
+    btn.classList.remove("downloading");
+    hideSnapshotOverlay();
+  }
+}
+

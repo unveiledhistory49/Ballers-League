@@ -865,6 +865,449 @@ body {
 }
 
 /* ═══════════════════════════════════════════════════════════════
+   DOWNLOAD BUTTON
+   ═══════════════════════════════════════════════════════════════ */
+.standings-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.md-right-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.download-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-medium);
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.25s var(--ease-out);
+  flex-shrink: 0;
+}
+
+.download-btn:hover {
+  background: var(--bg-elevated);
+  border-color: var(--accent-gold);
+  color: var(--accent-gold);
+  transform: scale(1.08);
+}
+
+.download-btn:active {
+  transform: scale(0.92);
+}
+
+.download-btn.downloading {
+  pointer-events: none;
+  animation: downloadPulse 0.8s ease infinite;
+}
+
+@keyframes downloadPulse {
+  0%, 100% { opacity: 1; border-color: var(--accent-gold); }
+  50% { opacity: 0.4; }
+}
+
+/* ── Snapshot Overlay ────────────────────────────────────────── */
+.snapshot-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: overlayIn 0.3s ease forwards;
+}
+
+@keyframes overlayIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.snapshot-toast {
+  background: var(--bg-card);
+  border: 1px solid var(--border-accent);
+  border-radius: 16px;
+  padding: 24px 32px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.6);
+}
+
+.snapshot-spinner {
+  width: 24px;
+  height: 24px;
+  border: 2.5px solid var(--border-medium);
+  border-top-color: var(--accent-gold);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.snapshot-toast span {
+  font-family: var(--font-body);
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+/* ── Off-screen Snapshot Container ───────────────────────────── */
+.snapshot-render {
+  position: fixed;
+  left: -9999px;
+  top: 0;
+  width: 480px;
+  background: #050505;
+  font-family: 'Inter', 'Outfit', sans-serif;
+  color: #fff;
+  z-index: -1;
+}
+
+.snapshot-render .snap-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 24px 24px 16px;
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+}
+
+.snapshot-render .snap-logo {
+  width: 32px;
+  height: 32px;
+}
+
+.snapshot-render .snap-title-wrap h3 {
+  font-family: 'Outfit', sans-serif;
+  font-weight: 800;
+  font-size: 16px;
+  letter-spacing: -0.02em;
+  margin: 0;
+}
+
+.snapshot-render .snap-subtitle {
+  font-size: 11px;
+  color: rgba(255,255,255,0.45);
+  font-weight: 500;
+  letter-spacing: 0.04em;
+}
+
+.snapshot-render .snap-badge {
+  margin-left: auto;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: #c8a84e;
+  background: rgba(200,168,78,0.15);
+  padding: 3px 10px;
+  border-radius: 5px;
+}
+
+/* Snapshot Standings Table */
+.snapshot-render .snap-table-header {
+  display: flex;
+  align-items: center;
+  padding: 10px 20px;
+  background: #0a0a0a;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+}
+
+.snapshot-render .snap-table-header span {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: rgba(255,255,255,0.3);
+}
+
+.snapshot-render .snap-row {
+  display: flex;
+  align-items: center;
+  padding: 10px 20px;
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+}
+
+.snapshot-render .snap-row:nth-child(even) {
+  background: #0a0a0a;
+}
+
+.snapshot-render .snap-row.snap-top {
+  border-left: 2.5px solid #00d26a;
+}
+
+.snapshot-render .snap-row.snap-danger {
+  border-left: 2.5px solid #e63946;
+}
+
+.snapshot-render .snap-col-pos {
+  width: 28px;
+  text-align: center;
+  font-weight: 700;
+  font-size: 12px;
+  color: rgba(255,255,255,0.5);
+  flex-shrink: 0;
+}
+
+.snapshot-render .snap-pos-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 5px;
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.snapshot-render .snap-pos-1 { background: linear-gradient(135deg, #c8a84e, #a67c2e); color: #000; }
+.snapshot-render .snap-pos-2 { background: linear-gradient(135deg, #8a8a8a, #5a5a5a); color: #fff; }
+.snapshot-render .snap-pos-3 { background: linear-gradient(135deg, #a0522d, #6b3a1f); color: #fff; }
+
+.snapshot-render .snap-col-club {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  padding-right: 4px;
+}
+
+.snapshot-render .snap-club-logo {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  overflow: hidden;
+  background: #1a1a1a;
+  border: 1px solid rgba(255,255,255,0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.snapshot-render .snap-club-logo img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.snapshot-render .snap-club-info {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.snapshot-render .snap-club-player {
+  font-weight: 600;
+  font-size: 12px;
+  color: #fff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.2;
+}
+
+.snapshot-render .snap-club-team {
+  font-size: 9px;
+  color: rgba(255,255,255,0.3);
+  line-height: 1.3;
+}
+
+.snapshot-render .snap-col-stat {
+  width: 26px;
+  text-align: center;
+  font-size: 11px;
+  font-weight: 500;
+  color: rgba(255,255,255,0.55);
+  flex-shrink: 0;
+}
+
+.snapshot-render .snap-col-gls {
+  width: 46px;
+  text-align: center;
+  font-size: 11px;
+  font-weight: 500;
+  color: rgba(255,255,255,0.55);
+  flex-shrink: 0;
+}
+
+.snapshot-render .snap-col-pts {
+  width: 32px;
+  text-align: center;
+  font-size: 13px;
+  font-weight: 800;
+  color: #fff;
+  flex-shrink: 0;
+}
+
+.snapshot-render .snap-col-form {
+  width: 70px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 3px;
+  flex-shrink: 0;
+}
+
+.snapshot-render .snap-form-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+}
+.snapshot-render .snap-form-dot.w { background: #00d26a; }
+.snapshot-render .snap-form-dot.d { background: #555555; }
+.snapshot-render .snap-form-dot.l { background: #e63946; }
+.snapshot-render .snap-form-dot.e { background: #1a1a1a; border: 1px solid rgba(255,255,255,0.1); }
+
+/* Snapshot Footer */
+.snapshot-render .snap-footer {
+  padding: 14px 20px;
+  text-align: center;
+  border-top: 1px solid rgba(255,255,255,0.06);
+  font-size: 9px;
+  color: rgba(255,255,255,0.2);
+  font-weight: 500;
+  letter-spacing: 0.06em;
+}
+
+/* ── Snapshot Fixtures ───────────────────────────────────────── */
+.snapshot-render .snap-fix-title {
+  text-align: center;
+  padding: 16px 20px 8px;
+  font-family: 'Outfit', sans-serif;
+  font-weight: 700;
+  font-size: 15px;
+  color: #fff;
+}
+
+.snapshot-render .snap-fixture-card {
+  margin: 8px 20px;
+  background: #0f0f0f;
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 12px;
+  padding: 14px 16px;
+}
+
+.snapshot-render .snap-fix-labels {
+  display: flex;
+  justify-content: space-between;
+  padding: 0 6px;
+  margin-bottom: 8px;
+}
+
+.snapshot-render .snap-fix-labels span {
+  font-size: 8px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: rgba(255,255,255,0.18);
+}
+
+.snapshot-render .snap-fix-match {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.snapshot-render .snap-fix-team {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 5px;
+}
+
+.snapshot-render .snap-fix-logo {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  overflow: hidden;
+  background: #1a1a1a;
+  border: 1px solid rgba(255,255,255,0.08);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.snapshot-render .snap-fix-logo img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.snapshot-render .snap-fix-player {
+  font-weight: 600;
+  font-size: 11px;
+  color: #fff;
+  line-height: 1.2;
+}
+
+.snapshot-render .snap-fix-club {
+  font-size: 9px;
+  color: rgba(255,255,255,0.3);
+  margin-top: -2px;
+}
+
+.snapshot-render .snap-fix-score {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 0 10px;
+  flex-shrink: 0;
+}
+
+.snapshot-render .snap-score-nums {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: 'Outfit', sans-serif;
+  font-weight: 800;
+  font-size: 18px;
+}
+
+.snapshot-render .snap-score-sep {
+  color: rgba(255,255,255,0.3);
+  font-weight: 400;
+  font-size: 14px;
+}
+
+.snapshot-render .snap-score-ft {
+  font-size: 8px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: #00d26a;
+  opacity: 0.7;
+}
+
+.snapshot-render .snap-score-vs {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: rgba(255,255,255,0.3);
+  background: rgba(255,255,255,0.08);
+  padding: 3px 12px;
+  border-radius: 5px;
+}
+
+/* ═══════════════════════════════════════════════════════════════
    UTILITY ANIMATIONS
    ═══════════════════════════════════════════════════════════════ */
 @keyframes pulse {
