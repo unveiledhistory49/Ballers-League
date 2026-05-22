@@ -61,20 +61,27 @@ async function handleReset(req, res) {
 
     const supabase = getSupabase();
 
-    const { error } = await supabase
+    let query = supabase
       .from('matches')
       .update({
         home_score: null,
         away_score: null,
         status: 'upcoming',
       })
-      .eq('matchday', matchday)
-      .eq('home_id', homeId)
-      .eq('away_id', awayId);
+      .eq('matchday', matchday);
+
+    if (homeId !== undefined && awayId !== undefined) {
+      query = query.eq('home_id', homeId).eq('away_id', awayId);
+    }
+
+    const { error } = await query;
 
     if (error) throw error;
 
-    res.status(200).json({ success: true, message: 'Match reset to upcoming' });
+    res.status(200).json({ 
+      success: true, 
+      message: homeId !== undefined ? 'Match reset to upcoming' : `Reset all matches for matchday ${matchday}` 
+    });
   } catch (err) {
     console.error('Match reset error:', err);
     res.status(500).json({ error: 'Failed to reset match' });

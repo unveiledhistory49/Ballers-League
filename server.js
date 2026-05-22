@@ -147,7 +147,44 @@ app.put('/api/admin/match', requireAdmin, (req, res) => {
   }
 });
 
-// ── PUT /api/admin/match/reset — Reset a match result ─────────
+// ── DELETE /api/admin/match — Reset a match or entire matchday ────
+app.delete('/api/admin/match', requireAdmin, (req, res) => {
+  try {
+    const { matchday, homeId, awayId } = req.body;
+
+    const db = loadDB();
+    const md = db.fixtures.find(f => f.matchday === matchday);
+    if (!md) return res.status(404).json({ error: 'Matchday not found' });
+
+    // If homeId and awayId are not specified, reset the whole matchday
+    if (homeId === undefined && awayId === undefined) {
+      md.matches.forEach(m => {
+        m.homeScore = null;
+        m.awayScore = null;
+        m.status = 'upcoming';
+      });
+      saveDB(db);
+      return res.json({ success: true, message: `Reset all matches for matchday ${matchday}` });
+    }
+
+    const match = md.matches.find(
+      m => m.home.id === homeId && m.away.id === awayId
+    );
+    if (!match) return res.status(404).json({ error: 'Match not found' });
+
+    match.homeScore = null;
+    match.awayScore = null;
+    match.status = 'upcoming';
+
+    saveDB(db);
+
+    res.json({ success: true, message: 'Match reset to upcoming' });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to reset match' });
+  }
+});
+
+// ── PUT /api/admin/match/reset — Reset a match result (Legacy) ──
 app.put('/api/admin/match/reset', requireAdmin, (req, res) => {
   try {
     const { matchday, homeId, awayId } = req.body;
