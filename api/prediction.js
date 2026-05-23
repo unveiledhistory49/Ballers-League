@@ -17,7 +17,8 @@ module.exports = async function handler(req, res) {
     }
 
     // Capture requester's IP on Vercel serverless proxy
-    const ip = req.headers['x-real-ip'] || req.headers['x-forwarded-for'] || '127.0.0.1';
+    const rawIp = req.headers['x-real-ip'] || req.headers['x-forwarded-for'] || '127.0.0.1';
+    const ip = rawIp.split(',')[0].trim();
 
     const supabase = getSupabase();
 

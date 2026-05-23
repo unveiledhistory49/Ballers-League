@@ -113,8 +113,8 @@ app.post('/api/prediction', (req, res) => {
       return res.status(400).json({ error: 'Invalid option. Must be home, draw, or away' });
     }
 
-    // Capture requester's IP
-    const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress || '127.0.0.1';
+    const rawIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress || '127.0.0.1';
+    const ip = rawIp.split(',')[0].trim();
 
     const db = loadDB();
 
@@ -165,14 +165,10 @@ app.post('/api/prediction', (req, res) => {
 // ── PUT /api/admin/match — Update a match result ──────────────
 app.put('/api/admin/match', requireAdmin, (req, res) => {
   try {
-    const { matchday, homeId, awayId, homeScore, awayScore } = req.body;
+    const { matchday, homeId, awayId, homeScore, awayScore, status, streamUrl } = req.body;
 
     if (matchday === undefined || homeId === undefined || awayId === undefined) {
       return res.status(400).json({ error: 'Missing matchday, homeId, or awayId' });
-    }
-
-    if (homeScore === undefined || awayScore === undefined) {
-      return res.status(400).json({ error: 'Missing homeScore or awayScore' });
     }
 
     const db = loadDB();
@@ -192,15 +188,26 @@ app.put('/api/admin/match', requireAdmin, (req, res) => {
     }
 
     // Update
-    match.homeScore = parseInt(homeScore, 10);
-    match.awayScore = parseInt(awayScore, 10);
-    match.status = 'completed';
+    if (homeScore !== undefined && homeScore !== null && homeScore !== '') {
+      match.homeScore = parseInt(homeScore, 10);
+    } else {
+      match.homeScore = null;
+    }
+
+    if (awayScore !== undefined && awayScore !== null && awayScore !== '') {
+      match.awayScore = parseInt(awayScore, 10);
+    } else {
+      match.awayScore = null;
+    }
+
+    match.status = status || 'completed';
+    match.streamUrl = streamUrl || null;
 
     saveDB(db);
 
     res.json({
       success: true,
-      message: `Updated: ${match.home.player} ${match.homeScore} - ${match.awayScore} ${match.away.player}`,
+      message: `Updated match status to ${match.status}`,
       match,
     });
   } catch (err) {
