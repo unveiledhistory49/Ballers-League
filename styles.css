@@ -620,6 +620,7 @@ body {
   transition: all 0.25s ease;
   animation: cardIn 0.4s var(--ease-out) forwards;
   opacity: 0;
+  cursor: pointer;
 }
 
 .fixture-card:hover {
@@ -1541,4 +1542,116 @@ body {
 .snapshot-render .snap-history-result-badge.d {
   background: rgba(255, 255, 255, 0.08);
   color: rgba(255,255,255,0.65);
+}
+
+/* ── Match Prediction Widget ──────────────────────────────────── */
+.fixture-prediction {
+  max-height: 0;
+  overflow: hidden;
+  opacity: 0;
+  margin-top: 0;
+  border-top: 1px dashed transparent;
+  padding-top: 0;
+  transition: max-height 0.3s var(--ease-out), margin-top 0.3s ease, opacity 0.3s ease, padding-top 0.3s ease;
+}
+
+.fixture-card.expanded .fixture-prediction {
+  max-height: 150px;
+  opacity: 1;
+  margin-top: 16px;
+  border-top-color: var(--border-subtle);
+  padding-top: 16px;
+}
+
+.prediction-title-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.prediction-title {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 0.9rem;
+  color: var(--text-primary);
+}
+
+.prediction-subtitle {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.prediction-options {
+  display: flex;
+  gap: 8px;
+}
+
+.prediction-btn {
+  position: relative;
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 38px;
+  background: none;
+  border: 1px solid var(--border-medium);
+  border-radius: 19px;
+  color: var(--text-primary);
+  font-family: var(--font-body);
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+  overflow: hidden;
+  z-index: 1;
+  transition: all 0.25s var(--ease-out);
+}
+
+.prediction-btn:hover {
+  border-color: var(--border-accent);
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.prediction-btn img {
+  width: 18px;
+  height: 18px;
+  object-fit: cover;
+  border-radius: 50%;
+}
+
+.prediction-btn-fill {
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  background: rgba(255, 255, 255, 0.04);
+  z-index: -1;
+  transition: width 0.6s var(--ease-out);
+}
+
+.prediction-options.voted .prediction-btn {
+  pointer-events: none;
+}
+
+.prediction-options.voted .prediction-btn.selected {
+  border-color: var(--accent-gold);
+  color: var(--accent-gold);
+}
+
+.prediction-options.voted .prediction-btn.selected .prediction-btn-fill {
+  background: rgba(200, 168, 78, 0.16);
+}
+
+.prediction-options.voted .prediction-btn:not(.selected) {
+  opacity: 0.5;
+}
+
+.prediction-percent {
+  margin-left: auto;
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 0.85rem;
+  padding-right: 2px;
 }

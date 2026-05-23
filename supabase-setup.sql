@@ -23,6 +23,7 @@ CREATE TABLE IF NOT EXISTS matches (
   home_score INTEGER DEFAULT NULL,
   away_score INTEGER DEFAULT NULL,
   status TEXT NOT NULL DEFAULT 'upcoming',
+  predictions JSONB DEFAULT '{"home": 0, "draw": 0, "away": 0, "ips": []}',
   UNIQUE(matchday, home_id, away_id)
 );
 

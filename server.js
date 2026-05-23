@@ -100,6 +100,68 @@ app.post('/api/admin/login', (req, res) => {
   }
 });
 
+// ── POST /api/prediction — Cast a prediction vote ──────────────
+app.post('/api/prediction', (req, res) => {
+  try {
+    const { matchday, homeId, awayId, option } = req.body;
+
+    if (matchday === undefined || homeId === undefined || awayId === undefined || !option) {
+      return res.status(400).json({ error: 'Missing matchday, homeId, awayId, or option' });
+    }
+
+    if (option !== 'home' && option !== 'draw' && option !== 'away') {
+      return res.status(400).json({ error: 'Invalid option. Must be home, draw, or away' });
+    }
+
+    // Capture requester's IP
+    const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress || '127.0.0.1';
+
+    const db = loadDB();
+
+    // Find the matchday
+    const md = db.fixtures.find(f => f.matchday === parseInt(matchday, 10));
+    if (!md) {
+      return res.status(404).json({ error: `Matchday ${matchday} not found` });
+    }
+
+    // Find the match
+    const match = md.matches.find(
+      m => m.home.id === parseInt(homeId, 10) && m.away.id === parseInt(awayId, 10)
+    );
+    if (!match) {
+      return res.status(404).json({ error: 'Match not found' });
+    }
+
+    // Initialize predictions if missing
+    if (!match.predictions) {
+      match.predictions = { home: 0, draw: 0, away: 0, ips: [] };
+    }
+    if (!match.predictions.ips) {
+      match.predictions.ips = [];
+    }
+
+    // Check if IP already voted
+    if (match.predictions.ips.includes(ip)) {
+      return res.status(400).json({ error: 'Already voted from this IP' });
+    }
+
+    // Record vote
+    match.predictions.ips.push(ip);
+    match.predictions[option] = (match.predictions[option] || 0) + 1;
+
+    saveDB(db);
+
+    res.json({
+      success: true,
+      message: `Vote recorded for ${option}`,
+      predictions: match.predictions,
+    });
+  } catch (err) {
+    console.error('Error recording prediction:', err);
+    res.status(500).json({ error: 'Failed to record prediction' });
+  }
+});
+
 // ── PUT /api/admin/match — Update a match result ──────────────
 app.put('/api/admin/match', requireAdmin, (req, res) => {
   try {

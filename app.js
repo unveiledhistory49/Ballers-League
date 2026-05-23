@@ -277,6 +277,7 @@ function renderFixtures(direction = null) {
     const card = document.createElement("div");
     card.className = "fixture-card";
     card.style.animationDelay = `${idx * 0.06}s`;
+    card.onclick = () => togglePredictionCard(card, md.matchday, match.home.id, match.away.id);
 
     const homeColors = clubColors[match.home.club] || { bg: "#333", text: "#fff" };
     const awayColors = clubColors[match.away.club] || { bg: "#333", text: "#fff" };
@@ -330,6 +331,10 @@ function renderFixtures(direction = null) {
         </div>
       </div>
     `;
+
+    const predDiv = document.createElement("div");
+    predDiv.className = "fixture-prediction";
+    card.appendChild(predDiv);
 
     container.appendChild(card);
   });
@@ -683,6 +688,7 @@ function showTeamHistory(teamId) {
     const card = document.createElement("div");
     card.className = "fixture-card history-card";
     card.style.animationDelay = `${idx * 0.04}s`;
+    card.onclick = () => togglePredictionCard(card, md.matchday, match.home.id, match.away.id);
 
     // Compute result badge & styling
     let outcome = "";
@@ -756,6 +762,11 @@ function showTeamHistory(teamId) {
         </div>
       </div>
     `;
+
+    const predDiv = document.createElement("div");
+    predDiv.className = "fixture-prediction";
+    card.appendChild(predDiv);
+
     container.appendChild(card);
   });
 
@@ -852,5 +863,183 @@ function buildHistorySnapshot() {
   html += `<div class="snap-footer">ballersleague.vercel.app · ${new Date().toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}</div>`;
 
   return html;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// MATCH PREDICTIONS & SAFEGUARDS
+// ═══════════════════════════════════════════════════════════════
+
+function togglePredictionCard(card, matchday, homeId, awayId) {
+  const isExpanded = card.classList.contains("expanded");
+
+  // Collapse all other expanded cards
+  document.querySelectorAll(".fixture-card.expanded").forEach(c => {
+    if (c !== card) c.classList.remove("expanded");
+  });
+
+  if (isExpanded) {
+    card.classList.remove("expanded");
+  } else {
+    card.classList.add("expanded");
+    const predContainer = card.querySelector(".fixture-prediction");
+    if (predContainer) {
+      const md = leagueData.fixtures.find(f => f.matchday === matchday);
+      const match = md.matches.find(m => m.home.id === homeId && m.away.id === awayId);
+      renderPredictionWidget(
+        predContainer,
+        matchday,
+        homeId,
+        awayId,
+        match.home.club,
+        match.away.club,
+        match.status,
+        match.predictions
+      );
+    }
+  }
+}
+
+function getMatchVotes(matchday, homeId, awayId, serverPredictions) {
+  // Deterministic seed for background mock votes
+  const seed = (parseInt(matchday) * 7 + parseInt(homeId) * 13 + parseInt(awayId) * 17) % 100;
+  
+  const homeMock = 20 + (seed % 50);   // 20 to 69
+  const awayMock = 15 + ((seed * 3) % 45); // 15 to 59
+  const drawMock = 10 + ((seed * 7) % 30);  // 10 to 39
+
+  const homeReal = (serverPredictions && serverPredictions.home) || 0;
+  const awayReal = (serverPredictions && serverPredictions.away) || 0;
+  const drawReal = (serverPredictions && serverPredictions.draw) || 0;
+
+  const home = homeMock + homeReal;
+  const away = awayMock + awayReal;
+  const draw = drawMock + drawReal;
+  const total = home + away + draw;
+
+  return { home, draw, away, total };
+}
+
+function renderPredictionWidget(container, matchday, homeId, awayId, homeClub, awayClub, matchStatus, serverPredictions) {
+  const localStorageKey = `prediction-${matchday}-${homeId}-${awayId}`;
+  const userVote = localStorage.getItem(localStorageKey);
+  const isCompleted = matchStatus === "completed";
+  const hasVoted = userVote !== null || isCompleted;
+
+  const mockVotes = getMatchVotes(matchday, homeId, awayId, serverPredictions);
+
+  const homePercent = mockVotes.total > 0 ? Math.round((mockVotes.home / mockVotes.total) * 100) : 33;
+  const awayPercent = mockVotes.total > 0 ? Math.round((mockVotes.away / mockVotes.total) * 100) : 33;
+  const drawPercent = mockVotes.total > 0 ? 100 - homePercent - awayPercent : 34;
+
+  const homeLogoSrc = clubLogos[homeClub];
+  const awayLogoSrc = clubLogos[awayClub];
+  const homeShort = clubShort[homeClub] || homeClub.substring(0, 3).toUpperCase();
+  const awayShort = clubShort[awayClub] || awayClub.substring(0, 3).toUpperCase();
+
+  let optionsHTML = "";
+  if (!hasVoted) {
+    optionsHTML = `
+      <button class="prediction-btn" onclick="castPredictionVote(event, ${matchday}, ${homeId}, ${awayId}, 'home', '${homeClub}', '${awayClub}', '${matchStatus}')">
+        ${homeLogoSrc ? `<img src="${homeLogoSrc}" alt="${homeClub}">` : ""}
+        <span>${homeShort}</span>
+      </button>
+      <button class="prediction-btn" onclick="castPredictionVote(event, ${matchday}, ${homeId}, ${awayId}, 'draw', '${homeClub}', '${awayClub}', '${matchStatus}')">
+        <span>X</span>
+      </button>
+      <button class="prediction-btn" onclick="castPredictionVote(event, ${matchday}, ${homeId}, ${awayId}, 'away', '${homeClub}', '${awayClub}', '${matchStatus}')">
+        ${awayLogoSrc ? `<img src="${awayLogoSrc}" alt="${awayClub}">` : ""}
+        <span>${awayShort}</span>
+      </button>
+    `;
+  } else {
+    const homeSelected = userVote === "home" ? "selected" : "";
+    const drawSelected = userVote === "draw" ? "selected" : "";
+    const awaySelected = userVote === "away" ? "selected" : "";
+
+    optionsHTML = `
+      <button class="prediction-btn ${homeSelected}">
+        <div class="prediction-btn-fill" style="width: ${homePercent}%;"></div>
+        ${homeLogoSrc ? `<img src="${homeLogoSrc}" alt="${homeClub}">` : ""}
+        <span>${homeShort}</span>
+        <span class="prediction-percent">${homePercent}%</span>
+      </button>
+      <button class="prediction-btn ${drawSelected}">
+        <div class="prediction-btn-fill" style="width: ${drawPercent}%;"></div>
+        <span>X</span>
+        <span class="prediction-percent">${drawPercent}%</span>
+      </button>
+      <button class="prediction-btn ${awaySelected}">
+        <div class="prediction-btn-fill" style="width: ${awayPercent}%;"></div>
+        ${awayLogoSrc ? `<img src="${awayLogoSrc}" alt="${awayClub}">` : ""}
+        <span>${awayShort}</span>
+        <span class="prediction-percent">${awayPercent}%</span>
+      </button>
+    `;
+  }
+
+  const title = isCompleted ? "Final Votes" : "Who will win?";
+  const subtitle = isCompleted 
+    ? `Total votes: ${mockVotes.total}` 
+    : (userVote ? `Total votes: ${mockVotes.total}` : "Cast your vote!");
+
+  container.innerHTML = `
+    <div class="prediction-title-row">
+      <span class="prediction-title">${title}</span>
+      <span class="prediction-subtitle">${subtitle}</span>
+    </div>
+    <div class="prediction-options ${hasVoted ? 'voted' : ''}">
+      ${optionsHTML}
+    </div>
+  `;
+}
+
+async function castPredictionVote(event, matchday, homeId, awayId, selectedOption, homeClub, awayClub, matchStatus) {
+  event.stopPropagation(); // Avoid collapsing parent card
+  const localStorageKey = `prediction-${matchday}-${homeId}-${awayId}`;
+
+  try {
+    const res = await fetch("/api/prediction", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ matchday, homeId, awayId, option: selectedOption })
+    });
+
+    const data = await res.json();
+    if (!res.ok) {
+      if (data.error === "Already voted from this IP") {
+        // Safe check failed, IP already voted
+        localStorage.setItem(localStorageKey, selectedOption);
+        alert("You have already voted on this match from this IP address.");
+      } else {
+        throw new Error(data.error || "Failed to vote");
+      }
+    } else {
+      // Vote successful
+      localStorage.setItem(localStorageKey, selectedOption);
+      const md = leagueData.fixtures.find(f => f.matchday === matchday);
+      const match = md.matches.find(m => m.home.id === homeId && m.away.id === awayId);
+      match.predictions = data.predictions;
+    }
+  } catch (err) {
+    console.warn("Prediction API failed, using local fallback:", err);
+    localStorage.setItem(localStorageKey, selectedOption);
+  }
+
+  const card = event.target.closest(".fixture-card");
+  if (card) {
+    const predContainer = card.querySelector(".fixture-prediction");
+    const md = leagueData.fixtures.find(f => f.matchday === matchday);
+    const match = md.matches.find(m => m.home.id === homeId && m.away.id === awayId);
+    renderPredictionWidget(
+      predContainer,
+      matchday,
+      homeId,
+      awayId,
+      homeClub,
+      awayClub,
+      matchStatus,
+      match.predictions
+    );
+  }
 }
 
