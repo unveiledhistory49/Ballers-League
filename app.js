@@ -302,6 +302,8 @@ function renderFixtures(direction = null) {
         </div>
         <span class="score-ft">FT</span>
       `;
+    } else if (match.status === "live") {
+      scoreHTML = `<span class="score-live">LIVE</span>`;
     } else {
       scoreHTML = `<span class="score-upcoming">VS</span>`;
     }
@@ -728,6 +730,8 @@ function showTeamHistory(teamId) {
         </div>
         <span class="score-ft">FT</span>
       `;
+    } else if (match.status === "live") {
+      scoreHTML = `<span class="score-live">LIVE</span>`;
     } else {
       scoreHTML = `<span class="score-upcoming">VS</span>`;
     }
@@ -874,19 +878,55 @@ function togglePredictionCard(card, matchday, homeId, awayId) {
 
   // Collapse all other expanded cards
   document.querySelectorAll(".fixture-card.expanded").forEach(c => {
-    if (c !== card) c.classList.remove("expanded");
+    if (c !== card) {
+      c.classList.remove("expanded");
+      // Stop and pause video players in collapsed cards
+      const video = c.querySelector("video");
+      if (video) video.pause();
+    }
   });
 
   if (isExpanded) {
     card.classList.remove("expanded");
+    // Pause video
+    const video = card.querySelector("video");
+    if (video) video.pause();
   } else {
     card.classList.add("expanded");
     const predContainer = card.querySelector(".fixture-prediction");
     if (predContainer) {
       const md = leagueData.fixtures.find(f => f.matchday === matchday);
       const match = md.matches.find(m => m.home.id === homeId && m.away.id === awayId);
+
+      const isLive = match.status === "live";
+      const isUpcoming = match.status === "upcoming";
+
+      let tabsHTML = "";
+      if (isLive || isUpcoming) {
+        tabsHTML = `
+          <div class="fixture-expanded-tabs" onclick="event.stopPropagation()">
+            <button class="fixture-expanded-tab ${!isLive ? 'active' : ''}" id="tab-pred-${matchday}-${homeId}-${awayId}" onclick="switchPanel(event, ${matchday}, ${homeId}, ${awayId}, 'pred')">Prediction</button>
+            <button class="fixture-expanded-tab ${isLive ? 'active' : ''}" id="tab-live-${matchday}-${homeId}-${awayId}" onclick="switchPanel(event, ${matchday}, ${homeId}, ${awayId}, 'live')">Watch Live</button>
+          </div>
+        `;
+      }
+
+      predContainer.innerHTML = `
+        ${tabsHTML}
+        <div class="fixture-panel ${!isLive ? 'active' : ''}" id="panel-pred-${matchday}-${homeId}-${awayId}" onclick="event.stopPropagation()">
+          <div class="prediction-poll-wrapper"></div>
+        </div>
+        ${(isLive || isUpcoming) ? `
+          <div class="fixture-panel ${isLive ? 'active' : ''}" id="panel-live-${matchday}-${homeId}-${awayId}" onclick="event.stopPropagation()">
+            <div class="live-stream-wrapper"></div>
+          </div>
+        ` : ''}
+      `;
+
+      // Render prediction widget inside wrapper
+      const pollWrapper = predContainer.querySelector(".prediction-poll-wrapper");
       renderPredictionWidget(
-        predContainer,
+        pollWrapper,
         matchday,
         homeId,
         awayId,
@@ -895,6 +935,12 @@ function togglePredictionCard(card, matchday, homeId, awayId) {
         match.status,
         match.predictions
       );
+
+      // Render video player inside stream wrapper
+      if (isLive || isUpcoming) {
+        const streamWrapper = predContainer.querySelector(".live-stream-wrapper");
+        renderStreamPlayer(streamWrapper, matchday, homeId, awayId, match.home.player, match.away.player, isLive);
+      }
     }
   }
 }
@@ -1027,11 +1073,12 @@ async function castPredictionVote(event, matchday, homeId, awayId, selectedOptio
 
   const card = event.target.closest(".fixture-card");
   if (card) {
-    const predContainer = card.querySelector(".fixture-prediction");
+    const pollWrapper = card.querySelector(".prediction-poll-wrapper");
+    const target = pollWrapper || card.querySelector(".fixture-prediction");
     const md = leagueData.fixtures.find(f => f.matchday === matchday);
     const match = md.matches.find(m => m.home.id === homeId && m.away.id === awayId);
     renderPredictionWidget(
-      predContainer,
+      target,
       matchday,
       homeId,
       awayId,
@@ -1042,4 +1089,312 @@ async function castPredictionVote(event, matchday, homeId, awayId, selectedOptio
     );
   }
 }
+
+// ── Streaming Configuration
+const STREAM_VIDEO_URL = "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4";
+
+// Toggle panels (Prediction tab vs Stream Player tab)
+function switchPanel(event, matchday, homeId, awayId, type) {
+  event.stopPropagation();
+
+  const tabPred = document.getElementById(`tab-pred-${matchday}-${homeId}-${awayId}`);
+  const tabLive = document.getElementById(`tab-live-${matchday}-${homeId}-${awayId}`);
+
+  const panelPred = document.getElementById(`panel-pred-${matchday}-${homeId}-${awayId}`);
+  const panelLive = document.getElementById(`panel-live-${matchday}-${homeId}-${awayId}`);
+
+  if (type === 'pred') {
+    if (tabPred) tabPred.classList.add('active');
+    if (tabLive) tabLive.classList.remove('active');
+    if (panelPred) panelPred.classList.add('active');
+    if (panelLive) {
+      panelLive.classList.remove('active');
+      const video = panelLive.querySelector("video");
+      if (video) video.pause();
+    }
+  } else {
+    if (tabPred) tabPred.classList.remove('active');
+    if (tabLive) tabLive.classList.add('active');
+    if (panelPred) panelPred.classList.remove('active');
+    if (panelLive) {
+      panelLive.classList.add('active');
+      const video = panelLive.querySelector("video");
+      if (video) video.play().catch(() => {});
+    }
+  }
+}
+
+// Render custom simulation live stream player
+function renderStreamPlayer(container, matchday, homeId, awayId, homePlayer, awayPlayer, isLive) {
+  if (!isLive) {
+    container.innerHTML = `
+      <div class="stream-player-container" style="display:flex;flex-direction:column;align-items:center;justify-content:center;aspect-ratio:16/9;background:#000;border:1px solid var(--border-medium);border-radius:12px;">
+        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M23 7l-7 5 7 5V7z"></path>
+          <rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect>
+        </svg>
+        <span style="font-size:0.8rem;color:var(--text-muted);font-weight:700;margin-top:12px;">Match has not started</span>
+        <span style="font-size:0.65rem;color:var(--text-muted);opacity:0.8;">Stream will be available once the match is live.</span>
+      </div>
+    `;
+    return;
+  }
+
+  const playerId = `video-${matchday}-${homeId}-${awayId}`;
+
+  container.innerHTML = `
+    <div class="stream-player-container" id="player-container-${playerId}">
+      <div class="stream-feed-selector">
+        <button class="stream-feed-btn active" id="btn-feed-home-${playerId}" onclick="changeStreamFeed(event, '${playerId}', 'home', '${homePlayer}', '${awayPlayer}')">
+          ${homePlayer}'s Feed
+        </button>
+        <button class="stream-feed-btn" id="btn-feed-away-${playerId}" onclick="changeStreamFeed(event, '${playerId}', 'away', '${homePlayer}', '${awayPlayer}')">
+          ${awayPlayer}'s Feed
+        </button>
+      </div>
+
+      <div class="stream-video-wrapper">
+        <video id="${playerId}" src="${STREAM_VIDEO_URL}" autoplay muted loop playsinline></video>
+        
+        <div class="stream-buffering-overlay" id="overlay-buffer-${playerId}">
+          <div class="stream-spinner"></div>
+          <span class="stream-buffering-text" id="text-buffer-${playerId}">CONNECTING TO MATCH...</span>
+        </div>
+
+        <div class="stream-controls-overlay">
+          <div class="stream-controls-left">
+            <button class="stream-control-btn" onclick="toggleStreamPlay(event, '${playerId}')" id="btn-play-${playerId}" title="Pause">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                <rect x="6" y="4" width="4" height="16"></rect>
+                <rect x="14" y="4" width="4" height="16"></rect>
+              </svg>
+            </button>
+            
+            <div class="volume-slider-container">
+              <button class="stream-control-btn" onclick="toggleStreamMute(event, '${playerId}')" id="btn-volume-${playerId}" title="Mute">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77zM3 9v6h4l5 5V4L7 9H3z"></path>
+                </svg>
+              </button>
+              <input type="range" class="volume-slider" min="0" max="1" step="0.1" value="0" oninput="changeStreamVolume(event, '${playerId}')" id="slider-volume-${playerId}">
+            </div>
+          </div>
+
+          <div class="stream-controls-right">
+            <div class="quality-selector">
+              <button class="quality-btn" onclick="toggleQualityMenu(event, '${playerId}')" id="btn-quality-${playerId}">
+                <span>720p</span>
+                <svg width="10" height="10" viewBox="0 0 20 20" fill="currentColor">
+                  <path d="M5 7 L10 13 L15 7" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+                </svg>
+              </button>
+              <div class="quality-menu" id="menu-quality-${playerId}">
+                <button class="quality-item active" onclick="changeStreamQuality(event, '${playerId}', '720p')">720p</button>
+                <button class="quality-item" onclick="changeStreamQuality(event, '${playerId}', '480p')">480p</button>
+                <button class="quality-item" onclick="changeStreamQuality(event, '${playerId}', '360p')">360p</button>
+              </div>
+            </div>
+
+            <button class="stream-control-btn" onclick="toggleStreamFullscreen(event, '${playerId}')" title="Fullscreen">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+
+  // Bind dropdown click listener to close when clicked outside
+  if (!window.hasGlobalQualityMenuListener) {
+    document.addEventListener("click", () => {
+      document.querySelectorAll(".quality-menu.show").forEach(m => m.classList.remove("show"));
+    });
+    window.hasGlobalQualityMenuListener = true;
+  }
+}
+
+// Custom Player Controls logic
+function toggleStreamPlay(event, playerId) {
+  event.stopPropagation();
+  const video = document.getElementById(playerId);
+  const btn = document.getElementById(`btn-play-${playerId}`);
+  if (!video || !btn) return;
+
+  if (video.paused) {
+    video.play().catch(() => {});
+    btn.innerHTML = `
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+        <rect x="6" y="4" width="4" height="16"></rect>
+        <rect x="14" y="4" width="4" height="16"></rect>
+      </svg>
+    `;
+    btn.title = "Pause";
+  } else {
+    video.pause();
+    btn.innerHTML = `
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+        <path d="M8 5v14l11-7z"></path>
+      </svg>
+    `;
+    btn.title = "Play";
+  }
+}
+
+function toggleStreamMute(event, playerId) {
+  event.stopPropagation();
+  const video = document.getElementById(playerId);
+  const slider = document.getElementById(`slider-volume-${playerId}`);
+  const btn = document.getElementById(`btn-volume-${playerId}`);
+  if (!video || !slider || !btn) return;
+
+  if (video.muted || video.volume === 0) {
+    video.muted = false;
+    video.volume = 0.5;
+    slider.value = 0.5;
+    btn.innerHTML = `
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+        <path d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77zM3 9v6h4l5 5V4L7 9H3z"></path>
+      </svg>
+    `;
+  } else {
+    video.muted = true;
+    video.volume = 0;
+    slider.value = 0;
+    btn.innerHTML = `
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+        <path d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.21.05-.42.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51C20.63 14.91 21 13.5 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06c1.38-.31 2.63-.95 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3zM12 4L9.91 6.09 12 8.18V4z"></path>
+      </svg>
+    `;
+  }
+}
+
+function changeStreamVolume(event, playerId) {
+  event.stopPropagation();
+  const video = document.getElementById(playerId);
+  const slider = event.target;
+  const btn = document.getElementById(`btn-volume-${playerId}`);
+  if (!video || !btn) return;
+
+  video.volume = slider.value;
+  video.muted = slider.value == 0;
+
+  if (video.muted) {
+    btn.innerHTML = `
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+        <path d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.21.05-.42.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51C20.63 14.91 21 13.5 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06c1.38-.31 2.63-.95 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3zM12 4L9.91 6.09 12 8.18V4z"></path>
+      </svg>
+    `;
+  } else {
+    btn.innerHTML = `
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+        <path d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77zM3 9v6h4l5 5V4L7 9H3z"></path>
+      </svg>
+    `;
+  }
+}
+
+function toggleQualityMenu(event, playerId) {
+  event.stopPropagation();
+  const menu = document.getElementById(`menu-quality-${playerId}`);
+  if (menu) menu.classList.toggle("show");
+}
+
+function changeStreamQuality(event, playerId, quality) {
+  event.stopPropagation();
+  const menu = document.getElementById(`menu-quality-${playerId}`);
+  const btn = document.getElementById(`btn-quality-${playerId}`);
+  const overlay = document.getElementById(`overlay-buffer-${playerId}`);
+  const text = document.getElementById(`text-buffer-${playerId}`);
+  const video = document.getElementById(playerId);
+
+  if (menu) menu.classList.remove("show");
+  if (btn) btn.querySelector("span").textContent = quality;
+
+  if (overlay && text) {
+    text.textContent = `SWITCHING TO ${quality.toUpperCase()}...`;
+    overlay.classList.add("active");
+  }
+
+  if (video) {
+    video.pause();
+  }
+
+  setTimeout(() => {
+    if (overlay) overlay.classList.remove("active");
+    if (video) {
+      if (quality === '360p') {
+        video.style.filter = 'blur(1.5px) contrast(0.95)';
+      } else if (quality === '480p') {
+        video.style.filter = 'blur(0.6px)';
+      } else {
+        video.style.filter = 'none';
+      }
+      video.play().catch(() => {});
+    }
+  }, 900);
+
+  if (menu) {
+    menu.querySelectorAll(".quality-item").forEach(item => {
+      if (item.textContent === quality) {
+        item.classList.add("active");
+      } else {
+        item.classList.remove("active");
+      }
+    });
+  }
+}
+
+function changeStreamFeed(event, playerId, type, homePlayer, awayPlayer) {
+  event.stopPropagation();
+  const overlay = document.getElementById(`overlay-buffer-${playerId}`);
+  const text = document.getElementById(`text-buffer-${playerId}`);
+  const btnHome = document.getElementById(`btn-feed-home-${playerId}`);
+  const btnAway = document.getElementById(`btn-feed-away-${playerId}`);
+  const video = document.getElementById(playerId);
+
+  if (btnHome && btnAway) {
+    if (type === 'home') {
+      btnHome.classList.add("active");
+      btnAway.classList.remove("active");
+    } else {
+      btnHome.classList.remove("active");
+      btnAway.classList.add("active");
+    }
+  }
+
+  if (overlay && text) {
+    const activePlayer = type === 'home' ? homePlayer : awayPlayer;
+    text.textContent = `CONNECTING TO ${activePlayer.toUpperCase()}'S FEED...`;
+    overlay.classList.add("active");
+  }
+
+  if (video) {
+    video.pause();
+  }
+
+  setTimeout(() => {
+    if (overlay) overlay.classList.remove("active");
+    if (video) {
+      video.src = STREAM_VIDEO_URL + (type === 'away' ? "?feed=away" : "");
+      video.play().catch(() => {});
+    }
+  }, 1000);
+}
+
+function toggleStreamFullscreen(event, playerId) {
+  event.stopPropagation();
+  const container = document.getElementById(`player-container-${playerId}`);
+  if (!container) return;
+
+  if (!document.fullscreenElement) {
+    container.requestFullscreen().catch(err => {
+      console.error(`Fullscreen failed: ${err.message}`);
+    });
+  } else {
+    document.exitFullscreen();
+  }
+}
+
 
