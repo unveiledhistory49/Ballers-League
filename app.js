@@ -7,6 +7,7 @@
 // ── State ──────────────────────────────────────────────────────
 let leagueData = null;
 let currentMatchday = 0; // 0-indexed
+let selectedTeamIdForHistory = null;
 let touchStartX = 0;
 let touchEndX = 0;
 const SWIPE_THRESHOLD = 50;
@@ -74,7 +75,8 @@ document.addEventListener("DOMContentLoaded", async () => {
 function switchPage(page) {
   // Update nav
   document.querySelectorAll(".nav-tab").forEach(t => t.classList.remove("active"));
-  document.getElementById(`nav-${page}`).classList.add("active");
+  const navTab = document.getElementById(`nav-${page}`);
+  if (navTab) navTab.classList.add("active");
 
   // Update pages
   document.querySelectorAll(".page").forEach(p => p.classList.remove("active"));
@@ -185,6 +187,7 @@ function renderStandings() {
     const pos = idx + 1;
     const row = document.createElement("div");
     row.className = "table-row";
+    row.onclick = () => showTeamHistory(team.id);
     if (pos <= 4) row.classList.add("top-zone");
     if (pos >= standings.length - 2) row.classList.add("danger-zone");
     row.style.animationDelay = `${idx * 0.04}s`;
@@ -567,7 +570,10 @@ function buildFixturesSnapshot() {
 async function downloadSnapshot(type) {
   if (!leagueData) return;
 
-  const btn = document.getElementById(type === "standings" ? "btn-download-standings" : "btn-download-fixtures");
+  const btn = document.getElementById(
+    type === "standings" ? "btn-download-standings" : 
+    (type === "fixtures" ? "btn-download-fixtures" : "btn-download-history")
+  );
   btn.classList.add("downloading");
   showSnapshotOverlay();
 
@@ -578,7 +584,14 @@ async function downloadSnapshot(type) {
   container = document.createElement("div");
   container.id = "snapshot-container";
   container.className = "snapshot-render";
-  container.innerHTML = type === "standings" ? buildStandingsSnapshot() : buildFixturesSnapshot();
+  
+  if (type === "standings") {
+    container.innerHTML = buildStandingsSnapshot();
+  } else if (type === "fixtures") {
+    container.innerHTML = buildFixturesSnapshot();
+  } else if (type === "history") {
+    container.innerHTML = buildHistorySnapshot();
+  }
   document.body.appendChild(container);
 
   // Wait for images to load
@@ -612,7 +625,9 @@ async function downloadSnapshot(type) {
     const link = document.createElement("a");
     const filename = type === "standings"
       ? `ballers-league-standings.png`
-      : `ballers-league-matchday-${leagueData.fixtures[currentMatchday].matchday}.png`;
+      : (type === "fixtures"
+        ? `ballers-league-matchday-${leagueData.fixtures[currentMatchday].matchday}.png`
+        : `ballers-league-${leagueData.teams.find(t => t.id === selectedTeamIdForHistory).player.toLowerCase()}-history.png`);
     link.download = filename;
     link.href = canvas.toDataURL("image/png");
     link.click();
@@ -624,5 +639,218 @@ async function downloadSnapshot(type) {
     btn.classList.remove("downloading");
     hideSnapshotOverlay();
   }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// TEAM FIXTURE HISTORY
+// ═══════════════════════════════════════════════════════════════
+function showTeamHistory(teamId) {
+  selectedTeamIdForHistory = teamId;
+  const team = leagueData.teams.find(t => t.id === teamId);
+  if (!team) return;
+
+  // Banner details
+  document.getElementById("history-team-player").textContent = team.player;
+  document.getElementById("history-team-club").textContent = team.club;
+
+  const colors = clubColors[team.club] || { bg: "#333", text: "#fff" };
+  const short = clubShort[team.club] || team.club.substring(0, 3).toUpperCase();
+  const logoSrc = clubLogos[team.club];
+  const logoHTML = logoSrc
+    ? `<img src="${logoSrc}" alt="${team.club}" loading="lazy">`
+    : short;
+
+  const logoContainer = document.getElementById("history-team-logo-container");
+  if (logoSrc) {
+    logoContainer.style.background = "";
+    logoContainer.style.color = "";
+    logoContainer.style.borderColor = "";
+  } else {
+    logoContainer.style.background = colors.bg;
+    logoContainer.style.color = colors.text;
+    logoContainer.style.borderColor = `${colors.bg}40`;
+  }
+  logoContainer.innerHTML = logoHTML;
+
+  // Filter and Render Matches
+  const container = document.getElementById("history-container");
+  container.innerHTML = "";
+
+  leagueData.fixtures.forEach((md, idx) => {
+    const match = md.matches.find(m => m.home.id === teamId || m.away.id === teamId);
+    if (!match) return;
+
+    const card = document.createElement("div");
+    card.className = "fixture-card history-card";
+    card.style.animationDelay = `${idx * 0.04}s`;
+
+    // Compute result badge & styling
+    let outcome = "";
+    let outcomeClass = "";
+    let outcomeBadge = "";
+    if (match.status === "completed" && match.homeScore !== null && match.awayScore !== null) {
+      if (match.home.id === teamId) {
+        outcome = match.homeScore > match.awayScore ? "W" : (match.homeScore < match.awayScore ? "L" : "D");
+      } else {
+        outcome = match.awayScore > match.homeScore ? "W" : (match.awayScore < match.homeScore ? "L" : "D");
+      }
+      outcomeClass = `result-${outcome.toLowerCase()}`;
+      const badgeClass = outcome === "W" ? "win" : (outcome === "L" ? "loss" : "draw");
+      outcomeBadge = `<span class="match-result-badge ${badgeClass}">${outcome}</span>`;
+    }
+
+    if (outcomeClass) {
+      card.classList.add(outcomeClass);
+    }
+
+    const homeColors = clubColors[match.home.club] || { bg: "#333", text: "#fff" };
+    const awayColors = clubColors[match.away.club] || { bg: "#333", text: "#fff" };
+    const homeShort = clubShort[match.home.club] || match.home.club.substring(0, 3).toUpperCase();
+    const awayShort = clubShort[match.away.club] || match.away.club.substring(0, 3).toUpperCase();
+    const homeLogoSrc = clubLogos[match.home.club];
+    const awayLogoSrc = clubLogos[match.away.club];
+    const homeLogoHTML = homeLogoSrc ? `<img src="${homeLogoSrc}" alt="${match.home.club}" loading="lazy">` : homeShort;
+    const awayLogoHTML = awayLogoSrc ? `<img src="${awayLogoSrc}" alt="${match.away.club}" loading="lazy">` : awayShort;
+
+    let scoreHTML;
+    if (match.status === "completed" && match.homeScore !== null) {
+      scoreHTML = `
+        <div class="score-display">
+          <span>${match.homeScore}</span>
+          <span class="score-separator">-</span>
+          <span>${match.awayScore}</span>
+        </div>
+        <span class="score-ft">FT</span>
+      `;
+    } else {
+      scoreHTML = `<span class="score-upcoming">VS</span>`;
+    }
+
+    // Highlight our team's side
+    const isHome = match.home.id === teamId;
+    const homeHighlight = isHome ? "style='color: var(--accent-gold); font-weight: 700;'" : "";
+    const awayHighlight = !isHome ? "style='color: var(--accent-gold); font-weight: 700;'" : "";
+
+    card.innerHTML = `
+      <div class="fixture-label">
+        <span>Matchday ${md.matchday}</span>
+        ${outcomeBadge}
+      </div>
+      <div class="fixture-match">
+        <div class="fixture-team">
+          <div class="fixture-team-logo" style="${!homeLogoSrc ? `background: ${homeColors.bg}; color: ${homeColors.text}; border-color: ${homeColors.bg}40;` : ''}">
+            ${homeLogoHTML}
+          </div>
+          <span class="fixture-team-player" ${homeHighlight}>${match.home.player}</span>
+          <span class="fixture-team-club">${match.home.club}</span>
+        </div>
+        <div class="fixture-score">
+          ${scoreHTML}
+        </div>
+        <div class="fixture-team">
+          <div class="fixture-team-logo" style="${!awayLogoSrc ? `background: ${awayColors.bg}; color: ${awayColors.text}; border-color: ${awayColors.bg}40;` : ''}">
+            ${awayLogoHTML}
+          </div>
+          <span class="fixture-team-player" ${awayHighlight}>${match.away.player}</span>
+          <span class="fixture-team-club">${match.away.club}</span>
+        </div>
+      </div>
+    `;
+    container.appendChild(card);
+  });
+
+  switchPage("history");
+}
+
+function buildHistorySnapshot() {
+  const team = leagueData.teams.find(t => t.id === selectedTeamIdForHistory);
+  if (!team) return "";
+
+  let html = buildSnapshotHeader(`${team.player} (${team.club}) — Fixture History`);
+
+  html += `
+    <div class="snap-history-banner">
+      <div class="snap-history-team-logo">
+        ${clubLogos[team.club] ? `<img src="${clubLogos[team.club]}" alt="${team.club}">` : `<span style="font-size:10px;font-weight:700;color:rgba(255,255,255,0.5)">${(clubShort[team.club] || team.club.substring(0,3).toUpperCase())}</span>`}
+      </div>
+      <div class="snap-history-team-info">
+        <h3>${team.player}</h3>
+        <span>${team.club}</span>
+      </div>
+    </div>
+  `;
+
+  html += `<div class="snap-history-grid">`;
+
+  // Collect matches
+  const matches = [];
+  leagueData.fixtures.forEach(md => {
+    const match = md.matches.find(m => m.home.id === team.id || m.away.id === team.id);
+    if (match) {
+      matches.push({ matchday: md.matchday, ...match });
+    }
+  });
+
+  matches.forEach(match => {
+    const homeLogoSrc = clubLogos[match.home.club];
+    const awayLogoSrc = clubLogos[match.away.club];
+    const homeLogoHTML = homeLogoSrc
+      ? `<img src="${homeLogoSrc}" alt="${match.home.club}">`
+      : `<span style="font-size:9px;font-weight:700;color:rgba(255,255,255,0.5)">${(clubShort[match.home.club] || match.home.club.substring(0,3).toUpperCase())}</span>`;
+    const awayLogoHTML = awayLogoSrc
+      ? `<img src="${awayLogoSrc}" alt="${match.away.club}">`
+      : `<span style="font-size:9px;font-weight:700;color:rgba(255,255,255,0.5)">${(clubShort[match.away.club] || match.away.club.substring(0,3).toUpperCase())}</span>`;
+
+    let scoreHTML;
+    if (match.status === "completed" && match.homeScore !== null) {
+      scoreHTML = `
+        <div class="snap-score-nums">
+          <span>${match.homeScore}</span>
+          <span class="snap-score-sep">-</span>
+          <span>${match.awayScore}</span>
+        </div>
+      `;
+    } else {
+      scoreHTML = `<span class="snap-score-vs">VS</span>`;
+    }
+
+    let resultHTML = "";
+    if (match.status === "completed" && match.homeScore !== null) {
+      let outcome = "";
+      if (match.home.id === team.id) {
+        outcome = match.homeScore > match.awayScore ? "W" : (match.homeScore < match.awayScore ? "L" : "D");
+      } else {
+        outcome = match.awayScore > match.homeScore ? "W" : (match.awayScore < match.homeScore ? "L" : "D");
+      }
+      const cls = outcome === "W" ? "w" : (outcome === "L" ? "l" : "d");
+      resultHTML = `<span class="snap-history-result-badge ${cls}">${outcome}</span>`;
+    }
+
+    html += `
+      <div class="snap-history-card-item">
+        <div class="snap-history-card-header">
+          <span>Matchday ${match.matchday}</span>
+          ${resultHTML}
+        </div>
+        <div class="snap-fix-match">
+          <div class="snap-fix-team">
+            <div class="snap-fix-logo">${homeLogoHTML}</div>
+            <span class="snap-fix-player" ${match.home.id === team.id ? 'style="color:#c8a84e;font-weight:700;"' : ''}>${match.home.player}</span>
+          </div>
+          <div class="snap-fix-score">${scoreHTML}</div>
+          <div class="snap-fix-team">
+            <div class="snap-fix-logo">${awayLogoHTML}</div>
+            <span class="snap-fix-player" ${match.away.id === team.id ? 'style="color:#c8a84e;font-weight:700;"' : ''}>${match.away.player}</span>
+          </div>
+        </div>
+      </div>
+    `;
+  });
+
+  html += `</div>`;
+
+  html += `<div class="snap-footer">ballersleague.vercel.app · ${new Date().toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}</div>`;
+
+  return html;
 }
 
