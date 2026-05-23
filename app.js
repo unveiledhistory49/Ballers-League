@@ -962,6 +962,12 @@ function renderPredictionWidget(container, matchday, homeId, awayId, homeClub, a
 
   const mockVotes = getMatchVotes(matchday, homeId, awayId, serverPredictions);
 
+  // If user has voted according to LocalStorage, make sure their vote is counted in the display totals
+  if (userVote && mockVotes[userVote] === 0) {
+    mockVotes[userVote] = 1;
+    mockVotes.total += 1;
+  }
+
   const homePercent = mockVotes.total > 0 ? Math.round((mockVotes.home / mockVotes.total) * 100) : 0;
   const awayPercent = mockVotes.total > 0 ? Math.round((mockVotes.away / mockVotes.total) * 100) : 0;
   const drawPercent = mockVotes.total > 0 ? 100 - homePercent - awayPercent : 0;
@@ -1054,6 +1060,18 @@ async function castPredictionVote(event, matchday, homeId, awayId, selectedOptio
   } catch (err) {
     console.warn("Prediction API failed, using local fallback:", err);
     localStorage.setItem(localStorageKey, selectedOption);
+    
+    // Local fallback logic: increment locally!
+    const md = leagueData.fixtures.find(f => f.matchday === matchday);
+    if (md) {
+      const match = md.matches.find(m => m.home.id === homeId && m.away.id === awayId);
+      if (match) {
+        if (!match.predictions) {
+          match.predictions = { home: 0, draw: 0, away: 0 };
+        }
+        match.predictions[selectedOption] = (match.predictions[selectedOption] || 0) + 1;
+      }
+    }
   }
 
   const card = event.target.closest(".fixture-card");
