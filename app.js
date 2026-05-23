@@ -939,27 +939,16 @@ function togglePredictionCard(card, matchday, homeId, awayId) {
       // Render video player inside stream wrapper
       if (isLive || isUpcoming) {
         const streamWrapper = predContainer.querySelector(".live-stream-wrapper");
-        renderStreamPlayer(streamWrapper, matchday, homeId, awayId, match.home.player, match.away.player, isLive);
+        renderStreamPlayer(streamWrapper, matchday, homeId, awayId, match.home.player, match.away.player, isLive, match.streamUrl);
       }
     }
   }
 }
 
 function getMatchVotes(matchday, homeId, awayId, serverPredictions) {
-  // Deterministic seed for background mock votes
-  const seed = (parseInt(matchday) * 7 + parseInt(homeId) * 13 + parseInt(awayId) * 17) % 100;
-  
-  const homeMock = 20 + (seed % 50);   // 20 to 69
-  const awayMock = 15 + ((seed * 3) % 45); // 15 to 59
-  const drawMock = 10 + ((seed * 7) % 30);  // 10 to 39
-
-  const homeReal = (serverPredictions && serverPredictions.home) || 0;
-  const awayReal = (serverPredictions && serverPredictions.away) || 0;
-  const drawReal = (serverPredictions && serverPredictions.draw) || 0;
-
-  const home = homeMock + homeReal;
-  const away = awayMock + awayReal;
-  const draw = drawMock + drawReal;
+  const home = (serverPredictions && serverPredictions.home) || 0;
+  const away = (serverPredictions && serverPredictions.away) || 0;
+  const draw = (serverPredictions && serverPredictions.draw) || 0;
   const total = home + away + draw;
 
   return { home, draw, away, total };
@@ -973,9 +962,9 @@ function renderPredictionWidget(container, matchday, homeId, awayId, homeClub, a
 
   const mockVotes = getMatchVotes(matchday, homeId, awayId, serverPredictions);
 
-  const homePercent = mockVotes.total > 0 ? Math.round((mockVotes.home / mockVotes.total) * 100) : 33;
-  const awayPercent = mockVotes.total > 0 ? Math.round((mockVotes.away / mockVotes.total) * 100) : 33;
-  const drawPercent = mockVotes.total > 0 ? 100 - homePercent - awayPercent : 34;
+  const homePercent = mockVotes.total > 0 ? Math.round((mockVotes.home / mockVotes.total) * 100) : 0;
+  const awayPercent = mockVotes.total > 0 ? Math.round((mockVotes.away / mockVotes.total) * 100) : 0;
+  const drawPercent = mockVotes.total > 0 ? 100 - homePercent - awayPercent : 0;
 
   const homeLogoSrc = clubLogos[homeClub];
   const awayLogoSrc = clubLogos[awayClub];
@@ -986,15 +975,13 @@ function renderPredictionWidget(container, matchday, homeId, awayId, homeClub, a
   if (!hasVoted) {
     optionsHTML = `
       <button class="prediction-btn" onclick="castPredictionVote(event, ${matchday}, ${homeId}, ${awayId}, 'home', '${homeClub}', '${awayClub}', '${matchStatus}')">
-        ${homeLogoSrc ? `<img src="${homeLogoSrc}" alt="${homeClub}">` : ""}
-        <span>${homeShort}</span>
+        ${homeLogoSrc ? `<img src="${homeLogoSrc}" alt="${homeClub}">` : `<span>${homeShort}</span>`}
       </button>
       <button class="prediction-btn" onclick="castPredictionVote(event, ${matchday}, ${homeId}, ${awayId}, 'draw', '${homeClub}', '${awayClub}', '${matchStatus}')">
         <span>X</span>
       </button>
       <button class="prediction-btn" onclick="castPredictionVote(event, ${matchday}, ${homeId}, ${awayId}, 'away', '${homeClub}', '${awayClub}', '${matchStatus}')">
-        ${awayLogoSrc ? `<img src="${awayLogoSrc}" alt="${awayClub}">` : ""}
-        <span>${awayShort}</span>
+        ${awayLogoSrc ? `<img src="${awayLogoSrc}" alt="${awayClub}">` : `<span>${awayShort}</span>`}
       </button>
     `;
   } else {
@@ -1005,8 +992,7 @@ function renderPredictionWidget(container, matchday, homeId, awayId, homeClub, a
     optionsHTML = `
       <button class="prediction-btn ${homeSelected}">
         <div class="prediction-btn-fill" style="width: ${homePercent}%;"></div>
-        ${homeLogoSrc ? `<img src="${homeLogoSrc}" alt="${homeClub}">` : ""}
-        <span>${homeShort}</span>
+        ${homeLogoSrc ? `<img src="${homeLogoSrc}" alt="${homeClub}">` : `<span>${homeShort}</span>`}
         <span class="prediction-percent">${homePercent}%</span>
       </button>
       <button class="prediction-btn ${drawSelected}">
@@ -1016,8 +1002,7 @@ function renderPredictionWidget(container, matchday, homeId, awayId, homeClub, a
       </button>
       <button class="prediction-btn ${awaySelected}">
         <div class="prediction-btn-fill" style="width: ${awayPercent}%;"></div>
-        ${awayLogoSrc ? `<img src="${awayLogoSrc}" alt="${awayClub}">` : ""}
-        <span>${awayShort}</span>
+        ${awayLogoSrc ? `<img src="${awayLogoSrc}" alt="${awayClub}">` : `<span>${awayShort}</span>`}
         <span class="prediction-percent">${awayPercent}%</span>
       </button>
     `;
@@ -1124,24 +1109,77 @@ function switchPanel(event, matchday, homeId, awayId, type) {
   }
 }
 
-// Render custom simulation live stream player
-function renderStreamPlayer(container, matchday, homeId, awayId, homePlayer, awayPlayer, isLive) {
-  if (!isLive) {
-    container.innerHTML = `
-      <div class="stream-player-container" style="display:flex;flex-direction:column;align-items:center;justify-content:center;aspect-ratio:16/9;background:#000;border:1px solid var(--border-medium);border-radius:12px;">
-        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M23 7l-7 5 7 5V7z"></path>
-          <rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect>
-        </svg>
-        <span style="font-size:0.8rem;color:var(--text-muted);font-weight:700;margin-top:12px;">Match has not started</span>
-        <span style="font-size:0.65rem;color:var(--text-muted);opacity:0.8;">Stream will be available once the match is live.</span>
-      </div>
-    `;
-    return;
-  }
-
+// Render custom simulation live stream player or embedded Twitch/YouTube
+function renderStreamPlayer(container, matchday, homeId, awayId, homePlayer, awayPlayer, isLive, streamUrl) {
   const playerId = `video-${matchday}-${homeId}-${awayId}`;
 
+  // If a real stream URL is present, embed the Twitch/YouTube iframe
+  if (streamUrl) {
+    let embedHTML = "";
+    
+    // Check if it's a Twitch link
+    if (streamUrl.includes("twitch.tv")) {
+      const parts = streamUrl.split("/");
+      const channel = parts[parts.length - 1] || parts[parts.length - 2];
+      const parentDomain = window.location.hostname;
+      
+      embedHTML = `
+        <iframe
+          src="https://player.twitch.tv/?channel=${channel}&parent=${parentDomain}&autoplay=true&muted=true"
+          frameborder="0"
+          allowfullscreen="true"
+          scrolling="no"
+          height="100%"
+          width="100%"
+          style="border:1px solid var(--border-medium); border-radius:12px; aspect-ratio:16/9; background:#000;">
+        </iframe>
+      `;
+    } 
+    // Check if it's a YouTube link
+    else if (streamUrl.includes("youtube.com") || streamUrl.includes("youtu.be")) {
+      let videoId = "";
+      if (streamUrl.includes("youtu.be")) {
+        const parts = streamUrl.split("/");
+        videoId = parts[parts.length - 1];
+      } else {
+        try {
+          const urlParams = new URLSearchParams(new URL(streamUrl).search);
+          videoId = urlParams.get("v");
+        } catch (e) {
+          const parts = streamUrl.split("/");
+          videoId = parts[parts.length - 1];
+        }
+        if (!videoId) {
+          const parts = streamUrl.split("/");
+          videoId = parts[parts.length - 1];
+        }
+      }
+      
+      embedHTML = `
+        <iframe
+          width="100%"
+          height="100%"
+          src="https://www.youtube.com/embed/${videoId}?autoplay=1&mute=1"
+          title="YouTube video player"
+          frameborder="0"
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+          allowfullscreen
+          style="border:1px solid var(--border-medium); border-radius:12px; aspect-ratio:16/9; background:#000;">
+        </iframe>
+      `;
+    }
+    
+    if (embedHTML) {
+      container.innerHTML = `
+        <div class="stream-player-container" id="player-container-${playerId}" style="border:none; box-shadow:none;">
+          ${embedHTML}
+        </div>
+      `;
+      return;
+    }
+  }
+
+  // Fallback to simulated media player
   container.innerHTML = `
     <div class="stream-player-container" id="player-container-${playerId}">
       <div class="stream-feed-selector">
@@ -1396,5 +1434,18 @@ function toggleStreamFullscreen(event, playerId) {
     document.exitFullscreen();
   }
 }
+
+// Expose handlers to global window object
+window.switchPanel = switchPanel;
+window.castPredictionVote = castPredictionVote;
+window.toggleStreamPlay = toggleStreamPlay;
+window.toggleStreamMute = toggleStreamMute;
+window.changeStreamVolume = changeStreamVolume;
+window.toggleQualityMenu = toggleQualityMenu;
+window.changeStreamQuality = changeStreamQuality;
+window.changeStreamFeed = changeStreamFeed;
+window.toggleStreamFullscreen = toggleStreamFullscreen;
+window.togglePredictionCard = togglePredictionCard;
+
 
 

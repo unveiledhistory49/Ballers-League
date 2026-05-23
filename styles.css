@@ -1556,7 +1556,7 @@ body {
 }
 
 .fixture-card.expanded .fixture-prediction {
-  max-height: 150px;
+  max-height: 450px;
   opacity: 1;
   margin-top: 16px;
   border-top-color: var(--border-subtle);
@@ -1633,6 +1633,8 @@ body {
 
 .prediction-options.voted .prediction-btn {
   pointer-events: none;
+  justify-content: space-between;
+  padding: 0 14px;
 }
 
 .prediction-options.voted .prediction-btn.selected {

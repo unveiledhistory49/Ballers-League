@@ -484,6 +484,74 @@
     .status-completed .status-dot { background: var(--dot-win); }
     .status-completed { color: var(--dot-win); }
 
+    .status-live .status-dot { 
+      background: var(--dot-loss); 
+      animation: livePulse 1.8s infinite ease-in-out;
+    }
+    .status-live { color: var(--dot-loss); }
+    
+    @keyframes livePulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.6; transform: scale(0.95); }
+    }
+
+    /* Status & Stream Inputs inside Admin Match Cards */
+    .match-status-select-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-top: 14px;
+      gap: 12px;
+    }
+
+    .match-status-select-row label {
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--text-secondary);
+    }
+
+    .status-select {
+      flex: 1;
+      height: 34px;
+      background: var(--bg-input);
+      border: 1px solid var(--border-medium);
+      border-radius: 8px;
+      color: var(--text-primary);
+      padding: 0 8px;
+      font-family: var(--font-body);
+      font-size: 0.75rem;
+      font-weight: 600;
+      outline: none;
+      transition: border-color 0.3s ease;
+      cursor: pointer;
+    }
+
+    .status-select:focus {
+      border-color: var(--border-focus);
+    }
+
+    .match-stream-url-row {
+      margin-top: 10px;
+    }
+
+    .stream-url-input {
+      width: 100%;
+      height: 34px;
+      background: var(--bg-input);
+      border: 1px solid var(--border-medium);
+      border-radius: 8px;
+      color: var(--text-primary);
+      padding: 0 10px;
+      font-family: var(--font-body);
+      font-size: 0.75rem;
+      outline: none;
+      transition: border-color 0.3s ease;
+    }
+
+    .stream-url-input:focus {
+      border-color: var(--border-focus);
+    }
+
     /* Toast */
     .toast {
       position: fixed;
@@ -676,6 +744,16 @@
 
         const homeVal = match.homeScore !== null ? match.homeScore : '';
         const awayVal = match.awayScore !== null ? match.awayScore : '';
+        
+        let statusClass = 'status-upcoming';
+        let statusLabel = 'Upcoming';
+        if (match.status === 'completed') {
+          statusClass = 'status-completed';
+          statusLabel = 'Completed';
+        } else if (match.status === 'live') {
+          statusClass = 'status-live';
+          statusLabel = 'Live';
+        }
 
         card.innerHTML = `
           <div class="match-teams">
@@ -696,17 +774,32 @@
             <input type="number" class="score-input" id="away-${match.home.id}-${match.away.id}"
               value="${awayVal}" min="0" max="99" placeholder="0">
           </div>
+          
+          <div class="match-status-select-row">
+            <label for="status-${match.home.id}-${match.away.id}">Status:</label>
+            <select class="status-select" id="status-${match.home.id}-${match.away.id}">
+              <option value="upcoming" ${match.status === 'upcoming' ? 'selected' : ''}>Upcoming</option>
+              <option value="live" ${match.status === 'live' ? 'selected' : ''}>Live</option>
+              <option value="completed" ${match.status === 'completed' ? 'selected' : ''}>Completed</option>
+            </select>
+          </div>
+
+          <div class="match-stream-url-row">
+            <input type="url" class="stream-url-input" id="stream-${match.home.id}-${match.away.id}"
+              placeholder="Twitch or YouTube Stream URL" value="${match.streamUrl || ''}">
+          </div>
+
           <div class="match-actions">
             <button class="btn-save" onclick="saveMatch(${md.matchday}, ${match.home.id}, ${match.away.id})">
-              Save Result
+              Save Match
             </button>
             <button class="btn-reset" onclick="resetMatch(${md.matchday}, ${match.home.id}, ${match.away.id})">
               Reset
             </button>
           </div>
-          <div class="match-status ${match.status === 'completed' ? 'status-completed' : 'status-upcoming'}">
+          <div class="match-status ${statusClass}">
             <span class="status-dot"></span>
-            <span>${match.status === 'completed' ? 'Completed' : 'Upcoming'}</span>
+            <span>${statusLabel}</span>
           </div>
         `;
 
@@ -718,9 +811,11 @@
     async function saveMatch(matchday, homeId, awayId) {
       const homeScore = document.getElementById(`home-${homeId}-${awayId}`).value;
       const awayScore = document.getElementById(`away-${homeId}-${awayId}`).value;
+      const status = document.getElementById(`status-${homeId}-${awayId}`).value;
+      const streamUrl = document.getElementById(`stream-${homeId}-${awayId}`).value.trim();
 
-      if (homeScore === '' || awayScore === '') {
-        showToast('Enter both scores', 'error');
+      if (status === 'completed' && (homeScore === '' || awayScore === '')) {
+        showToast('Enter both scores to mark match as completed', 'error');
         return;
       }
 
@@ -735,8 +830,10 @@
             matchday,
             homeId,
             awayId,
-            homeScore: parseInt(homeScore),
-            awayScore: parseInt(awayScore),
+            homeScore: homeScore !== '' ? parseInt(homeScore) : null,
+            awayScore: awayScore !== '' ? parseInt(awayScore) : null,
+            status,
+            streamUrl: streamUrl || null
           }),
         });
 

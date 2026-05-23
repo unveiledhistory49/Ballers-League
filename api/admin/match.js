@@ -18,24 +18,34 @@ module.exports = async function handler(req, res) {
 
 async function handleUpdate(req, res) {
   try {
-    const { matchday, homeId, awayId, homeScore, awayScore } = req.body;
+    const { matchday, homeId, awayId, homeScore, awayScore, status, streamUrl } = req.body;
 
     if (matchday === undefined || homeId === undefined || awayId === undefined) {
       return res.status(400).json({ error: 'Missing matchday, homeId, or awayId' });
     }
-    if (homeScore === undefined || awayScore === undefined) {
-      return res.status(400).json({ error: 'Missing homeScore or awayScore' });
+
+    const updateData = {
+      status: status || 'completed',
+      stream_url: streamUrl || null
+    };
+
+    if (homeScore !== undefined && homeScore !== null && homeScore !== '') {
+      updateData.home_score = parseInt(homeScore, 10);
+    } else {
+      updateData.home_score = null;
+    }
+
+    if (awayScore !== undefined && awayScore !== null && awayScore !== '') {
+      updateData.away_score = parseInt(awayScore, 10);
+    } else {
+      updateData.away_score = null;
     }
 
     const supabase = getSupabase();
 
     const { data, error } = await supabase
       .from('matches')
-      .update({
-        home_score: parseInt(homeScore, 10),
-        away_score: parseInt(awayScore, 10),
-        status: 'completed',
-      })
+      .update(updateData)
       .eq('matchday', matchday)
       .eq('home_id', homeId)
       .eq('away_id', awayId)
@@ -46,7 +56,7 @@ async function handleUpdate(req, res) {
 
     res.status(200).json({
       success: true,
-      message: `Updated: ${data.home_player} ${data.home_score} - ${data.away_score} ${data.away_player}`,
+      message: `Updated match status to ${data.status}`,
       match: data,
     });
   } catch (err) {
