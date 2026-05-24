@@ -47,20 +47,36 @@ module.exports = async function handler(req, res) {
       predictions.voters = [];
     }
 
-    // Check if player already voted (Guest can vote multiple times from different IPs)
-    if (voterName !== 'Guest' && predictions.voters.some(v => v.name === voterName)) {
-      return res.status(400).json({ error: 'You have already voted on this match' });
+    // Check if they already voted
+    let existingVoteIndex = -1;
+    if (voterName === 'Guest') {
+      existingVoteIndex = predictions.voters.findIndex(v => v.name === 'Guest' && v.ip === ip);
+    } else {
+      existingVoteIndex = predictions.voters.findIndex(v => v.name === voterName);
     }
 
-    // Check if IP already voted
-    if (predictions.ips.includes(ip)) {
-      return res.status(400).json({ error: 'Already voted from this IP' });
+    if (existingVoteIndex > -1) {
+      // Change vote!
+      const previousPick = predictions.voters[existingVoteIndex].pick;
+      if (previousPick !== option) {
+        // Decrement previous pick
+        if (predictions[previousPick] > 0) {
+          predictions[previousPick]--;
+        }
+        // Increment new pick
+        predictions[option] = (predictions[option] || 0) + 1;
+        // Update pick
+        predictions.voters[existingVoteIndex].pick = option;
+        predictions.voters[existingVoteIndex].ip = ip;
+      }
+    } else {
+      // New vote!
+      if (!predictions.ips.includes(ip)) {
+        predictions.ips.push(ip);
+      }
+      predictions.voters.push({ name: voterName, pick: option, ip });
+      predictions[option] = (predictions[option] || 0) + 1;
     }
-
-    // Record vote
-    predictions.ips.push(ip);
-    predictions.voters.push({ name: voterName, pick: option, ip });
-    predictions[option] = (predictions[option] || 0) + 1;
 
     // Update match row — scope by season if provided
     let updateQuery = supabase

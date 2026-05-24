@@ -220,17 +220,36 @@ app.post('/api/prediction', (req, res) => {
       match.predictions.voters = [];
     }
 
-    if (voterName !== 'Guest' && match.predictions.voters.some(v => v.name === voterName)) {
-      return res.status(400).json({ error: 'You have already voted on this match' });
+    // Check if they already voted
+    let existingVoteIndex = -1;
+    if (voterName === 'Guest') {
+      existingVoteIndex = match.predictions.voters.findIndex(v => v.name === 'Guest' && v.ip === ip);
+    } else {
+      existingVoteIndex = match.predictions.voters.findIndex(v => v.name === voterName);
     }
 
-    if (match.predictions.ips.includes(ip)) {
-      return res.status(400).json({ error: 'Already voted from this IP' });
+    if (existingVoteIndex > -1) {
+      // Change vote!
+      const previousPick = match.predictions.voters[existingVoteIndex].pick;
+      if (previousPick !== option) {
+        // Decrement previous pick
+        if (match.predictions[previousPick] > 0) {
+          match.predictions[previousPick]--;
+        }
+        // Increment new pick
+        match.predictions[option] = (match.predictions[option] || 0) + 1;
+        // Update pick
+        match.predictions.voters[existingVoteIndex].pick = option;
+        match.predictions.voters[existingVoteIndex].ip = ip; // Update IP if they changed devices
+      }
+    } else {
+      // New vote!
+      if (!match.predictions.ips.includes(ip)) {
+        match.predictions.ips.push(ip);
+      }
+      match.predictions.voters.push({ name: voterName, pick: option, ip });
+      match.predictions[option] = (match.predictions[option] || 0) + 1;
     }
-
-    match.predictions.ips.push(ip);
-    match.predictions.voters.push({ name: voterName, pick: option, ip });
-    match.predictions[option] = (match.predictions[option] || 0) + 1;
 
     saveDB(db);
 

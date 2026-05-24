@@ -1046,7 +1046,6 @@ function renderPredictionWidget(container, matchday, homeId, awayId, homeClub, a
   const localStorageKey = `prediction-${matchday}-${homeId}-${awayId}`;
   const userVote = localStorage.getItem(localStorageKey);
   const isCompleted = matchStatus === "completed";
-  const hasVoted = userVote !== null || isCompleted;
 
   const mockVotes = getMatchVotes(matchday, homeId, awayId, serverPredictions);
 
@@ -1067,16 +1066,6 @@ function renderPredictionWidget(container, matchday, homeId, awayId, homeClub, a
 
   const activeVoter = localStorage.getItem('voter-name') || '';
   const options = leagueData.teams ? leagueData.teams.map(t => `<option value="${t.player}" ${activeVoter === t.player ? 'selected' : ''}>${t.player}</option>`).join('') : '';
-  const voterDropdownHTML = `
-    <div class="prediction-voter-select-row" onclick="event.stopPropagation()">
-      <span class="voter-label">Predict as:</span>
-      <select class="voter-select" onchange="localStorage.setItem('voter-name', this.value)">
-        <option value="" disabled ${activeVoter ? '' : 'selected'}>Choose Player...</option>
-        <option value="Guest" ${activeVoter === 'Guest' ? 'selected' : ''}>Guest (Outsider)</option>
-        ${options}
-      </select>
-    </div>
-  `;
 
   const getVotersHTMLForOption = (opt) => {
     const optVoters = (serverPredictions && serverPredictions.voters || []).filter(v => v.pick === opt);
@@ -1099,39 +1088,11 @@ function renderPredictionWidget(container, matchday, homeId, awayId, homeClub, a
   };
 
   let optionsHTML = "";
-  if (!hasVoted) {
-    optionsHTML = `
-      ${voterDropdownHTML}
-      <div class="prediction-options-grid">
-        <div class="prediction-option-col">
-          <button class="prediction-btn" onclick="castPredictionVote(event, ${matchday}, ${homeId}, ${awayId}, 'home', '${homeClub}', '${awayClub}', '${matchStatus}')">
-            ${homeLogoSrc ? `<img src="${homeLogoSrc}" alt="${homeClub}">` : `<span>${homeShort}</span>`}
-          </button>
-          ${getVotersHTMLForOption('home')}
-        </div>
-        <div class="prediction-option-col">
-          <button class="prediction-btn" onclick="castPredictionVote(event, ${matchday}, ${homeId}, ${awayId}, 'draw', '${homeClub}', '${awayClub}', '${matchStatus}')">
-            <span>X</span>
-          </button>
-          ${getVotersHTMLForOption('draw')}
-        </div>
-        <div class="prediction-option-col">
-          <button class="prediction-btn" onclick="castPredictionVote(event, ${matchday}, ${homeId}, ${awayId}, 'away', '${homeClub}', '${awayClub}', '${matchStatus}')">
-            ${awayLogoSrc ? `<img src="${awayLogoSrc}" alt="${awayClub}">` : `<span>${awayShort}</span>`}
-          </button>
-          ${getVotersHTMLForOption('away')}
-        </div>
-      </div>
-    `;
-  } else {
-    const homeSelected = userVote === "home" ? "selected" : "";
-    const drawSelected = userVote === "draw" ? "selected" : "";
-    const awaySelected = userVote === "away" ? "selected" : "";
-
+  if (isCompleted) {
     optionsHTML = `
       <div class="prediction-options-grid voted">
         <div class="prediction-option-col">
-          <button class="prediction-btn ${homeSelected}">
+          <button class="prediction-btn ${userVote === 'home' ? 'selected' : ''}">
             <div class="prediction-btn-fill" style="width: ${homePercent}%;"></div>
             ${homeLogoSrc ? `<img src="${homeLogoSrc}" alt="${homeClub}">` : `<span>${homeShort}</span>`}
             <span class="prediction-percent">${homePercent}%</span>
@@ -1139,7 +1100,7 @@ function renderPredictionWidget(container, matchday, homeId, awayId, homeClub, a
           ${getVotersHTMLForOption('home')}
         </div>
         <div class="prediction-option-col">
-          <button class="prediction-btn ${drawSelected}">
+          <button class="prediction-btn ${userVote === 'draw' ? 'selected' : ''}">
             <div class="prediction-btn-fill" style="width: ${drawPercent}%;"></div>
             <span>X</span>
             <span class="prediction-percent">${drawPercent}%</span>
@@ -1147,10 +1108,51 @@ function renderPredictionWidget(container, matchday, homeId, awayId, homeClub, a
           ${getVotersHTMLForOption('draw')}
         </div>
         <div class="prediction-option-col">
-          <button class="prediction-btn ${awaySelected}">
+          <button class="prediction-btn ${userVote === 'away' ? 'selected' : ''}">
             <div class="prediction-btn-fill" style="width: ${awayPercent}%;"></div>
             ${awayLogoSrc ? `<img src="${awayLogoSrc}" alt="${awayClub}">` : `<span>${awayShort}</span>`}
             <span class="prediction-percent">${awayPercent}%</span>
+          </button>
+          ${getVotersHTMLForOption('away')}
+        </div>
+      </div>
+    `;
+  } else {
+    const voterDropdownHTML = `
+      <div class="prediction-voter-select-row" onclick="event.stopPropagation()">
+        <span class="voter-label">Predict as:</span>
+        <select class="voter-select" onchange="localStorage.setItem('voter-name', this.value)">
+          <option value="" disabled ${activeVoter ? '' : 'selected'}>Choose Player...</option>
+          <option value="Guest" ${activeVoter === 'Guest' ? 'selected' : ''}>Guest (Outsider)</option>
+          ${options}
+        </select>
+      </div>
+    `;
+
+    optionsHTML = `
+      ${voterDropdownHTML}
+      <div class="prediction-options-grid active-voting">
+        <div class="prediction-option-col">
+          <button class="prediction-btn ${userVote === 'home' ? 'selected' : ''}" onclick="castPredictionVote(event, ${matchday}, ${homeId}, ${awayId}, 'home', '${homeClub}', '${awayClub}', '${matchStatus}')">
+            ${userVote ? `<div class="prediction-btn-fill" style="width: ${homePercent}%;"></div>` : ''}
+            ${homeLogoSrc ? `<img src="${homeLogoSrc}" alt="${homeClub}">` : `<span>${homeShort}</span>`}
+            ${userVote ? `<span class="prediction-percent">${homePercent}%</span>` : ''}
+          </button>
+          ${getVotersHTMLForOption('home')}
+        </div>
+        <div class="prediction-option-col">
+          <button class="prediction-btn ${userVote === 'draw' ? 'selected' : ''}" onclick="castPredictionVote(event, ${matchday}, ${homeId}, ${awayId}, 'draw', '${homeClub}', '${awayClub}', '${matchStatus}')">
+            ${userVote ? `<div class="prediction-btn-fill" style="width: ${drawPercent}%;"></div>` : ''}
+            <span>X</span>
+            ${userVote ? `<span class="prediction-percent">${drawPercent}%</span>` : ''}
+          </button>
+          ${getVotersHTMLForOption('draw')}
+        </div>
+        <div class="prediction-option-col">
+          <button class="prediction-btn ${userVote === 'away' ? 'selected' : ''}" onclick="castPredictionVote(event, ${matchday}, ${homeId}, ${awayId}, 'away', '${homeClub}', '${awayClub}', '${matchStatus}')">
+            ${userVote ? `<div class="prediction-btn-fill" style="width: ${awayPercent}%;"></div>` : ''}
+            ${awayLogoSrc ? `<img src="${awayLogoSrc}" alt="${awayClub}">` : `<span>${awayShort}</span>`}
+            ${userVote ? `<span class="prediction-percent">${awayPercent}%</span>` : ''}
           </button>
           ${getVotersHTMLForOption('away')}
         </div>
@@ -1161,7 +1163,7 @@ function renderPredictionWidget(container, matchday, homeId, awayId, homeClub, a
   const title = isCompleted ? "Final Votes" : "Who will win?";
   const subtitle = isCompleted 
     ? `Total votes: ${mockVotes.total}` 
-    : (userVote ? `Total votes: ${mockVotes.total}` : "Cast your vote!");
+    : (userVote ? `Total votes: ${mockVotes.total} · Click to change vote` : "Cast your vote!");
 
   container.innerHTML = `
     <div class="prediction-title-row">
@@ -1218,7 +1220,7 @@ async function castPredictionVote(event, matchday, homeId, awayId, selectedOptio
     console.warn("Prediction API failed, using local fallback:", err);
     localStorage.setItem(localStorageKey, selectedOption);
     
-    // Local fallback logic: increment locally!
+    // Local fallback logic: increment/update locally!
     const md = leagueData.fixtures.find(f => f.matchday === matchday);
     if (md) {
       const match = md.matches.find(m => m.home.id === homeId && m.away.id === awayId);
@@ -1229,8 +1231,28 @@ async function castPredictionVote(event, matchday, homeId, awayId, selectedOptio
         if (!match.predictions.voters) {
           match.predictions.voters = [];
         }
-        match.predictions.voters.push({ name: voterName, pick: selectedOption, ip: '127.0.0.1' });
-        match.predictions[selectedOption] = (match.predictions[selectedOption] || 0) + 1;
+        
+        let existingVoteIndex = -1;
+        if (voterName === 'Guest') {
+          // In local mock fallback, we can't easily isolate guest IPs, but let's assume one guest per session for simplicity
+          existingVoteIndex = match.predictions.voters.findIndex(v => v.name === 'Guest' && v.ip === '127.0.0.1');
+        } else {
+          existingVoteIndex = match.predictions.voters.findIndex(v => v.name === voterName);
+        }
+
+        if (existingVoteIndex > -1) {
+          const previousPick = match.predictions.voters[existingVoteIndex].pick;
+          if (previousPick !== selectedOption) {
+            if (match.predictions[previousPick] > 0) {
+              match.predictions[previousPick]--;
+            }
+            match.predictions[selectedOption] = (match.predictions[selectedOption] || 0) + 1;
+            match.predictions.voters[existingVoteIndex].pick = selectedOption;
+          }
+        } else {
+          match.predictions.voters.push({ name: voterName, pick: selectedOption, ip: '127.0.0.1' });
+          match.predictions[selectedOption] = (match.predictions[selectedOption] || 0) + 1;
+        }
       }
     }
   }
