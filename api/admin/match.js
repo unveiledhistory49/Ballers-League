@@ -18,7 +18,7 @@ module.exports = async function handler(req, res) {
 
 async function handleUpdate(req, res) {
   try {
-    const { matchday, homeId, awayId, homeScore, awayScore, status, homeStreamUrl, awayStreamUrl, seasonId, isMotw } = req.body;
+    const { matchday, homeId, awayId, homeScore, awayScore, status, homeStreamUrl, awayStreamUrl, seasonId, isMotw, stage, goldenGoalWinnerId } = req.body;
 
     if (matchday === undefined || homeId === undefined || awayId === undefined) {
       return res.status(400).json({ error: 'Missing matchday, homeId, or awayId' });
@@ -40,6 +40,14 @@ async function handleUpdate(req, res) {
       updateData.away_score = parseInt(awayScore, 10);
     } else {
       updateData.away_score = null;
+    }
+
+    if (stage !== undefined) {
+      updateData.stage = stage;
+    }
+
+    if (goldenGoalWinnerId !== undefined) {
+      updateData.golden_goal_winner_id = goldenGoalWinnerId ? parseInt(goldenGoalWinnerId, 10) : null;
     }
 
     const supabase = getSupabase();
@@ -69,6 +77,10 @@ async function handleUpdate(req, res) {
       .eq('home_id', homeId)
       .eq('away_id', awayId);
 
+    if (stage) {
+      query = query.eq('stage', stage);
+    }
+
     // Scope by season if provided
     if (seasonId) {
       query = query.eq('season_id', seasonId);
@@ -91,23 +103,30 @@ async function handleUpdate(req, res) {
 
 async function handleReset(req, res) {
   try {
-    const { matchday, homeId, awayId, seasonId } = req.body;
+    const { matchday, homeId, awayId, seasonId, stage } = req.body;
 
     const supabase = getSupabase();
 
+    const resetData = {
+      home_score: null,
+      away_score: null,
+      status: 'upcoming',
+      is_motw: false,
+      predictions: { home: 0, draw: 0, away: 0, ips: [], voters: [] },
+      golden_goal_winner_id: null
+    };
+
     let query = supabase
       .from('matches')
-      .update({
-        home_score: null,
-        away_score: null,
-        status: 'upcoming',
-        is_motw: false,
-        predictions: { home: 0, draw: 0, away: 0, ips: [], voters: [] }
-      })
+      .update(resetData)
       .eq('matchday', matchday);
 
     if (seasonId) {
       query = query.eq('season_id', seasonId);
+    }
+
+    if (stage) {
+      query = query.eq('stage', stage);
     }
 
     if (homeId !== undefined && awayId !== undefined) {

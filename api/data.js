@@ -50,16 +50,14 @@ module.exports = async function handler(req, res) {
 
     if (matchesErr) throw matchesErr;
 
-    // Group matches by matchday (same shape as fixtures.json)
-    const fixtureMap = {};
+    // Group matches by tournament stage and matchday
+    const leagueFixtureMap = {};
+    const cupFixtureMap = {};
+    const playoffFixtureMap = {};
+
     for (const m of matches) {
-      if (!fixtureMap[m.matchday]) {
-        fixtureMap[m.matchday] = {
-          matchday: m.matchday,
-          matches: [],
-        };
-      }
-      fixtureMap[m.matchday].matches.push({
+      const matchObj = {
+        id: m.id,
         home: { id: m.home_id, player: m.home_player, club: m.home_club },
         away: { id: m.away_id, player: m.away_player, club: m.away_club },
         homeScore: m.home_score,
@@ -69,10 +67,31 @@ module.exports = async function handler(req, res) {
         awayStreamUrl: m.away_stream_url,
         predictions: m.predictions,
         isMotw: m.is_motw || false,
-      });
+        stage: m.stage || 'league',
+        goldenGoalWinnerId: m.golden_goal_winner_id || null,
+      };
+
+      if (!m.stage || m.stage === 'league') {
+        if (!leagueFixtureMap[m.matchday]) {
+          leagueFixtureMap[m.matchday] = { matchday: m.matchday, matches: [] };
+        }
+        leagueFixtureMap[m.matchday].matches.push(matchObj);
+      } else if (m.stage.startsWith('cup_')) {
+        if (!cupFixtureMap[m.stage]) {
+          cupFixtureMap[m.stage] = { stage: m.stage, matchday: m.matchday, matches: [] };
+        }
+        cupFixtureMap[m.stage].matches.push(matchObj);
+      } else if (m.stage.startsWith('champions_')) {
+        if (!playoffFixtureMap[m.stage]) {
+          playoffFixtureMap[m.stage] = { stage: m.stage, matchday: m.matchday, matches: [] };
+        }
+        playoffFixtureMap[m.stage].matches.push(matchObj);
+      }
     }
 
-    const fixtures = Object.values(fixtureMap).sort((a, b) => a.matchday - b.matchday);
+    const fixtures = Object.values(leagueFixtureMap).sort((a, b) => a.matchday - b.matchday);
+    const cupFixtures = Object.values(cupFixtureMap).sort((a, b) => a.matchday - b.matchday);
+    const playoffFixtures = Object.values(playoffFixtureMap).sort((a, b) => a.matchday - b.matchday);
 
     res.status(200).json({
       league: 'Ballers League',
@@ -81,6 +100,8 @@ module.exports = async function handler(req, res) {
       seasons: seasons.map(s => ({ id: s.id, name: s.name, status: s.status, headline: s.headline })),
       teams,
       fixtures,
+      cupFixtures,
+      playoffFixtures,
       headline: currentSeason ? currentSeason.headline : null,
     });
   } catch (err) {

@@ -123,7 +123,9 @@ app.get('/api/data', (req, res) => {
       seasonId: season.id,
       seasons: db.seasons.map(s => ({ id: s.id, name: s.name, status: s.status, headline: s.headline || null })),
       teams: db.teams,
-      fixtures: season.fixtures,
+      fixtures: season.fixtures || [],
+      cupFixtures: season.cupFixtures || [],
+      playoffFixtures: season.playoffFixtures || [],
       headline: season.headline || null,
     });
   } catch (err) {
@@ -297,7 +299,7 @@ app.post('/api/prediction', (req, res) => {
 // ── PUT /api/admin/match — Update a match result ──────────────
 app.put('/api/admin/match', requireAdmin, (req, res) => {
   try {
-    const { matchday, homeId, awayId, homeScore, awayScore, status, homeStreamUrl, awayStreamUrl, seasonId, isMotw } = req.body;
+    const { matchday, homeId, awayId, homeScore, awayScore, status, homeStreamUrl, awayStreamUrl, seasonId, isMotw, stage, goldenGoalWinnerId } = req.body;
 
     if (matchday === undefined || homeId === undefined || awayId === undefined) {
       return res.status(400).json({ error: 'Missing matchday, homeId, or awayId' });
@@ -314,10 +316,28 @@ app.put('/api/admin/match', requireAdmin, (req, res) => {
       season = getActiveSeason(db);
     }
 
-    const md = season.fixtures.find(f => f.matchday === matchday);
-    if (!md) return res.status(404).json({ error: `Matchday ${matchday} not found` });
+    let match = null;
+    let md = null;
 
-    const match = md.matches.find(m => m.home.id === homeId && m.away.id === awayId);
+    if (stage && stage.startsWith('cup_')) {
+      if (!season.cupFixtures) season.cupFixtures = [];
+      md = season.cupFixtures.find(f => f.stage === stage);
+      if (md) {
+        match = md.matches.find(m => m.home.id === homeId && m.away.id === awayId);
+      }
+    } else if (stage && stage.startsWith('champions_')) {
+      if (!season.playoffFixtures) season.playoffFixtures = [];
+      md = season.playoffFixtures.find(f => f.stage === stage);
+      if (md) {
+        match = md.matches.find(m => m.home.id === homeId && m.away.id === awayId);
+      }
+    } else {
+      md = season.fixtures.find(f => f.matchday === matchday);
+      if (md) {
+        match = md.matches.find(m => m.home.id === homeId && m.away.id === awayId);
+      }
+    }
+
     if (!match) return res.status(404).json({ error: 'Match not found' });
 
     if (homeScore !== undefined && homeScore !== null && homeScore !== '') {
@@ -336,7 +356,11 @@ app.put('/api/admin/match', requireAdmin, (req, res) => {
     match.homeStreamUrl = homeStreamUrl || null;
     match.awayStreamUrl = awayStreamUrl || null;
 
-    if (isMotw !== undefined) {
+    if (goldenGoalWinnerId !== undefined) {
+      match.goldenGoalWinnerId = goldenGoalWinnerId ? parseInt(goldenGoalWinnerId, 10) : null;
+    }
+
+    if (isMotw !== undefined && md) {
       if (isMotw) {
         // Clear MOTW for all other matches on this matchday
         md.matches.forEach(m => {
@@ -358,6 +382,303 @@ app.put('/api/admin/match', requireAdmin, (req, res) => {
   } catch (err) {
     console.error('Error updating match:', err);
     res.status(500).json({ error: 'Failed to update match' });
+  }
+});
+
+// ── POST /api/admin/cup/draw — Generate Cup draw ─────────────
+app.post('/api/admin/cup/draw', requireAdmin, (req, res) => {
+  try {
+    const { round, seasonId } = req.body;
+    if (!round) return res.status(400).json({ error: 'Missing round parameter (cup_r16, cup_qf, cup_sf, cup_final)' });
+
+    const db = loadDB();
+    let season;
+    if (seasonId) {
+      season = getSeasonById(db, parseInt(seasonId, 10));
+    } else {
+      season = getActiveSeason(db);
+    }
+
+    if (!season) return res.status(404).json({ error: 'Season not found' });
+
+    if (!season.cupFixtures) {
+      season.cupFixtures = [];
+    }
+
+    const stageExists = season.cupFixtures.some(f => f.stage === round);
+    if (stageExists) {
+      return res.status(400).json({ error: `Draw for ${round} already exists.` });
+    }
+
+    let drawTeams = [];
+
+    const getMatchWinner = (m) => {
+      if (m.homeScore > m.awayScore) return m.home.id;
+      if (m.awayScore > m.homeScore) return m.away.id;
+      if (m.goldenGoalWinnerId) return m.goldenGoalWinnerId;
+      return null;
+    };
+
+    if (round === 'cup_r16') {
+      const shuffled = shuffle(db.teams);
+      const playing = shuffled.slice(4); // 8 play, 4 byes
+      drawTeams = playing;
+    } else if (round === 'cup_qf') {
+      const r16Round = season.cupFixtures.find(f => f.stage === 'cup_r16');
+      if (!r16Round) return res.status(400).json({ error: 'Round of 16 has not been generated yet.' });
+      
+      const incomplete = r16Round.matches.some(m => m.status !== 'completed');
+      if (incomplete) return res.status(400).json({ error: 'Cannot draw Quarter-finals. Some Round of 16 matches are incomplete.' });
+
+      const winners = [];
+      for (const m of r16Round.matches) {
+        const w = getMatchWinner(m);
+        if (!w) {
+          return res.status(400).json({ error: `Match ${m.home.player} vs ${m.away.player} ended in a tie. Please specify a Golden Goal winner first.` });
+        }
+        winners.push(w);
+      }
+
+      const playedIds = new Set(r16Round.matches.flatMap(m => [m.home.id, m.away.id]));
+      const byes = db.teams.filter(t => !playedIds.has(t.id));
+
+      drawTeams = [...winners.map(id => db.teams.find(t => t.id === id)), ...byes];
+    } else if (round === 'cup_sf') {
+      const qfRound = season.cupFixtures.find(f => f.stage === 'cup_qf');
+      if (!qfRound) return res.status(400).json({ error: 'Quarter-finals have not been generated yet.' });
+      
+      const incomplete = qfRound.matches.some(m => m.status !== 'completed');
+      if (incomplete) return res.status(400).json({ error: 'Cannot draw Semi-finals. Some Quarter-final matches are incomplete.' });
+
+      const winners = [];
+      for (const m of qfRound.matches) {
+        const w = getMatchWinner(m);
+        if (!w) {
+          return res.status(400).json({ error: `Match ${m.home.player} vs ${m.away.player} ended in a tie. Please specify a Golden Goal winner first.` });
+        }
+        winners.push(w);
+      }
+
+      drawTeams = winners.map(id => db.teams.find(t => t.id === id));
+    } else if (round === 'cup_final') {
+      const sfRound = season.cupFixtures.find(f => f.stage === 'cup_sf');
+      if (!sfRound) return res.status(400).json({ error: 'Semi-finals have not been generated yet.' });
+      
+      const incomplete = sfRound.matches.some(m => m.status !== 'completed');
+      if (incomplete) return res.status(400).json({ error: 'Cannot draw Final. Semi-final matches are incomplete.' });
+
+      const winners = [];
+      for (const m of sfRound.matches) {
+        const w = getMatchWinner(m);
+        if (!w) {
+          return res.status(400).json({ error: `Match ${m.home.player} vs ${m.away.player} ended in a tie. Please specify a Golden Goal winner first.` });
+        }
+        winners.push(w);
+      }
+
+      drawTeams = winners.map(id => db.teams.find(t => t.id === id));
+    } else {
+      return res.status(400).json({ error: 'Invalid cup round' });
+    }
+
+    const shuffledDraw = shuffle(drawTeams);
+    const matches = [];
+    const matchdayNumber = round === 'cup_r16' ? 101 : round === 'cup_qf' ? 102 : round === 'cup_sf' ? 103 : 104;
+
+    for (let i = 0; i < shuffledDraw.length; i += 2) {
+      const home = shuffledDraw[i];
+      const away = shuffledDraw[i+1];
+      matches.push({
+        id: Math.floor(Math.random() * 100000),
+        home: { id: home.id, player: home.player, club: home.club },
+        away: { id: away.id, player: away.player, club: away.club },
+        homeScore: null,
+        awayScore: null,
+        status: 'upcoming',
+        stage: round,
+      });
+    }
+
+    season.cupFixtures.push({
+      stage: round,
+      matchday: matchdayNumber,
+      matches,
+    });
+
+    saveDB(db);
+
+    res.json({ success: true, message: `Generated cup draw for ${round}`, matches });
+  } catch (err) {
+    console.error('Cup draw error:', err);
+    res.status(500).json({ error: 'Failed to generate cup draw' });
+  }
+});
+
+// ── POST /api/admin/playoffs/generate — Champions Cup Playoffs ─────────────
+app.post('/api/admin/playoffs/generate', requireAdmin, (req, res) => {
+  try {
+    const { action, seasonId } = req.body;
+    if (!action) return res.status(400).json({ error: 'Missing action parameter (generate_semis, generate_final)' });
+
+    const db = loadDB();
+    let season;
+    if (seasonId) {
+      season = getSeasonById(db, parseInt(seasonId, 10));
+    } else {
+      season = getActiveSeason(db);
+    }
+
+    if (!season) return res.status(404).json({ error: 'Season not found' });
+
+    if (!season.playoffFixtures) {
+      season.playoffFixtures = [];
+    }
+
+    // Helper: shuffle
+    const shuffleArray = (arr) => {
+      const a = [...arr];
+      for (let i = a.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [a[i], a[j]] = [a[j], a[i]];
+      }
+      return a;
+    };
+
+    if (action === 'generate_semis') {
+      const exists = season.playoffFixtures.some(f => f.stage === 'champions_semi_1');
+      if (exists) return res.status(400).json({ error: 'Semi-finals have already been generated.' });
+
+      // Check regular season complete
+      const incomplete = season.fixtures.some(md => md.matches.some(m => m.status !== 'completed'));
+      if (incomplete) return res.status(400).json({ error: 'Regular season is not completed yet. Incomplete matches remain.' });
+
+      // Calculate standings
+      const { standings } = computeStandings(db.teams, season.fixtures);
+      if (standings.length < 4) {
+        return res.status(400).json({ error: 'Not enough teams to generate playoffs.' });
+      }
+
+      const first = standings[0];
+      const second = standings[1];
+      const third = standings[2];
+      const fourth = standings[3];
+
+      const matchIdBase = Math.floor(Math.random() * 100000);
+
+      const semi1Matches = [
+        {
+          id: matchIdBase + 1,
+          home: { id: fourth.id, player: fourth.player, club: fourth.club },
+          away: { id: first.id, player: first.player, club: first.club },
+          homeScore: null, awayScore: null, status: 'upcoming', stage: 'champions_semi_1'
+        },
+        {
+          id: matchIdBase + 2,
+          home: { id: third.id, player: third.player, club: third.club },
+          away: { id: second.id, player: second.player, club: second.club },
+          homeScore: null, awayScore: null, status: 'upcoming', stage: 'champions_semi_1'
+        }
+      ];
+
+      const semi2Matches = [
+        {
+          id: matchIdBase + 3,
+          home: { id: first.id, player: first.player, club: first.club },
+          away: { id: fourth.id, player: fourth.player, club: fourth.club },
+          homeScore: null, awayScore: null, status: 'upcoming', stage: 'champions_semi_2'
+        },
+        {
+          id: matchIdBase + 4,
+          home: { id: second.id, player: second.player, club: second.club },
+          away: { id: third.id, player: third.player, club: third.club },
+          homeScore: null, awayScore: null, status: 'upcoming', stage: 'champions_semi_2'
+        }
+      ];
+
+      season.playoffFixtures.push({
+        stage: 'champions_semi_1',
+        matchday: 201,
+        matches: semi1Matches,
+      });
+
+      season.playoffFixtures.push({
+        stage: 'champions_semi_2',
+        matchday: 202,
+        matches: semi2Matches,
+      });
+
+      saveDB(db);
+
+      res.json({ success: true, message: 'Champions Cup semi-finals generated.' });
+
+    } else if (action === 'generate_final') {
+      const exists = season.playoffFixtures.some(f => f.stage === 'champions_final');
+      if (exists) return res.status(400).json({ error: 'Champions Cup final has already been generated.' });
+
+      const semi1Round = season.playoffFixtures.find(f => f.stage === 'champions_semi_1');
+      const semi2Round = season.playoffFixtures.find(f => f.stage === 'champions_semi_2');
+
+      if (!semi1Round || !semi2Round) return res.status(400).json({ error: 'Semi-finals have not been fully drawn.' });
+
+      const allSemis = [...semi1Round.matches, ...semi2Round.matches];
+      const incomplete = allSemis.some(m => m.status !== 'completed');
+      if (incomplete) return res.status(400).json({ error: 'Cannot generate final. Semi-final matches are not fully completed.' });
+
+      const firstId = semi2Round.matches[0].home.id; // 1st seed
+      const fourthId = semi2Round.matches[0].away.id; // 4th seed
+      const secondId = semi2Round.matches[1].home.id; // 2nd seed
+      const thirdId = semi2Round.matches[1].away.id; // 3rd seed
+
+      const getWinner = (teamAId, teamBId) => {
+        let scoreA = 0, scoreB = 0;
+        let leg2Match = null;
+        allSemis.forEach(m => {
+          if (m.stage === 'champions_semi_2' && ((m.home.id === teamAId && m.away.id === teamBId) || (m.home.id === teamBId && m.away.id === teamAId))) {
+            leg2Match = m;
+          }
+          if (m.home.id === teamAId && m.away.id === teamBId) {
+            scoreA += m.homeScore || 0;
+            scoreB += m.awayScore || 0;
+          } else if (m.away.id === teamAId && m.home.id === teamBId) {
+            scoreB += m.homeScore || 0;
+            scoreA += m.awayScore || 0;
+          }
+        });
+        if (scoreA > scoreB) return teamAId;
+        if (scoreB > scoreA) return teamBId;
+        return leg2Match ? leg2Match.goldenGoalWinnerId : null;
+      };
+
+      const winner1 = getWinner(firstId, fourthId);
+      const winner2 = getWinner(secondId, thirdId);
+
+      if (!winner1 || !winner2) {
+        return res.status(400).json({ error: 'Could not resolve semi-final winners. Please ensure tied aggregate scores have a Golden Goal winner recorded.' });
+      }
+
+      const team1 = db.teams.find(t => t.id === winner1);
+      const team2 = db.teams.find(t => t.id === winner2);
+
+      const finalMatch = {
+        id: Math.floor(Math.random() * 100000),
+        home: { id: team1.id, player: team1.player, club: team1.club },
+        away: { id: team2.id, player: team2.player, club: team2.club },
+        homeScore: null, awayScore: null, status: 'upcoming', stage: 'champions_final'
+      };
+
+      season.playoffFixtures.push({
+        stage: 'champions_final',
+        matchday: 203,
+        matches: [finalMatch],
+      });
+
+      saveDB(db);
+
+      res.json({ success: true, message: `Champions Cup final generated between ${team1.player} and ${team2.player}`, match: finalMatch });
+    }
+  } catch (err) {
+    console.error('Playoffs error:', err);
+    res.status(500).json({ error: 'Failed to manage playoffs' });
   }
 });
 
@@ -401,7 +722,7 @@ app.put('/api/admin/headline', requireAdmin, (req, res) => {
 // ── DELETE /api/admin/match — Reset a match or entire matchday ────
 app.delete('/api/admin/match', requireAdmin, (req, res) => {
   try {
-    const { matchday, homeId, awayId, seasonId } = req.body;
+    const { matchday, homeId, awayId, seasonId, stage } = req.body;
 
     const db = loadDB();
 
@@ -413,8 +734,19 @@ app.delete('/api/admin/match', requireAdmin, (req, res) => {
       season = getActiveSeason(db);
     }
 
-    const md = season.fixtures.find(f => f.matchday === matchday);
-    if (!md) return res.status(404).json({ error: 'Matchday not found' });
+    let md = null;
+
+    if (stage && stage.startsWith('cup_')) {
+      if (!season.cupFixtures) season.cupFixtures = [];
+      md = season.cupFixtures.find(f => f.stage === stage);
+    } else if (stage && stage.startsWith('champions_')) {
+      if (!season.playoffFixtures) season.playoffFixtures = [];
+      md = season.playoffFixtures.find(f => f.stage === stage);
+    } else {
+      md = season.fixtures.find(f => f.matchday === matchday);
+    }
+
+    if (!md) return res.status(404).json({ error: 'Matchday or Round not found' });
 
     if (homeId === undefined && awayId === undefined) {
       md.matches.forEach(m => {
@@ -423,9 +755,10 @@ app.delete('/api/admin/match', requireAdmin, (req, res) => {
         m.status = 'upcoming';
         m.isMotw = false;
         m.predictions = { home: 0, draw: 0, away: 0, ips: [], voters: [] };
+        m.goldenGoalWinnerId = null;
       });
       saveDB(db);
-      return res.json({ success: true, message: `Reset all matches for matchday ${matchday}` });
+      return res.json({ success: true, message: `Reset all matches for this round` });
     }
 
     const match = md.matches.find(
@@ -438,6 +771,7 @@ app.delete('/api/admin/match', requireAdmin, (req, res) => {
     match.status = 'upcoming';
     match.isMotw = false;
     match.predictions = { home: 0, draw: 0, away: 0, ips: [], voters: [] };
+    match.goldenGoalWinnerId = null;
 
     saveDB(db);
 

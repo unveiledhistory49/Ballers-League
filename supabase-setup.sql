@@ -37,6 +37,8 @@ CREATE TABLE IF NOT EXISTS matches (
   away_stream_url TEXT DEFAULT NULL,
   predictions JSONB DEFAULT '{"home": 0, "draw": 0, "away": 0, "ips": []}',
   is_motw BOOLEAN NOT NULL DEFAULT FALSE,
+  stage TEXT NOT NULL DEFAULT 'league',
+  golden_goal_winner_id INTEGER DEFAULT NULL,
   UNIQUE(season_id, matchday, home_id, away_id)
 );
 

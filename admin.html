@@ -999,7 +999,14 @@
       </div>
     </div>
 
-    <div class="admin-matchday-nav">
+    <!-- Admin Section Tabs -->
+    <div class="admin-section-tabs">
+      <button id="admin-tab-league" class="admin-sec-tab active" onclick="switchAdminSection('league')">League Matches</button>
+      <button id="admin-tab-cup" class="admin-sec-tab" onclick="switchAdminSection('cup')">Ballers Cup</button>
+      <button id="admin-tab-playoffs" class="admin-sec-tab" onclick="switchAdminSection('playoffs')">Champions Cup</button>
+    </div>
+
+    <div class="admin-matchday-nav" id="admin-matchday-nav-container">
       <button class="admin-md-arrow" id="admin-prev" onclick="adminChangeMatchday(-1)">‹</button>
       <div class="admin-md-info">
         <div class="md-title" id="admin-md-title">Matchday 1</div>
@@ -1008,7 +1015,7 @@
       <button class="admin-md-arrow" id="admin-next" onclick="adminChangeMatchday(1)">›</button>
     </div>
 
-    <div class="admin-actions-bar">
+    <div class="admin-actions-bar" id="admin-actions-bar-container">
       <button class="btn-reset-all" onclick="resetMatchday()">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
@@ -1071,6 +1078,7 @@
     let leagueData = null;
     let adminMatchday = 0;
     let adminSeasonId = null;
+    let activeAdminSection = 'league';
 
     // ── Login ─────────────────────────────────────────
     document.getElementById('login-key').addEventListener('keydown', (e) => {
@@ -1122,7 +1130,7 @@
         leagueData = await res.json();
         adminSeasonId = leagueData.seasonId || null;
         renderAdminSeasonSelector();
-        renderAdminMatchday();
+        renderAdminActiveSection();
         checkSeasonComplete();
         
         // Update headline input
@@ -1245,10 +1253,43 @@
       const newIdx = adminMatchday + delta;
       if (newIdx < 0 || newIdx >= leagueData.fixtures.length) return;
       adminMatchday = newIdx;
-      renderAdminMatchday();
+      renderAdminActiveSection();
     }
 
-    // ── Render ─────────────────────────────────────────
+    // ── Render Admin Section Switcher ──────────────────
+    function switchAdminSection(section) {
+      activeAdminSection = section;
+      renderAdminActiveSection();
+    }
+
+    function renderAdminActiveSection() {
+      const matchesContainer = document.getElementById('admin-matches');
+      if (!matchesContainer) return;
+
+      const navContainer = document.getElementById('admin-matchday-nav-container');
+      const actionsContainer = document.getElementById('admin-actions-bar-container');
+
+      // Update active state on tab buttons
+      document.querySelectorAll('.admin-sec-tab').forEach(btn => btn.classList.remove('active'));
+      const activeBtn = document.getElementById(`admin-tab-${activeAdminSection}`);
+      if (activeBtn) activeBtn.classList.add('active');
+
+      if (activeAdminSection === 'league') {
+        if (navContainer) navContainer.style.display = 'flex';
+        if (actionsContainer) actionsContainer.style.display = 'flex';
+        renderAdminMatchday();
+      } else if (activeAdminSection === 'cup') {
+        if (navContainer) navContainer.style.display = 'none';
+        if (actionsContainer) actionsContainer.style.display = 'none';
+        renderAdminCup();
+      } else if (activeAdminSection === 'playoffs') {
+        if (navContainer) navContainer.style.display = 'none';
+        if (actionsContainer) actionsContainer.style.display = 'none';
+        renderAdminPlayoffs();
+      }
+    }
+
+    // ── Render League Matchday ─────────────────────────
     function renderAdminMatchday() {
       const fixtures = leagueData.fixtures;
       const md = fixtures[adminMatchday];
@@ -1262,24 +1303,324 @@
       container.innerHTML = '';
 
       md.matches.forEach((match, idx) => {
-        const card = document.createElement('div');
-        card.className = `match-card ${match.status === 'completed' ? 'completed' : ''}`;
-        card.style.animationDelay = `${idx * 0.05}s`;
+        const cardHTML = buildAdminMatchCardHTML(match, md.matchday, 'league', idx);
+        container.innerHTML += cardHTML;
+      });
+    }
 
-        const homeVal = match.homeScore !== null ? match.homeScore : '';
-        const awayVal = match.awayScore !== null ? match.awayScore : '';
-        
-        let statusClass = 'status-upcoming';
-        let statusLabel = 'Upcoming';
-        if (match.status === 'completed') {
-          statusClass = 'status-completed';
-          statusLabel = 'Completed';
-        } else if (match.status === 'live') {
-          statusClass = 'status-live';
-          statusLabel = 'Live';
+    // ── Render Ballers Cup ─────────────────────────────
+    function renderAdminCup() {
+      const container = document.getElementById('admin-matches');
+      if (!container) return;
+
+      const cupFixtures = leagueData.cupFixtures || [];
+      const r16 = cupFixtures.find(f => f.stage === 'cup_r16');
+      const qf = cupFixtures.find(f => f.stage === 'cup_qf');
+      const sf = cupFixtures.find(f => f.stage === 'cup_sf');
+      const final = cupFixtures.find(f => f.stage === 'cup_final');
+
+      let drawHtml = '';
+      if (!r16) {
+        drawHtml = `
+          <div class="admin-tournament-panel">
+            <h3>Ballers Cup — Round of 16</h3>
+            <p>Ready to start the cup? Generate the Round of 16 draw. 4 random teams will get byes, and 8 teams will play.</p>
+            <button class="admin-draw-btn" onclick="drawCupRound('cup_r16')">Draw Round of 16</button>
+          </div>
+        `;
+      } else {
+        const checkRoundComplete = (roundData) => {
+          return roundData && roundData.matches && roundData.matches.every(m => m.status === 'completed');
+        };
+
+        if (!checkRoundComplete(r16)) {
+          drawHtml = `
+            <div class="admin-tournament-panel">
+              <h3>Round of 16 in Progress</h3>
+              <p>Complete all Round of 16 matches to unlock the Quarter-finals draw.</p>
+            </div>
+          `;
+        } else if (!qf) {
+          drawHtml = `
+            <div class="admin-tournament-panel">
+              <h3>Ballers Cup — Quarter-finals</h3>
+              <p>All Round of 16 matches are complete! Generate the Quarter-finals draw (4 Round of 16 winners + 4 bye teams).</p>
+              <button class="admin-draw-btn" onclick="drawCupRound('cup_qf')">Draw Quarter-finals</button>
+            </div>
+          `;
+        } else if (!checkRoundComplete(qf)) {
+          drawHtml = `
+            <div class="admin-tournament-panel">
+              <h3>Quarter-finals in Progress</h3>
+              <p>Complete all Quarter-final matches to unlock the Semi-finals draw.</p>
+            </div>
+          `;
+        } else if (!sf) {
+          drawHtml = `
+            <div class="admin-tournament-panel">
+              <h3>Ballers Cup — Semi-finals</h3>
+              <p>All Quarter-final matches are complete! Generate the Semi-finals draw (4 Quarter-final winners).</p>
+              <button class="admin-draw-btn" onclick="drawCupRound('cup_sf')">Draw Semi-finals</button>
+            </div>
+          `;
+        } else if (!checkRoundComplete(sf)) {
+          drawHtml = `
+            <div class="admin-tournament-panel">
+              <h3>Semi-finals in Progress</h3>
+              <p>Complete all Semi-final matches to unlock the Cup Final draw.</p>
+            </div>
+          `;
+        } else if (!final) {
+          drawHtml = `
+            <div class="admin-tournament-panel">
+              <h3>Ballers Cup — Cup Final</h3>
+              <p>All Semi-final matches are complete! Generate the Cup Final draw (2 Semi-final winners).</p>
+              <button class="admin-draw-btn" onclick="drawCupRound('cup_final')">Draw Cup Final</button>
+            </div>
+          `;
+        } else if (!checkRoundComplete(final)) {
+          drawHtml = `
+            <div class="admin-tournament-panel">
+              <h3>Cup Final in Progress</h3>
+              <p>Play the final match to crown the Ballers Cup Champion!</p>
+            </div>
+          `;
+        } else {
+          const finalMatch = final.matches[0];
+          let winnerName = 'TBD';
+          if (finalMatch.homeScore > finalMatch.awayScore) winnerName = finalMatch.home.player;
+          else if (finalMatch.awayScore > finalMatch.homeScore) winnerName = finalMatch.away.player;
+          else if (finalMatch.goldenGoalWinnerId) {
+            winnerName = finalMatch.home.id === finalMatch.goldenGoalWinnerId ? finalMatch.home.player : finalMatch.away.player;
+          }
+          drawHtml = `
+            <div class="admin-tournament-panel">
+              <h3 style="color: var(--accent-gold);">🏆 Ballers Cup Complete!</h3>
+              <p>Champion: <strong>${winnerName}</strong></p>
+            </div>
+          `;
         }
+      }
 
-        card.innerHTML = `
+      let matchesListHtml = '';
+      const roundLabels = {
+        'cup_r16': 'Round of 16',
+        'cup_qf': 'Quarter-finals',
+        'cup_sf': 'Semi-finals',
+        'cup_final': 'Cup Final'
+      };
+
+      cupFixtures.forEach(round => {
+        matchesListHtml += `
+          <div class="cup-admin-round-section" style="margin-top: 24px;">
+            <h4 style="margin: 0 20px 10px; font-family: var(--font-display); border-left: 3px solid var(--accent-gold); padding-left: 8px; font-size: 1.1rem; text-transform: uppercase;">
+              ${roundLabels[round.stage]}
+            </h4>
+            <div class="admin-matches-list" style="display: flex; flex-direction: column; gap: 16px; padding: 0 20px;">
+        `;
+
+        round.matches.forEach((match, idx) => {
+          matchesListHtml += buildAdminMatchCardHTML(match, round.matchday, round.stage, idx);
+        });
+
+        matchesListHtml += `
+            </div>
+          </div>
+        `;
+      });
+
+      container.innerHTML = drawHtml + matchesListHtml;
+    }
+
+    // ── Render Champions Cup (Playoffs) ──────────────────
+    function renderAdminPlayoffs() {
+      const container = document.getElementById('admin-matches');
+      if (!container) return;
+
+      const playoffFixtures = leagueData.playoffFixtures || [];
+      const semi1 = playoffFixtures.find(f => f.stage === 'champions_semi_1');
+      const semi2 = playoffFixtures.find(f => f.stage === 'champions_semi_2');
+      const final = playoffFixtures.find(f => f.stage === 'champions_final');
+
+      const leagueMatchesComplete = leagueData.fixtures && leagueData.fixtures.every(md => md.matches.every(m => m.status === 'completed'));
+
+      let drawHtml = '';
+      if (!leagueMatchesComplete) {
+        drawHtml = `
+          <div class="admin-tournament-panel">
+            <h3 style="color: var(--dot-loss);">League Season in Progress</h3>
+            <p>The regular season must be completely finished before the Champions Cup Playoffs can be generated.</p>
+          </div>
+        `;
+      } else if (!semi1 || !semi2) {
+        drawHtml = `
+          <div class="admin-tournament-panel">
+            <h3>Champions Cup — Semi-finals</h3>
+            <p>Regular season is complete! Ready to generate the 2-legged semi-finals (1st vs 4th, 2nd vs 3rd)?</p>
+            <button class="admin-draw-btn" onclick="generatePlayoffs('generate_semis')">Generate Semi-finals</button>
+          </div>
+        `;
+      } else {
+        const checkRoundComplete = (roundData) => {
+          return roundData && roundData.matches && roundData.matches.every(m => m.status === 'completed');
+        };
+
+        const semisComplete = checkRoundComplete(semi1) && checkRoundComplete(semi2);
+
+        if (!semisComplete) {
+          drawHtml = `
+            <div class="admin-tournament-panel">
+              <h3>Semi-finals in Progress</h3>
+              <p>Complete both Legs of the semi-finals to unlock the Champions Cup Final generation.</p>
+            </div>
+          `;
+        } else if (!final) {
+          drawHtml = `
+            <div class="admin-tournament-panel">
+              <h3>Champions Cup — Final</h3>
+              <p>All Semi-final ties are resolved! Generate the Champions Cup Final match.</p>
+              <button class="admin-draw-btn" onclick="generatePlayoffs('generate_final')">Generate Final</button>
+            </div>
+          `;
+        } else if (!checkRoundComplete(final)) {
+          drawHtml = `
+            <div class="admin-tournament-panel">
+              <h3>Champions Cup Final in Progress</h3>
+              <p>Play the final match to crown the Champions Cup Winner!</p>
+            </div>
+          `;
+        } else {
+          const finalMatch = final.matches[0];
+          let winnerName = 'TBD';
+          if (finalMatch.homeScore > finalMatch.awayScore) winnerName = finalMatch.home.player;
+          else if (finalMatch.awayScore > finalMatch.homeScore) winnerName = finalMatch.away.player;
+          else if (finalMatch.goldenGoalWinnerId) {
+            winnerName = finalMatch.home.id === finalMatch.goldenGoalWinnerId ? finalMatch.home.player : finalMatch.away.player;
+          }
+          drawHtml = `
+            <div class="admin-tournament-panel">
+              <h3 style="color: #00d2ff; text-shadow: 0 0 10px rgba(0, 210, 255, 0.3);">🏆 Champions Cup Complete!</h3>
+              <p>Champion: <strong>${winnerName}</strong></p>
+            </div>
+          `;
+        }
+      }
+
+      let matchesListHtml = '';
+      if (semi1) {
+        matchesListHtml += `
+          <div class="playoffs-admin-section" style="margin-top: 24px;">
+            <h4 style="margin: 0 20px 10px; font-family: var(--font-display); border-left: 3px solid #00d2ff; padding-left: 8px; font-size: 1.1rem; text-transform: uppercase; color: #00d2ff;">
+              Semi-finals — Leg 1
+            </h4>
+            <div class="admin-matches-list" style="display: flex; flex-direction: column; gap: 16px; padding: 0 20px;">
+        `;
+        semi1.matches.forEach((match, idx) => {
+          matchesListHtml += buildAdminMatchCardHTML(match, semi1.matchday, 'champions_semi_1', idx);
+        });
+        matchesListHtml += `</div></div>`;
+      }
+
+      if (semi2) {
+        matchesListHtml += `
+          <div class="playoffs-admin-section" style="margin-top: 24px;">
+            <h4 style="margin: 0 20px 10px; font-family: var(--font-display); border-left: 3px solid #00d2ff; padding-left: 8px; font-size: 1.1rem; text-transform: uppercase; color: #00d2ff;">
+              Semi-finals — Leg 2 (Decider)
+            </h4>
+            <div class="admin-matches-list" style="display: flex; flex-direction: column; gap: 16px; padding: 0 20px;">
+        `;
+        semi2.matches.forEach((match, idx) => {
+          matchesListHtml += buildAdminMatchCardHTML(match, semi2.matchday, 'champions_semi_2', idx);
+        });
+        matchesListHtml += `</div></div>`;
+      }
+
+      if (final) {
+        matchesListHtml += `
+          <div class="playoffs-admin-section" style="margin-top: 24px;">
+            <h4 style="margin: 0 20px 10px; font-family: var(--font-display); border-left: 3px solid var(--accent-gold); padding-left: 8px; font-size: 1.1rem; text-transform: uppercase; color: var(--accent-gold);">
+              Champions Cup Final
+            </h4>
+            <div class="admin-matches-list" style="display: flex; flex-direction: column; gap: 16px; padding: 0 20px;">
+        `;
+        final.matches.forEach((match, idx) => {
+          matchesListHtml += buildAdminMatchCardHTML(match, final.matchday, 'champions_final', idx);
+        });
+        matchesListHtml += `</div></div>`;
+      }
+
+      container.innerHTML = drawHtml + matchesListHtml;
+    }
+
+    // ── Build Match Card HTML Helper ────────────────────
+    function buildAdminMatchCardHTML(match, matchday, stage = 'league', idx = 0) {
+      const homeVal = match.homeScore !== null ? match.homeScore : '';
+      const awayVal = match.awayScore !== null ? match.awayScore : '';
+      
+      let statusClass = 'status-upcoming';
+      let statusLabel = 'Upcoming';
+      if (match.status === 'completed') {
+        statusClass = 'status-completed';
+        statusLabel = 'Completed';
+      } else if (match.status === 'live') {
+        statusClass = 'status-live';
+        statusLabel = 'Live';
+      }
+
+      const isKnockout = stage.startsWith('cup_') || stage === 'champions_semi_2' || stage === 'champions_final';
+      
+      let showGG = false;
+      if (isKnockout) {
+        if (stage.startsWith('cup_') || stage === 'champions_final') {
+          showGG = (homeVal !== '' && awayVal !== '' && parseInt(homeVal, 10) === parseInt(awayVal, 10));
+        } else if (stage === 'champions_semi_2') {
+          const semi1Round = leagueData.playoffFixtures.find(f => f.stage === 'champions_semi_1');
+          if (semi1Round) {
+            const leg1Match = semi1Round.matches.find(m => (m.home.id === match.home.id && m.away.id === match.away.id) || (m.home.id === match.away.id && m.away.id === match.home.id));
+            if (leg1Match) {
+              const leg1Home = leg1Match.home.id === match.home.id ? leg1Match.homeScore : leg1Match.awayScore;
+              const leg1Away = leg1Match.home.id === match.away.id ? leg1Match.homeScore : leg1Match.awayScore;
+              if (leg1Home !== null && leg1Away !== null && homeVal !== '' && awayVal !== '') {
+                const totalHome = leg1Home + parseInt(homeVal, 10);
+                const totalAway = leg1Away + parseInt(awayVal, 10);
+                showGG = (totalHome === totalAway);
+              }
+            }
+          }
+        }
+      }
+
+      let ggHTML = '';
+      if (isKnockout) {
+        const optHomeSelected = match.goldenGoalWinnerId === match.home.id ? 'selected' : '';
+        const optAwaySelected = match.goldenGoalWinnerId === match.away.id ? 'selected' : '';
+        
+        ggHTML = `
+          <div class="gg-container" id="gg-container-${match.home.id}-${match.away.id}" style="${showGG ? 'display: flex;' : 'display: none;'}">
+            <label>⚡ Golden Goal Winner</label>
+            <select class="gg-select" id="gg-winner-${match.home.id}-${match.away.id}">
+              <option value="">Select Winner...</option>
+              <option value="${match.home.id}" ${optHomeSelected}>${match.home.player} (${match.home.club})</option>
+              <option value="${match.away.id}" ${optAwaySelected}>${match.away.player} (${match.away.club})</option>
+            </select>
+          </div>
+        `;
+      }
+
+      const motwHTML = (stage === 'league') ? `
+        <div class="match-motw-row">
+          <button id="motw-${match.home.id}-${match.away.id}" 
+            class="btn-motw ${match.isMotw ? 'active' : ''}" 
+            onclick="toggleMotwUI(${match.home.id}, ${match.away.id})">
+            ⚡ ${match.isMotw ? 'Match of the Week' : 'Set Match of the Week'}
+          </button>
+        </div>
+      ` : '';
+
+      const checkTieCall = isKnockout ? `oninput="checkMatchTie(${match.home.id}, ${match.away.id}, '${stage}')"` : '';
+
+      return `
+        <div class="match-card ${match.status === 'completed' ? 'completed' : ''}" style="animation-delay: ${idx * 0.05}s;">
           <div class="match-teams">
             <div class="match-team-info">
               <div class="match-team-name">${match.home.player}</div>
@@ -1293,15 +1634,17 @@
           </div>
           <div class="match-score-row">
             <input type="number" class="score-input" id="home-${match.home.id}-${match.away.id}"
-              value="${homeVal}" min="0" max="99" placeholder="0">
+              value="${homeVal}" min="0" max="99" placeholder="0" ${checkTieCall}>
             <span class="score-dash">—</span>
             <input type="number" class="score-input" id="away-${match.home.id}-${match.away.id}"
-              value="${awayVal}" min="0" max="99" placeholder="0">
+              value="${awayVal}" min="0" max="99" placeholder="0" ${checkTieCall}>
           </div>
           
+          ${ggHTML}
+
           <div class="match-status-select-row">
             <label for="status-${match.home.id}-${match.away.id}">Status:</label>
-            <select class="status-select" id="status-${match.home.id}-${match.away.id}">
+            <select class="status-select" id="status-${match.home.id}-${match.away.id}" onchange="checkMatchTie(${match.home.id}, ${match.away.id}, '${stage}')">
               <option value="upcoming" ${match.status === 'upcoming' ? 'selected' : ''}>Upcoming</option>
               <option value="live" ${match.status === 'live' ? 'selected' : ''}>Live</option>
               <option value="completed" ${match.status === 'completed' ? 'selected' : ''}>Completed</option>
@@ -1321,19 +1664,13 @@
             </div>
           </div>
 
-          <div class="match-motw-row">
-            <button id="motw-${match.home.id}-${match.away.id}" 
-              class="btn-motw ${match.isMotw ? 'active' : ''}" 
-              onclick="toggleMotwUI(${match.home.id}, ${match.away.id})">
-              ⚡ ${match.isMotw ? 'Match of the Week' : 'Set Match of the Week'}
-            </button>
-          </div>
+          ${motwHTML}
 
           <div class="match-actions">
-            <button class="btn-save" onclick="saveMatch(${md.matchday}, ${match.home.id}, ${match.away.id})">
+            <button class="btn-save" onclick="saveMatch(${matchday}, ${match.home.id}, ${match.away.id}, '${stage}')">
               Save Match
             </button>
-            <button class="btn-reset" onclick="resetMatch(${md.matchday}, ${match.home.id}, ${match.away.id})">
+            <button class="btn-reset" onclick="resetMatch(${matchday}, ${match.home.id}, ${match.away.id}, '${stage}')">
               Reset
             </button>
           </div>
@@ -1341,26 +1678,61 @@
             <span class="status-dot"></span>
             <span>${statusLabel}</span>
           </div>
-        `;
-
-        container.appendChild(card);
-      });
+        </div>
+      `;
     }
 
-    // Toggle MOTW selection in UI (only one active per matchday)
+    // ── Check Match Tie Dynamically ─────────────────────
+    function checkMatchTie(homeId, awayId, stage) {
+      const container = document.getElementById(`gg-container-${homeId}-${awayId}`);
+      if (!container) return;
+
+      const homeScoreVal = document.getElementById(`home-${homeId}-${awayId}`).value;
+      const awayScoreVal = document.getElementById(`away-${homeId}-${awayId}`).value;
+
+      let isTie = false;
+      if (homeScoreVal !== '' && awayScoreVal !== '') {
+        const homeVal = parseInt(homeScoreVal, 10);
+        const awayVal = parseInt(awayScoreVal, 10);
+
+        if (stage.startsWith('cup_') || stage === 'champions_final') {
+          isTie = (homeVal === awayVal);
+        } else if (stage === 'champions_semi_2') {
+          const semi1Round = leagueData.playoffFixtures.find(f => f.stage === 'champions_semi_1');
+          if (semi1Round) {
+            const leg1Match = semi1Round.matches.find(m => (m.home.id === homeId && m.away.id === awayId) || (m.home.id === awayId && m.away.id === homeId));
+            if (leg1Match) {
+              const leg1Home = leg1Match.home.id === homeId ? leg1Match.homeScore : leg1Match.awayScore;
+              const leg1Away = leg1Match.home.id === awayId ? leg1Match.homeScore : leg1Match.awayScore;
+              if (leg1Home !== null && leg1Away !== null) {
+                const totalHome = leg1Home + homeVal;
+                const totalAway = leg1Away + awayVal;
+                isTie = (totalHome === totalAway);
+              }
+            }
+          }
+        }
+      }
+
+      if (isTie) {
+        container.style.display = 'flex';
+      } else {
+        container.style.display = 'none';
+      }
+    }
+
+    // ── Toggle MOTW selection in UI ─────────────────────
     function toggleMotwUI(homeId, awayId) {
       const activeBtn = document.getElementById(`motw-${homeId}-${awayId}`);
       if (!activeBtn) return;
       const wasActive = activeBtn.classList.contains('active');
 
-      // Deactivate all MOTW buttons in the current matchday view
       const buttons = document.querySelectorAll('.btn-motw');
       buttons.forEach(btn => {
         btn.classList.remove('active');
         btn.innerHTML = '⚡ Set Match of the Week';
       });
 
-      // Toggle state
       if (!wasActive) {
         activeBtn.classList.add('active');
         activeBtn.innerHTML = '⚡ Match of the Week';
@@ -1368,17 +1740,32 @@
     }
 
     // ── Save Match ─────────────────────────────────────
-    async function saveMatch(matchday, homeId, awayId) {
+    async function saveMatch(matchday, homeId, awayId, stage = 'league') {
       const homeScore = document.getElementById(`home-${homeId}-${awayId}`).value;
       const awayScore = document.getElementById(`away-${homeId}-${awayId}`).value;
       const status = document.getElementById(`status-${homeId}-${awayId}`).value;
       const homeStreamUrl = document.getElementById(`home-stream-${homeId}-${awayId}`).value.trim();
       const awayStreamUrl = document.getElementById(`away-stream-${homeId}-${awayId}`).value.trim();
-      const isMotw = document.getElementById(`motw-${homeId}-${awayId}`).classList.contains('active');
+      
+      const motwEl = document.getElementById(`motw-${homeId}-${awayId}`);
+      const isMotw = motwEl ? motwEl.classList.contains('active') : false;
 
       if (status === 'completed' && (homeScore === '' || awayScore === '')) {
         showToast('Enter both scores to mark match as completed', 'error');
         return;
+      }
+
+      let goldenGoalWinnerId = null;
+      const ggContainer = document.getElementById(`gg-container-${homeId}-${awayId}`);
+      if (ggContainer && ggContainer.style.display !== 'none') {
+        const ggSelect = document.getElementById(`gg-winner-${homeId}-${awayId}`);
+        if (status === 'completed') {
+          if (!ggSelect || !ggSelect.value) {
+            showToast('Please select a Golden Goal winner for the tied match', 'error');
+            return;
+          }
+          goldenGoalWinnerId = parseInt(ggSelect.value, 10);
+        }
       }
 
       try {
@@ -1398,7 +1785,9 @@
             homeStreamUrl: homeStreamUrl || null,
             awayStreamUrl: awayStreamUrl || null,
             seasonId: adminSeasonId,
-            isMotw
+            isMotw,
+            stage,
+            goldenGoalWinnerId
           }),
         });
 
@@ -1406,7 +1795,7 @@
 
         if (data.success) {
           showToast(data.message, 'success');
-          await loadLeagueData(); // Refresh
+          await loadLeagueData(adminSeasonId);
         } else {
           showToast(data.error || 'Failed to save', 'error');
         }
@@ -1416,7 +1805,7 @@
     }
 
     // ── Reset Match ────────────────────────────────────
-    async function resetMatch(matchday, homeId, awayId) {
+    async function resetMatch(matchday, homeId, awayId, stage = 'league') {
       try {
         const res = await fetch('/api/admin/match', {
           method: 'DELETE',
@@ -1424,14 +1813,14 @@
             'Content-Type': 'application/json',
             'X-Admin-Key': adminKey,
           },
-          body: JSON.stringify({ matchday, homeId, awayId, seasonId: adminSeasonId }),
+          body: JSON.stringify({ matchday, homeId, awayId, seasonId: adminSeasonId, stage }),
         });
 
         const data = await res.json();
 
         if (data.success) {
           showToast('Match reset', 'success');
-          await loadLeagueData();
+          await loadLeagueData(adminSeasonId);
         } else {
           showToast(data.error || 'Failed to reset', 'error');
         }
@@ -1439,6 +1828,62 @@
         showToast('Server error', 'error');
       }
     }
+
+    // ── Draw Cup Round ─────────────────────────────────
+    async function drawCupRound(round) {
+      if (!confirm(`Are you sure you want to draw the matches for ${round}?`)) {
+        return;
+      }
+      try {
+        const res = await fetch('/api/admin/cup/draw', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Admin-Key': adminKey,
+          },
+          body: JSON.stringify({ round, seasonId: adminSeasonId }),
+        });
+        const data = await res.json();
+        if (data.success) {
+          showToast(data.message, 'success');
+          await loadLeagueData(adminSeasonId);
+        } else {
+          showToast(data.error || 'Failed to draw cup round', 'error');
+        }
+      } catch (err) {
+        showToast('Server error drawing cup round', 'error');
+      }
+    }
+
+    // ── Generate Playoffs ──────────────────────────────
+    async function generatePlayoffs(action) {
+      const confirmMsg = action === 'generate_semis' 
+        ? 'Generate Champions Cup semi-finals from the top 4 teams?' 
+        : 'Generate Champions Cup final between the semi-final winners?';
+      if (!confirm(confirmMsg)) {
+        return;
+      }
+      try {
+        const res = await fetch('/api/admin/playoffs/generate', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Admin-Key': adminKey,
+          },
+          body: JSON.stringify({ action, seasonId: adminSeasonId }),
+        });
+        const data = await res.json();
+        if (data.success) {
+          showToast(data.message, 'success');
+          await loadLeagueData(adminSeasonId);
+        } else {
+          showToast(data.error || 'Failed to generate playoffs', 'error');
+        }
+      } catch (err) {
+        showToast('Server error generating playoffs', 'error');
+      }
+    }
+
 
     // ── Reset Entire Matchday ──────────────────────────
     async function resetMatchday() {

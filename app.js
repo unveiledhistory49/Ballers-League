@@ -161,6 +161,10 @@ function switchPage(page) {
   // Load records page data on first visit
   if (page === 'records') {
     renderRecords();
+  } else if (page === 'cup') {
+    renderBallersCup();
+  } else if (page === 'champions') {
+    renderChampionsCup();
   } else {
     refreshLeagueDataSilent();
   }
@@ -2581,6 +2585,278 @@ async function renderRecords() {
       container.innerHTML = `<div class="records-loading text-red-500">Could not load records.</div>`;
     }
   }
+}
+
+// ── BALLERS CUP RENDERING ─────────────────────────────────────
+function renderBallersCup() {
+  const container = document.getElementById("cup-container");
+  if (!container) return;
+
+  if (!leagueData || !leagueData.cupFixtures || leagueData.cupFixtures.length === 0) {
+    container.innerHTML = `
+      <div class="records-empty">
+        <div style="font-size: 2.5rem; margin-bottom: 12px;">🏆</div>
+        <h3>No Cup Matches Yet</h3>
+        <p>The Ballers Cup draw has not been generated for this season yet. Draw the first round from the Admin Panel.</p>
+      </div>
+    `;
+    return;
+  }
+
+  // Group by stage
+  const roundsOrder = ['cup_r16', 'cup_qf', 'cup_sf', 'cup_final'];
+  const roundLabels = {
+    'cup_r16': 'Round of 16 (Preliminaries)',
+    'cup_qf': 'Quarter-finals',
+    'cup_sf': 'Semi-finals',
+    'cup_final': 'Cup Final 🏆'
+  };
+
+  let html = `<div class="cup-bracket-list">`;
+
+  roundsOrder.forEach(roundKey => {
+    const roundData = leagueData.cupFixtures.find(f => f.stage === roundKey);
+    if (!roundData) return;
+
+    html += `
+      <div class="cup-round-section">
+        <div class="cup-round-header">
+          <span>${roundLabels[roundKey]}</span>
+        </div>
+        <div class="cup-matches-grid">
+    `;
+
+    roundData.matches.forEach(m => {
+      const homeColors = clubColors[m.home.club] || { bg: "#333", text: "#fff" };
+      const awayColors = clubColors[m.away.club] || { bg: "#333", text: "#fff" };
+      const homeLogoSrc = clubLogos[m.home.club];
+      const awayLogoSrc = clubLogos[m.away.club];
+      const homeLogoHTML = homeLogoSrc ? `<img src="${homeLogoSrc}" alt="${m.home.club}">` : '';
+      const awayLogoHTML = awayLogoSrc ? `<img src="${awayLogoSrc}" alt="${m.away.club}">` : '';
+
+      let scoreHTML;
+      let goldenGoalText = "";
+
+      if (m.status === 'completed' && m.homeScore !== null) {
+        scoreHTML = `
+          <div class="cup-score-display">
+            <span class="${m.homeScore > m.awayScore ? 'font-bold text-white' : 'text-muted'}">${m.homeScore}</span>
+            <span class="score-separator">-</span>
+            <span class="${m.awayScore > m.homeScore ? 'font-bold text-white' : 'text-muted'}">${m.awayScore}</span>
+          </div>
+        `;
+        if (m.homeScore === m.awayScore && m.goldenGoalWinnerId) {
+          const winnerName = m.home.id === m.goldenGoalWinnerId ? m.home.player : m.away.player;
+          goldenGoalText = `<div class="cup-gg-badge">⚡ Golden Goal: <strong>${winnerName}</strong></div>`;
+        }
+      } else {
+        scoreHTML = `<div class="cup-vs">VS</div>`;
+      }
+
+      html += `
+        <div class="cup-match-card ${m.status === 'completed' ? 'completed' : ''}">
+          <div class="cup-team-row">
+            <div class="cup-team-info">
+              <div class="cup-team-logo" style="${!homeLogoSrc ? `background: ${homeColors.bg}; color: ${homeColors.text};` : ''}">
+                ${homeLogoHTML || m.home.club.substring(0,2).toUpperCase()}
+              </div>
+              <span class="cup-player-name ${m.status === 'completed' && m.homeScore > m.awayScore ? 'winner' : ''}">${m.home.player}</span>
+            </div>
+          </div>
+          <div class="cup-score-row">
+            ${scoreHTML}
+            ${goldenGoalText}
+          </div>
+          <div class="cup-team-row">
+            <div class="cup-team-info">
+              <div class="cup-team-logo" style="${!awayLogoSrc ? `background: ${awayColors.bg}; color: ${awayColors.text};` : ''}">
+                ${awayLogoHTML || m.away.club.substring(0,2).toUpperCase()}
+              </div>
+              <span class="cup-player-name ${m.status === 'completed' && m.awayScore > m.homeScore ? 'winner' : ''}">${m.away.player}</span>
+            </div>
+          </div>
+        </div>
+      `;
+    });
+
+    html += `
+        </div>
+      </div>
+    `;
+  });
+
+  html += `</div>`;
+  container.innerHTML = html;
+}
+
+// ── CHAMPIONS CUP RENDERING ───────────────────────────────────
+function renderChampionsCup() {
+  const container = document.getElementById("champions-container");
+  if (!container) return;
+
+  const isLeagueComplete = leagueData && leagueData.fixtures && leagueData.fixtures.every(md => md.matches.every(m => m.status === 'completed'));
+
+  if (!leagueData || !leagueData.playoffFixtures || leagueData.playoffFixtures.length === 0) {
+    if (isLeagueComplete) {
+      container.innerHTML = `
+        <div class="records-empty">
+          <div style="font-size: 2.5rem; margin-bottom: 12px;">🏆</div>
+          <h3>Regular Season Complete!</h3>
+          <p>All league matchdays have been played. The host can now draw the Champions Cup Playoffs from the Admin Panel.</p>
+        </div>
+      `;
+    } else {
+      container.innerHTML = `
+        <div class="records-empty">
+          <div style="font-size: 2.5rem; margin-bottom: 12px;">🛡️</div>
+          <h3>Champions Cup Playoffs</h3>
+          <p>The top 4 teams will qualify for the Champions Cup at the end of the regular season.</p>
+        </div>
+      `;
+    }
+    return;
+  }
+
+  // We have playoff fixtures! Let's render the playoffs bracket.
+  const semi1Data = leagueData.playoffFixtures.find(f => f.stage === 'champions_semi_1');
+  const semi2Data = leagueData.playoffFixtures.find(f => f.stage === 'champions_semi_2');
+  const finalData = leagueData.playoffFixtures.find(f => f.stage === 'champions_final');
+
+  let html = `<div class="playoffs-bracket">`;
+
+  // Render Semi-finals
+  if (semi1Data && semi2Data) {
+    html += `
+      <div class="playoffs-section-title">⚔️ Semi-finals (2 Legs)</div>
+      <div class="playoffs-semis-container">
+    `;
+
+    // Tie 1: 1st vs 4th. In semi2Data, the home team is the 1st.
+    const firstId = semi2Data.matches[0].home.id;
+    const fourthId = semi2Data.matches[0].away.id;
+
+    // Tie 2: 2nd vs 3rd. In semi2Data, the home team is the 2nd.
+    const secondId = semi2Data.matches[1].home.id;
+    const thirdId = semi2Data.matches[1].away.id;
+
+    const renderTie = (teamAId, teamBId, title) => {
+      // Find matches
+      const leg1Match = semi1Data.matches.find(m => (m.home.id === teamAId && m.away.id === teamBId) || (m.home.id === teamBId && m.away.id === teamAId));
+      const leg2Match = semi2Data.matches.find(m => (m.home.id === teamAId && m.away.id === teamBId) || (m.home.id === teamBId && m.away.id === teamAId));
+
+      const teamA = leg2Match.home.id === teamAId ? leg2Match.home : leg2Match.away;
+      const teamB = leg2Match.home.id === teamBId ? leg2Match.home : leg2Match.away;
+
+      let scoreA1 = leg1Match.home.id === teamAId ? leg1Match.homeScore : leg1Match.awayScore;
+      let scoreB1 = leg1Match.home.id === teamBId ? leg1Match.homeScore : leg1Match.awayScore;
+
+      let scoreA2 = leg2Match.home.id === teamAId ? leg2Match.homeScore : leg2Match.awayScore;
+      let scoreB2 = leg2Match.home.id === teamBId ? leg2Match.homeScore : leg2Match.awayScore;
+
+      const played1 = leg1Match.status === 'completed';
+      const played2 = leg2Match.status === 'completed';
+
+      let aggScoreHTML = "—";
+      let ggWinnerHTML = "";
+
+      if (played1 || played2) {
+        const totalA = (scoreA1 || 0) + (scoreA2 || 0);
+        const totalB = (scoreB1 || 0) + (scoreB2 || 0);
+        aggScoreHTML = `${totalA} - ${totalB}`;
+
+        if (played1 && played2 && totalA === totalB && leg2Match.goldenGoalWinnerId) {
+          const ggWinnerName = leg2Match.goldenGoalWinnerId === teamAId ? teamA.player : teamB.player;
+          ggWinnerHTML = `<div class="playoff-gg-badge">⚡ Golden Goal: <strong>${ggWinnerName}</strong></div>`;
+        }
+      }
+
+      return `
+        <div class="playoff-tie-card">
+          <div class="playoff-tie-header">${title}</div>
+          <div class="playoff-tie-body">
+            <div class="playoff-team-row">
+              <span class="playoff-player-name">${teamA.player}</span>
+              <span class="playoff-leg-scores">
+                <span class="leg-score" title="Leg 1">${played1 ? scoreA1 : '—'}</span>
+                <span class="leg-score" title="Leg 2">${played2 ? scoreA2 : '—'}</span>
+              </span>
+            </div>
+            <div class="playoff-team-row">
+              <span class="playoff-player-name">${teamB.player}</span>
+              <span class="playoff-leg-scores">
+                <span class="leg-score" title="Leg 1">${played1 ? scoreB1 : '—'}</span>
+                <span class="leg-score" title="Leg 2">${played2 ? scoreB2 : '—'}</span>
+              </span>
+            </div>
+            <div class="playoff-agg-row">
+              <span>Aggregate:</span>
+              <strong class="playoff-agg-val">${aggScoreHTML}</strong>
+            </div>
+            ${ggWinnerHTML}
+          </div>
+        </div>
+      `;
+    };
+
+    html += renderTie(firstId, fourthId, "Semi-final 1 (1st vs 4th)");
+    html += renderTie(secondId, thirdId, "Semi-final 2 (2nd vs 3rd)");
+    html += `</div>`;
+  }
+
+  // Render Final
+  if (finalData && finalData.matches && finalData.matches.length > 0) {
+    const fm = finalData.matches[0];
+    const homeColors = clubColors[fm.home.club] || { bg: "#333", text: "#fff" };
+    const awayColors = clubColors[fm.away.club] || { bg: "#333", text: "#fff" };
+    const homeLogoSrc = clubLogos[fm.home.club];
+    const awayLogoSrc = clubLogos[fm.away.club];
+
+    let scoreHTML = `<div class="final-vs">VS</div>`;
+    let ggWinnerHTML = "";
+
+    if (fm.status === 'completed' && fm.homeScore !== null) {
+      scoreHTML = `
+        <div class="final-score-display">
+          <span class="${fm.homeScore > fm.awayScore ? 'winner' : 'loser'}">${fm.homeScore}</span>
+          <span class="separator">-</span>
+          <span class="${fm.awayScore > fm.homeScore ? 'winner' : 'loser'}">${fm.awayScore}</span>
+        </div>
+      `;
+      if (fm.homeScore === fm.awayScore && fm.goldenGoalWinnerId) {
+        const winnerName = fm.home.id === fm.goldenGoalWinnerId ? fm.home.player : fm.away.player;
+        ggWinnerHTML = `<div class="playoff-gg-badge">⚡ Golden Goal: <strong>${winnerName}</strong></div>`;
+      }
+    }
+
+    html += `
+      <div class="playoffs-section-title mt-6">🏆 Champions Cup Final</div>
+      <div class="playoffs-final-wrapper">
+        <div class="champions-final-card ${fm.status === 'completed' ? 'completed' : ''}">
+          <div class="final-team home">
+            <div class="final-logo" style="${!homeLogoSrc ? `background: ${homeColors.bg}; color: ${homeColors.text};` : ''}">
+              ${homeLogoSrc ? `<img src="${homeLogoSrc}" alt="${fm.home.club}">` : fm.home.club.substring(0,2).toUpperCase()}
+            </div>
+            <span class="final-player-name">${fm.home.player}</span>
+            <span class="final-club-name">${fm.home.club}</span>
+          </div>
+          <div class="final-score-area">
+            ${scoreHTML}
+            ${ggWinnerHTML}
+          </div>
+          <div class="final-team away">
+            <div class="final-logo" style="${!awayLogoSrc ? `background: ${awayColors.bg}; color: ${awayColors.text};` : ''}">
+              ${awayLogoSrc ? `<img src="${awayLogoSrc}" alt="${fm.away.club}">` : fm.away.club.substring(0,2).toUpperCase()}
+            </div>
+            <span class="final-player-name">${fm.away.player}</span>
+            <span class="final-club-name">${fm.away.club}</span>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  html += `</div>`;
+  container.innerHTML = html;
 }
 
 // ── Player Profiles Modal ─────────────────────────────────────

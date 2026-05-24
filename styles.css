@@ -3439,3 +3439,470 @@ body {
   display: flex;
   align-items: center;
 }
+
+/* ── Admin Section Tabs ── */
+.admin-section-tabs {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  margin: 16px 20px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+.admin-sec-tab {
+  background: var(--bg-card);
+  border: 1px solid var(--border-medium);
+  color: var(--text-secondary);
+  font-family: var(--font-display);
+  font-size: 0.85rem;
+  font-weight: 700;
+  padding: 10px 18px;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.3s var(--ease-out);
+}
+.admin-sec-tab:hover {
+  background: var(--bg-card-hover);
+  border-color: var(--border-accent);
+  color: var(--text-primary);
+  transform: translateY(-1px);
+}
+.admin-sec-tab.active {
+  background: var(--accent-gold-dim);
+  border-color: var(--accent-gold);
+  color: var(--accent-gold);
+  box-shadow: 0 0 15px rgba(200, 168, 78, 0.15);
+}
+
+/* ── Cup & Playoff Panels (Admin Control Areas) ── */
+.admin-tournament-panel {
+  background: var(--bg-card);
+  border: 1px solid var(--border-medium);
+  border-radius: 16px;
+  padding: 24px;
+  margin: 20px;
+  text-align: center;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+  animation: fadeIn 0.4s var(--ease-out);
+}
+.admin-tournament-panel h3 {
+  font-family: var(--font-display);
+  font-size: 1.25rem;
+  font-weight: 800;
+  margin-bottom: 8px;
+  color: var(--text-primary);
+}
+.admin-tournament-panel p {
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+  margin-bottom: 20px;
+  max-width: 450px;
+  margin-left: auto;
+  margin-right: auto;
+}
+.admin-draw-btn {
+  background: var(--accent-gold);
+  color: #000;
+  border: none;
+  font-family: var(--font-body);
+  font-size: 0.85rem;
+  font-weight: 700;
+  padding: 12px 24px;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.25s var(--ease-out);
+}
+.admin-draw-btn:hover {
+  background: #d4b65c;
+  transform: translateY(-2px);
+  box-shadow: 0 5px 15px rgba(200, 168, 78, 0.3);
+}
+.admin-draw-btn:disabled {
+  background: var(--bg-elevated);
+  color: var(--text-muted);
+  border: 1px solid var(--border-subtle);
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+/* ── Golden Goal Badge & Selection Widget ── */
+.gg-container {
+  margin-top: 14px;
+  padding: 10px 14px;
+  background: rgba(200, 168, 78, 0.05);
+  border: 1px solid rgba(200, 168, 78, 0.2);
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: center;
+  animation: slideDown 0.3s var(--ease-out);
+}
+.gg-container label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--accent-gold);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.gg-select {
+  background: var(--bg-primary);
+  border: 1px solid rgba(200, 168, 78, 0.3);
+  color: var(--text-primary);
+  font-family: var(--font-body);
+  font-size: 0.8rem;
+  font-weight: 600;
+  padding: 6px 12px;
+  border-radius: 6px;
+  outline: none;
+  cursor: pointer;
+  width: 100%;
+  max-width: 200px;
+  transition: all 0.2s ease;
+}
+.gg-select:focus {
+  border-color: var(--accent-gold);
+  box-shadow: 0 0 8px rgba(200, 168, 78, 0.2);
+}
+
+@keyframes slideDown {
+  from { opacity: 0; transform: translateY(-8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* ── Home Page / Client Side Bracket Styling ── */
+.cup-bracket-list {
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+  margin-top: 16px;
+  padding: 0 16px 40px;
+}
+.cup-round-section {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.cup-round-header {
+  border-left: 3px solid var(--accent-gold);
+  padding-left: 12px;
+  font-family: var(--font-display);
+  font-size: 1.15rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-primary);
+}
+.cup-matches-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+}
+@media (min-width: 640px) {
+  .cup-matches-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+@media (min-width: 960px) {
+  .cup-matches-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+.cup-match-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-medium);
+  border-radius: 16px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 12px;
+  transition: all 0.3s var(--ease-out);
+  position: relative;
+}
+.cup-match-card:hover {
+  border-color: var(--border-accent);
+  background: var(--bg-card-hover);
+  transform: translateY(-2px);
+}
+.cup-team-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.cup-team-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.cup-team-logo {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.65rem;
+  font-weight: 800;
+  overflow: hidden;
+  border: 1px solid var(--border-subtle);
+}
+.cup-team-logo img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+.cup-player-name {
+  font-family: var(--font-display);
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+}
+.cup-player-name.winner {
+  color: #fff;
+  font-weight: 900;
+}
+.cup-score-row {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 0;
+  border-top: 1px solid var(--border-subtle);
+  border-bottom: 1px solid var(--border-subtle);
+  min-height: 48px;
+}
+.cup-score-display {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-family: var(--font-display);
+  font-size: 1.4rem;
+  font-weight: 800;
+}
+.cup-vs {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  letter-spacing: 0.1em;
+}
+.cup-gg-badge, .playoff-gg-badge {
+  font-size: 0.68rem;
+  color: var(--accent-gold);
+  background: var(--accent-gold-dim);
+  border: 1px solid rgba(200, 168, 78, 0.3);
+  padding: 2px 8px;
+  border-radius: 4px;
+  margin-top: 6px;
+  display: inline-block;
+  animation: pulseGold 2s infinite ease-in-out;
+}
+
+@keyframes pulseGold {
+  0% { box-shadow: 0 0 0 0 rgba(200, 168, 78, 0.4); }
+  70% { box-shadow: 0 0 0 6px rgba(200, 168, 78, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(200, 168, 78, 0); }
+}
+
+/* ── Champions Cup Playoffs Bracket (Neon styling) ── */
+.playoffs-bracket {
+  padding: 0 16px 40px;
+  margin-top: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+.playoffs-section-title {
+  font-family: var(--font-display);
+  font-size: 1.25rem;
+  font-weight: 900;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: #fff;
+  border-left: 3px solid #00d2ff;
+  padding-left: 12px;
+  text-shadow: 0 0 10px rgba(0, 210, 255, 0.3);
+}
+.playoffs-semis-container {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+}
+@media (min-width: 768px) {
+  .playoffs-semis-container {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+.playoff-tie-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-medium);
+  border-radius: 18px;
+  overflow: hidden;
+  transition: all 0.3s var(--ease-out);
+  position: relative;
+}
+.playoff-tie-card:hover {
+  transform: translateY(-2px);
+  border-color: rgba(0, 210, 255, 0.4);
+  box-shadow: 0 10px 25px rgba(0, 210, 255, 0.1);
+}
+.playoff-tie-header {
+  background: rgba(0, 210, 255, 0.05);
+  border-bottom: 1px solid var(--border-subtle);
+  padding: 10px 16px;
+  font-family: var(--font-display);
+  font-size: 0.8rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #00d2ff;
+}
+.playoff-tie-body {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.playoff-team-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.playoff-player-name {
+  font-family: var(--font-display);
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+.playoff-leg-scores {
+  display: flex;
+  gap: 8px;
+}
+.leg-score {
+  width: 28px;
+  height: 28px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-subtle);
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-display);
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+}
+.playoff-agg-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 8px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border-subtle);
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+.playoff-agg-val {
+  font-family: var(--font-display);
+  font-size: 1.1rem;
+  font-weight: 800;
+  color: #fff;
+}
+
+/* ── Champions Cup Final (Premium layout with neon glow) ── */
+.playoffs-final-wrapper {
+  perspective: 1000px;
+}
+.champions-final-card {
+  background: linear-gradient(135deg, #09121d 0%, #03060a 100%);
+  border: 2px solid rgba(0, 210, 255, 0.3);
+  box-shadow: 0 15px 35px rgba(0, 210, 255, 0.15), 0 0 20px rgba(0, 210, 255, 0.1) inset;
+  border-radius: 24px;
+  padding: 32px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: relative;
+  overflow: hidden;
+  transition: all 0.4s var(--ease-out);
+}
+.champions-final-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; width: 100%; height: 4px;
+  background: linear-gradient(90deg, #00d2ff 0%, var(--accent-gold) 50%, #00d2ff 100%);
+}
+.champions-final-card:hover {
+  transform: translateY(-4px);
+  border-color: rgba(0, 210, 255, 0.6);
+  box-shadow: 0 20px 45px rgba(0, 210, 255, 0.25), 0 0 25px rgba(0, 210, 255, 0.15) inset;
+}
+.final-team {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  text-align: center;
+}
+.final-logo {
+  width: 56px;
+  height: 56px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.1rem;
+  font-weight: 900;
+  border: 1px solid rgba(255,255,255,0.1);
+  box-shadow: 0 5px 15px rgba(0,0,0,0.5);
+  overflow: hidden;
+}
+.final-logo img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+.final-player-name {
+  font-family: var(--font-display);
+  font-size: 1.2rem;
+  font-weight: 800;
+  color: #fff;
+}
+.final-club-name {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.final-score-area {
+  flex: 0 0 140px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+.final-score-display {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  font-family: var(--font-display);
+  font-size: 2.2rem;
+  font-weight: 900;
+  text-shadow: 0 2px 10px rgba(0,0,0,0.5);
+}
+.final-score-display span.winner {
+  color: var(--accent-gold);
+  text-shadow: 0 0 15px rgba(200, 168, 78, 0.4);
+}
+.final-score-display span.loser {
+  color: var(--text-secondary);
+}
+.final-score-display .separator {
+  color: var(--text-dim);
+}
