@@ -438,7 +438,11 @@ body {
 
 /* Column widths */
 .col-pos {
-  width: 28px;
+  width: 45px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
   text-align: center;
   font-weight: 700;
   font-size: 0.8rem;
@@ -1133,12 +1137,38 @@ body {
 }
 
 .snapshot-render .snap-col-pos {
-  width: 28px;
+  width: 45px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
   text-align: center;
   font-weight: 700;
   font-size: 12px;
   color: rgba(255,255,255,0.5);
   flex-shrink: 0;
+}
+
+/* Position change indicators styling */
+.pos-change {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 12px;
+  font-weight: 800;
+  flex-shrink: 0;
+}
+.pos-change.rise {
+  color: #00ff87;
+  font-size: 0.65rem;
+}
+.pos-change.fall {
+  color: #ff2a3a;
+  font-size: 0.65rem;
+}
+.pos-change.same {
+  color: #555;
+  font-size: 0.8rem;
 }
 
 .snapshot-render .snap-pos-badge {

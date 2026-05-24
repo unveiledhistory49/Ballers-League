@@ -244,6 +244,65 @@ function computeStandings() {
   return { standings: sorted, lastCompletedMatchday };
 }
 
+function computeStandingsUpToMatchday(limit) {
+  const teams = leagueData.teams;
+  const standings = {};
+
+  teams.forEach(t => {
+    standings[t.id] = {
+      ...t,
+      played: 0,
+      wins: 0,
+      draws: 0,
+      losses: 0,
+      goalsFor: 0,
+      goalsAgainst: 0,
+      points: 0,
+    };
+  });
+
+  leagueData.fixtures.forEach(md => {
+    if (limit !== undefined && md.matchday > limit) return;
+    md.matches.forEach(m => {
+      if (m.status === "completed" && m.homeScore !== null && m.awayScore !== null) {
+        const home = standings[m.home.id];
+        const away = standings[m.away.id];
+
+        home.played++;
+        away.played++;
+        home.goalsFor += m.homeScore;
+        home.goalsAgainst += m.awayScore;
+        away.goalsFor += m.awayScore;
+        away.goalsAgainst += m.homeScore;
+
+        if (m.homeScore > m.awayScore) {
+          home.wins++;
+          home.points += 3;
+          away.losses++;
+        } else if (m.homeScore < m.awayScore) {
+          away.wins++;
+          away.points += 3;
+          home.losses++;
+        } else {
+          home.draws++;
+          away.draws++;
+          home.points += 1;
+          away.points += 1;
+        }
+      }
+    });
+  });
+
+  return Object.values(standings).sort((a, b) => {
+    if (b.points !== a.points) return b.points - a.points;
+    const gdA = a.goalsFor - a.goalsAgainst;
+    const gdB = b.goalsFor - b.goalsAgainst;
+    if (gdB !== gdA) return gdB - gdA;
+    if (b.goalsFor !== a.goalsFor) return b.goalsFor - a.goalsFor;
+    return a.player.localeCompare(b.player);
+  });
+}
+
 function renderStandings() {
   const { standings, lastCompletedMatchday } = computeStandings();
 
@@ -253,6 +312,11 @@ function renderStandings() {
 
   const body = document.getElementById("standings-body");
   body.innerHTML = "";
+
+  let prevStandings = [];
+  if (lastCompletedMatchday > 0) {
+    prevStandings = computeStandingsUpToMatchday(lastCompletedMatchday - 1);
+  }
 
   standings.forEach((team, idx) => {
     const pos = idx + 1;
@@ -274,6 +338,22 @@ function renderStandings() {
       posHTML = `${pos}`;
     }
 
+    let changeHTML = '';
+    if (lastCompletedMatchday > 0) {
+      const prevIdx = prevStandings.findIndex(t => t.id === team.id);
+      const prevRank = prevIdx > -1 ? prevIdx + 1 : pos;
+      const change = prevRank - pos;
+      if (change > 0) {
+        changeHTML = `<span class="pos-change rise" title="Climbed ${change} places">▲</span>`;
+      } else if (change < 0) {
+        changeHTML = `<span class="pos-change fall" title="Fell ${Math.abs(change)} places">▼</span>`;
+      } else {
+        changeHTML = `<span class="pos-change same">–</span>`;
+      }
+    } else {
+      changeHTML = `<span class="pos-change same">–</span>`;
+    }
+
     // Form dots — show last 5 or empty placeholders
     const last5 = (team.form || []).slice(-5);
     const formDots = Array.from({ length: 5 }, (_, i) => {
@@ -290,7 +370,7 @@ function renderStandings() {
       : short;
 
     row.innerHTML = `
-      <div class="col-pos">${posHTML}</div>
+      <div class="col-pos">${posHTML} ${changeHTML}</div>
       <div class="col-club">
         <div class="club-logo" style="${!logoSrc ? `background: ${colors.bg}; color: ${colors.text}; border-color: ${colors.bg}40;` : ''}">
           ${logoHTML}
@@ -524,12 +604,17 @@ function buildStandingsSnapshot() {
   const { standings, lastCompletedMatchday } = computeStandings();
   const totalMDs = leagueData.fixtures.length;
 
+  let prevStandings = [];
+  if (lastCompletedMatchday > 0) {
+    prevStandings = computeStandingsUpToMatchday(lastCompletedMatchday - 1);
+  }
+
   let html = buildSnapshotHeader(`Standings — Matchday ${lastCompletedMatchday} of ${totalMDs}`);
 
   // Table header
   html += `
     <div class="snap-table-header">
-      <span style="width:28px;text-align:center">#</span>
+      <span style="width:45px;text-align:center;display:flex;align-items:center;justify-content:center">#</span>
       <span style="flex:1;padding-left:8px">Club</span>
       <span style="width:26px;text-align:center">P</span>
       <span style="width:26px;text-align:center">W</span>
@@ -553,6 +638,22 @@ function buildStandingsSnapshot() {
       posHTML = `${pos}`;
     }
 
+    let changeHTML = '';
+    if (lastCompletedMatchday > 0) {
+      const prevIdx = prevStandings.findIndex(t => t.id === team.id);
+      const prevRank = prevIdx > -1 ? prevIdx + 1 : pos;
+      const change = prevRank - pos;
+      if (change > 0) {
+        changeHTML = `<span class="pos-change rise">▲</span>`;
+      } else if (change < 0) {
+        changeHTML = `<span class="pos-change fall">▼</span>`;
+      } else {
+        changeHTML = `<span class="pos-change same">–</span>`;
+      }
+    } else {
+      changeHTML = `<span class="pos-change same">–</span>`;
+    }
+
     const logoSrc = clubLogos[team.club];
     const logoHTML = logoSrc
       ? `<img src="${logoSrc}" alt="${team.club}">`
@@ -568,7 +669,7 @@ function buildStandingsSnapshot() {
 
     html += `
       <div class="snap-row ${zoneClass}">
-        <div class="snap-col-pos">${posHTML}</div>
+        <div class="snap-col-pos">${posHTML} ${changeHTML}</div>
         <div class="snap-col-club">
           <div class="snap-club-logo">${logoHTML}</div>
           <div class="snap-club-info">
