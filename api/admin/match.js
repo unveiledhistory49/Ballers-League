@@ -18,7 +18,7 @@ module.exports = async function handler(req, res) {
 
 async function handleUpdate(req, res) {
   try {
-    const { matchday, homeId, awayId, homeScore, awayScore, status, streamUrl } = req.body;
+    const { matchday, homeId, awayId, homeScore, awayScore, status, homeStreamUrl, awayStreamUrl } = req.body;
 
     if (matchday === undefined || homeId === undefined || awayId === undefined) {
       return res.status(400).json({ error: 'Missing matchday, homeId, or awayId' });
@@ -26,7 +26,8 @@ async function handleUpdate(req, res) {
 
     const updateData = {
       status: status || 'completed',
-      stream_url: streamUrl || null
+      home_stream_url: homeStreamUrl || null,
+      away_stream_url: awayStreamUrl || null
     };
 
     if (homeScore !== undefined && homeScore !== null && homeScore !== '') {
