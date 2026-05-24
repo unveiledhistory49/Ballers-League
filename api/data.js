@@ -8,6 +8,26 @@ module.exports = async function handler(req, res) {
   try {
     const supabase = getSupabase();
 
+    // Fetch all seasons
+    const { data: seasons, error: seasonsErr } = await supabase
+      .from('seasons')
+      .select('*')
+      .order('id');
+
+    if (seasonsErr) throw seasonsErr;
+
+    // Determine which season to show
+    let seasonId;
+    if (req.query.season) {
+      seasonId = parseInt(req.query.season, 10);
+    } else {
+      // Default to the active season, or the latest one
+      const activeSeason = seasons.find(s => s.status === 'active');
+      seasonId = activeSeason ? activeSeason.id : seasons[seasons.length - 1]?.id || 1;
+    }
+
+    const currentSeason = seasons.find(s => s.id === seasonId);
+
     // Fetch teams
     const { data: teams, error: teamsErr } = await supabase
       .from('teams')
@@ -16,10 +36,11 @@ module.exports = async function handler(req, res) {
 
     if (teamsErr) throw teamsErr;
 
-    // Fetch all matches ordered by matchday
+    // Fetch matches for the selected season
     const { data: matches, error: matchesErr } = await supabase
       .from('matches')
       .select('*')
+      .eq('season_id', seasonId)
       .order('matchday')
       .order('id');
 
@@ -50,7 +71,9 @@ module.exports = async function handler(req, res) {
 
     res.status(200).json({
       league: 'Ballers League',
-      season: 'Season 1',
+      season: currentSeason ? currentSeason.name : 'Season 1',
+      seasonId: seasonId,
+      seasons: seasons.map(s => ({ id: s.id, name: s.name, status: s.status })),
       teams,
       fixtures,
     });

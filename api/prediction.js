@@ -6,7 +6,7 @@ module.exports = async function handler(req, res) {
   }
 
   try {
-    const { matchday, homeId, awayId, option } = req.body;
+    const { matchday, homeId, awayId, option, seasonId } = req.body;
 
     if (matchday === undefined || homeId === undefined || awayId === undefined || !option) {
       return res.status(400).json({ error: 'Missing matchday, homeId, awayId, or option' });
@@ -22,14 +22,19 @@ module.exports = async function handler(req, res) {
 
     const supabase = getSupabase();
 
-    // Fetch current predictions column
-    const { data: match, error: fetchErr } = await supabase
+    // Build query — scope by season if provided
+    let fetchQuery = supabase
       .from('matches')
       .select('predictions')
       .eq('matchday', parseInt(matchday, 10))
       .eq('home_id', parseInt(homeId, 10))
-      .eq('away_id', parseInt(awayId, 10))
-      .single();
+      .eq('away_id', parseInt(awayId, 10));
+
+    if (seasonId) {
+      fetchQuery = fetchQuery.eq('season_id', parseInt(seasonId, 10));
+    }
+
+    const { data: match, error: fetchErr } = await fetchQuery.single();
 
     if (fetchErr) throw fetchErr;
 
@@ -48,13 +53,19 @@ module.exports = async function handler(req, res) {
     predictions.ips.push(ip);
     predictions[option] = (predictions[option] || 0) + 1;
 
-    // Update match row
-    const { error: updateErr } = await supabase
+    // Update match row — scope by season if provided
+    let updateQuery = supabase
       .from('matches')
       .update({ predictions })
       .eq('matchday', parseInt(matchday, 10))
       .eq('home_id', parseInt(homeId, 10))
       .eq('away_id', parseInt(awayId, 10));
+
+    if (seasonId) {
+      updateQuery = updateQuery.eq('season_id', parseInt(seasonId, 10));
+    }
+
+    const { error: updateErr } = await updateQuery;
 
     if (updateErr) throw updateErr;
 

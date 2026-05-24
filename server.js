@@ -9,6 +9,7 @@
 const express = require('express');
 const fs = require('fs');
 const path = require('path');
+const { generateFixtures } = require('./lib/generate-fixtures');
 
 const app = express();
 const PORT = 3000;
@@ -32,18 +33,52 @@ function loadDB() {
     const fixtureData = JSON.parse(fs.readFileSync(FIXTURES_PATH, 'utf-8'));
     const db = {
       league: fixtureData.league,
-      season: fixtureData.season,
       teams: fixtureData.teams,
-      fixtures: fixtureData.fixtures,
+      seasons: [
+        {
+          id: 1,
+          name: fixtureData.season || 'Season 1',
+          status: 'active',
+          fixtures: fixtureData.fixtures,
+        }
+      ],
     };
     saveDB(db);
     return db;
   }
-  return JSON.parse(fs.readFileSync(DB_PATH, 'utf-8'));
+  const db = JSON.parse(fs.readFileSync(DB_PATH, 'utf-8'));
+
+  // Migration: if old format (flat fixtures), convert to multi-season
+  if (db.fixtures && !db.seasons) {
+    const migrated = {
+      league: db.league,
+      teams: db.teams,
+      seasons: [
+        {
+          id: 1,
+          name: db.season || 'Season 1',
+          status: 'active',
+          fixtures: db.fixtures,
+        }
+      ],
+    };
+    saveDB(migrated);
+    return migrated;
+  }
+
+  return db;
 }
 
 function saveDB(db) {
   fs.writeFileSync(DB_PATH, JSON.stringify(db, null, 2), 'utf-8');
+}
+
+function getActiveSeason(db) {
+  return db.seasons.find(s => s.status === 'active') || db.seasons[db.seasons.length - 1];
+}
+
+function getSeasonById(db, seasonId) {
+  return db.seasons.find(s => s.id === seasonId);
 }
 
 // ── Auth Middleware ─────────────────────────────────────────────
@@ -59,32 +94,63 @@ function requireAdmin(req, res, next) {
 // API ROUTES
 // ═══════════════════════════════════════════════════════════════
 
-// ── GET /api/data — Full league data (teams + fixtures) ────────
+// ── GET /api/data — Full league data (teams + fixtures for a season) ──
 app.get('/api/data', (req, res) => {
   try {
     const db = loadDB();
-    res.json(db);
+
+    // Determine which season to show
+    let season;
+    if (req.query.season) {
+      season = getSeasonById(db, parseInt(req.query.season, 10));
+    }
+    if (!season) {
+      season = getActiveSeason(db);
+    }
+
+    res.json({
+      league: db.league,
+      season: season.name,
+      seasonId: season.id,
+      seasons: db.seasons.map(s => ({ id: s.id, name: s.name, status: s.status })),
+      teams: db.teams,
+      fixtures: season.fixtures,
+    });
   } catch (err) {
     res.status(500).json({ error: 'Failed to load data' });
   }
 });
 
-// ── GET /api/standings — Computed standings ─────────────────────
+// ── GET /api/standings — Computed standings for a season ──────
 app.get('/api/standings', (req, res) => {
   try {
     const db = loadDB();
-    const standings = computeStandings(db);
+    let season;
+    if (req.query.season) {
+      season = getSeasonById(db, parseInt(req.query.season, 10));
+    }
+    if (!season) {
+      season = getActiveSeason(db);
+    }
+    const standings = computeStandings(db.teams, season.fixtures);
     res.json(standings);
   } catch (err) {
     res.status(500).json({ error: 'Failed to compute standings' });
   }
 });
 
-// ── GET /api/fixtures — All fixtures ───────────────────────────
+// ── GET /api/fixtures — All fixtures for a season ─────────────
 app.get('/api/fixtures', (req, res) => {
   try {
     const db = loadDB();
-    res.json({ fixtures: db.fixtures });
+    let season;
+    if (req.query.season) {
+      season = getSeasonById(db, parseInt(req.query.season, 10));
+    }
+    if (!season) {
+      season = getActiveSeason(db);
+    }
+    res.json({ fixtures: season.fixtures });
   } catch (err) {
     res.status(500).json({ error: 'Failed to load fixtures' });
   }
@@ -103,7 +169,7 @@ app.post('/api/admin/login', (req, res) => {
 // ── POST /api/prediction — Cast a prediction vote ──────────────
 app.post('/api/prediction', (req, res) => {
   try {
-    const { matchday, homeId, awayId, option } = req.body;
+    const { matchday, homeId, awayId, option, seasonId } = req.body;
 
     if (matchday === undefined || homeId === undefined || awayId === undefined || !option) {
       return res.status(400).json({ error: 'Missing matchday, homeId, awayId, or option' });
@@ -118,21 +184,23 @@ app.post('/api/prediction', (req, res) => {
 
     const db = loadDB();
 
-    // Find the matchday
-    const md = db.fixtures.find(f => f.matchday === parseInt(matchday, 10));
-    if (!md) {
-      return res.status(404).json({ error: `Matchday ${matchday} not found` });
+    // Find the correct season
+    let season;
+    if (seasonId) {
+      season = getSeasonById(db, parseInt(seasonId, 10));
+    }
+    if (!season) {
+      season = getActiveSeason(db);
     }
 
-    // Find the match
+    const md = season.fixtures.find(f => f.matchday === parseInt(matchday, 10));
+    if (!md) return res.status(404).json({ error: `Matchday ${matchday} not found` });
+
     const match = md.matches.find(
       m => m.home.id === parseInt(homeId, 10) && m.away.id === parseInt(awayId, 10)
     );
-    if (!match) {
-      return res.status(404).json({ error: 'Match not found' });
-    }
+    if (!match) return res.status(404).json({ error: 'Match not found' });
 
-    // Initialize predictions if missing
     if (!match.predictions) {
       match.predictions = { home: 0, draw: 0, away: 0, ips: [] };
     }
@@ -140,12 +208,10 @@ app.post('/api/prediction', (req, res) => {
       match.predictions.ips = [];
     }
 
-    // Check if IP already voted
     if (match.predictions.ips.includes(ip)) {
       return res.status(400).json({ error: 'Already voted from this IP' });
     }
 
-    // Record vote
     match.predictions.ips.push(ip);
     match.predictions[option] = (match.predictions[option] || 0) + 1;
 
@@ -165,7 +231,7 @@ app.post('/api/prediction', (req, res) => {
 // ── PUT /api/admin/match — Update a match result ──────────────
 app.put('/api/admin/match', requireAdmin, (req, res) => {
   try {
-    const { matchday, homeId, awayId, homeScore, awayScore, status, homeStreamUrl, awayStreamUrl } = req.body;
+    const { matchday, homeId, awayId, homeScore, awayScore, status, homeStreamUrl, awayStreamUrl, seasonId } = req.body;
 
     if (matchday === undefined || homeId === undefined || awayId === undefined) {
       return res.status(400).json({ error: 'Missing matchday, homeId, or awayId' });
@@ -173,21 +239,21 @@ app.put('/api/admin/match', requireAdmin, (req, res) => {
 
     const db = loadDB();
 
-    // Find the matchday
-    const md = db.fixtures.find(f => f.matchday === matchday);
-    if (!md) {
-      return res.status(404).json({ error: `Matchday ${matchday} not found` });
+    // Find the correct season
+    let season;
+    if (seasonId) {
+      season = getSeasonById(db, parseInt(seasonId, 10));
+    }
+    if (!season) {
+      season = getActiveSeason(db);
     }
 
-    // Find the match
-    const match = md.matches.find(
-      m => m.home.id === homeId && m.away.id === awayId
-    );
-    if (!match) {
-      return res.status(404).json({ error: 'Match not found' });
-    }
+    const md = season.fixtures.find(f => f.matchday === matchday);
+    if (!md) return res.status(404).json({ error: `Matchday ${matchday} not found` });
 
-    // Update
+    const match = md.matches.find(m => m.home.id === homeId && m.away.id === awayId);
+    if (!match) return res.status(404).json({ error: 'Match not found' });
+
     if (homeScore !== undefined && homeScore !== null && homeScore !== '') {
       match.homeScore = parseInt(homeScore, 10);
     } else {
@@ -220,13 +286,21 @@ app.put('/api/admin/match', requireAdmin, (req, res) => {
 // ── DELETE /api/admin/match — Reset a match or entire matchday ────
 app.delete('/api/admin/match', requireAdmin, (req, res) => {
   try {
-    const { matchday, homeId, awayId } = req.body;
+    const { matchday, homeId, awayId, seasonId } = req.body;
 
     const db = loadDB();
-    const md = db.fixtures.find(f => f.matchday === matchday);
+
+    let season;
+    if (seasonId) {
+      season = getSeasonById(db, parseInt(seasonId, 10));
+    }
+    if (!season) {
+      season = getActiveSeason(db);
+    }
+
+    const md = season.fixtures.find(f => f.matchday === matchday);
     if (!md) return res.status(404).json({ error: 'Matchday not found' });
 
-    // If homeId and awayId are not specified, reset the whole matchday
     if (homeId === undefined && awayId === undefined) {
       md.matches.forEach(m => {
         m.homeScore = null;
@@ -238,7 +312,7 @@ app.delete('/api/admin/match', requireAdmin, (req, res) => {
     }
 
     const match = md.matches.find(
-      m => m.home.id === homeId && m.away.id === awayId
+      m => m.home.id === parseInt(homeId, 10) && m.away.id === parseInt(awayId, 10)
     );
     if (!match) return res.status(404).json({ error: 'Match not found' });
 
@@ -254,39 +328,66 @@ app.delete('/api/admin/match', requireAdmin, (req, res) => {
   }
 });
 
-// ── PUT /api/admin/match/reset — Reset a match result (Legacy) ──
-app.put('/api/admin/match/reset', requireAdmin, (req, res) => {
+// ── POST /api/admin/season — Create a new season ─────────────
+app.post('/api/admin/season', requireAdmin, (req, res) => {
   try {
-    const { matchday, homeId, awayId } = req.body;
-
     const db = loadDB();
-    const md = db.fixtures.find(f => f.matchday === matchday);
-    if (!md) return res.status(404).json({ error: 'Matchday not found' });
+    const activeSeason = getActiveSeason(db);
 
-    const match = md.matches.find(
-      m => m.home.id === homeId && m.away.id === awayId
+    if (!activeSeason) {
+      return res.status(400).json({ error: 'No active season found' });
+    }
+
+    // Check that all matches are completed
+    const hasIncomplete = activeSeason.fixtures.some(md =>
+      md.matches.some(m => m.status !== 'completed')
     );
-    if (!match) return res.status(404).json({ error: 'Match not found' });
 
-    match.homeScore = null;
-    match.awayScore = null;
-    match.status = 'upcoming';
+    if (hasIncomplete) {
+      return res.status(400).json({
+        error: 'Cannot start a new season — there are uncompleted matches in the current season'
+      });
+    }
+
+    // Mark current season as completed
+    activeSeason.status = 'completed';
+
+    // Create new season
+    const newId = db.seasons.length + 1;
+    const newSeasonName = `Season ${newId}`;
+    const newFixtures = generateFixtures(db.teams);
+
+    db.seasons.push({
+      id: newId,
+      name: newSeasonName,
+      status: 'active',
+      fixtures: newFixtures,
+    });
 
     saveDB(db);
 
-    res.json({ success: true, message: 'Match reset to upcoming' });
+    const totalMatches = newFixtures.reduce((sum, md) => sum + md.matches.length, 0);
+
+    res.json({
+      success: true,
+      message: `${newSeasonName} created with ${totalMatches} matches`,
+      season: { id: newId, name: newSeasonName, status: 'active' },
+      totalMatches,
+      totalMatchdays: newFixtures.length,
+    });
   } catch (err) {
-    res.status(500).json({ error: 'Failed to reset match' });
+    console.error('Error creating season:', err);
+    res.status(500).json({ error: 'Failed to create new season: ' + err.message });
   }
 });
 
 // ═══════════════════════════════════════════════════════════════
 // STANDINGS COMPUTATION
 // ═══════════════════════════════════════════════════════════════
-function computeStandings(db) {
+function computeStandings(teams, fixtures) {
   const standings = {};
 
-  db.teams.forEach(t => {
+  teams.forEach(t => {
     standings[t.id] = {
       ...t,
       played: 0,
@@ -302,7 +403,7 @@ function computeStandings(db) {
 
   let lastCompletedMatchday = 0;
 
-  db.fixtures.forEach(md => {
+  fixtures.forEach(md => {
     md.matches.forEach(m => {
       if (m.status === 'completed' && m.homeScore !== null && m.awayScore !== null) {
         const home = standings[m.home.id];
@@ -358,7 +459,7 @@ function computeStandings(db) {
   return {
     standings: sorted,
     lastCompletedMatchday,
-    totalMatchdays: db.fixtures.length,
+    totalMatchdays: fixtures.length,
   };
 }
 

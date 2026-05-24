@@ -28,14 +28,37 @@ async function seed() {
   console.log('\n🏆 Ballers League — Seeding Supabase');
   console.log('─'.repeat(40));
 
+  // Ensure Season 1 exists
+  const { data: existingSeason, error: seasonCheckErr } = await supabase
+    .from('seasons')
+    .select('id')
+    .eq('id', 1)
+    .maybeSingle();
+
+  if (!existingSeason) {
+    console.log('📦 Creating Season 1...');
+    const { error: seasonErr } = await supabase
+      .from('seasons')
+      .insert({ id: 1, name: 'Season 1', status: 'active' });
+
+    if (seasonErr) {
+      console.error('❌ Error creating season:', seasonErr.message);
+      return;
+    }
+    console.log('   ✓ Season 1 created');
+  } else {
+    console.log('   ✓ Season 1 already exists');
+  }
+
   // Load fixtures
   const data = JSON.parse(fs.readFileSync(path.join(__dirname, 'fixtures.json'), 'utf-8'));
 
-  // Flatten all matches
+  // Flatten all matches with season_id
   const allMatches = [];
   for (const md of data.fixtures) {
     for (const m of md.matches) {
       allMatches.push({
+        season_id: 1,
         matchday: md.matchday,
         home_id: m.home.id,
         home_player: m.home.player,
@@ -50,13 +73,13 @@ async function seed() {
     }
   }
 
-  console.log(`📦 Inserting ${allMatches.length} matches...`);
+  console.log(`📦 Inserting ${allMatches.length} matches for Season 1...`);
 
   // Insert in batches of 50
   for (let i = 0; i < allMatches.length; i += 50) {
     const batch = allMatches.slice(i, i + 50);
     const { error } = await supabase.from('matches').upsert(batch, {
-      onConflict: 'matchday,home_id,away_id',
+      onConflict: 'season_id,matchday,home_id,away_id',
     });
 
     if (error) {

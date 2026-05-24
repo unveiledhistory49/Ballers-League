@@ -7,6 +7,7 @@
 // ── State ──────────────────────────────────────────────────────
 let leagueData = null;
 let currentMatchday = 0; // 0-indexed
+let currentSeasonId = null;
 let selectedTeamIdForHistory = null;
 let touchStartX = 0;
 let touchEndX = 0;
@@ -61,6 +62,8 @@ document.addEventListener("DOMContentLoaded", async () => {
       res = await fetch("/fixtures.json");
       leagueData = await res.json();
     }
+    currentSeasonId = leagueData.seasonId || null;
+    renderSeasonSelector();
     renderStandings();
     renderFixtures();
     setupSwipeGestures();
@@ -68,6 +71,62 @@ document.addEventListener("DOMContentLoaded", async () => {
     console.error("Failed to load league data:", err);
   }
 });
+
+// ── Season Switching ──────────────────────────────────────────
+async function loadSeason(seasonId) {
+  try {
+    const res = await fetch(`/api/data?season=${seasonId}`);
+    if (!res.ok) throw new Error("Failed to load season data");
+    leagueData = await res.json();
+    currentSeasonId = leagueData.seasonId || seasonId;
+    currentMatchday = 0;
+    renderSeasonSelector();
+    renderStandings();
+    renderFixtures();
+    if (document.getElementById("page-history").classList.contains("active")) {
+      switchPage("standings");
+    }
+  } catch (err) {
+    console.error("Failed to load season:", err);
+  }
+}
+
+function renderSeasonSelector() {
+  const badge = document.querySelector(".season-badge");
+  if (!badge) return;
+  badge.textContent = leagueData.season || "Season 1";
+  const seasons = leagueData.seasons;
+  if (!seasons || seasons.length <= 1) {
+    badge.classList.remove("has-dropdown");
+    badge.onclick = null;
+    const old = document.querySelector(".season-dropdown");
+    if (old) old.remove();
+    return;
+  }
+  badge.classList.add("has-dropdown");
+  let dropdown = document.querySelector(".season-dropdown");
+  if (dropdown) dropdown.remove();
+  dropdown = document.createElement("div");
+  dropdown.className = "season-dropdown";
+  dropdown.id = "season-dropdown";
+  seasons.forEach(s => {
+    const item = document.createElement("button");
+    item.className = `season-dropdown-item ${s.id === currentSeasonId ? 'active' : ''}`;
+    item.textContent = s.name + (s.status === 'active' ? ' ●' : '');
+    item.onclick = (e) => {
+      e.stopPropagation();
+      dropdown.classList.remove("open");
+      if (s.id !== currentSeasonId) loadSeason(s.id);
+    };
+    dropdown.appendChild(item);
+  });
+  badge.parentElement.appendChild(dropdown);
+  badge.onclick = (e) => {
+    e.stopPropagation();
+    dropdown.classList.toggle("open");
+  };
+  document.addEventListener("click", () => dropdown.classList.remove("open"), { once: true });
+}
 
 // ═══════════════════════════════════════════════════════════════
 // PAGE SWITCHING
@@ -1045,7 +1104,7 @@ async function castPredictionVote(event, matchday, homeId, awayId, selectedOptio
     const res = await fetch("/api/prediction", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ matchday, homeId, awayId, option: selectedOption })
+      body: JSON.stringify({ matchday, homeId, awayId, option: selectedOption, seasonId: currentSeasonId })
     });
 
     const data = await res.json();

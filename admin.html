@@ -169,15 +169,90 @@
       font-weight: 700;
     }
 
-    .admin-badge {
-      font-size: 0.6rem;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.1em;
+    .admin-season-selector select {
+      background: var(--bg-card);
+      border: 1px solid var(--border-medium);
       color: var(--accent-gold);
-      background: var(--accent-gold-dim);
-      padding: 3px 10px;
-      border-radius: 4px;
+      font-family: var(--font-body);
+      font-size: 0.7rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      padding: 4px 10px;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .admin-season-selector select:hover {
+      border-color: var(--accent-gold);
+    }
+
+    .admin-season-selector select:focus {
+      outline: none;
+      border-color: var(--accent-gold);
+      box-shadow: 0 0 0 2px var(--accent-gold-dim);
+    }
+
+    .admin-new-season-banner {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 16px 20px;
+      margin-bottom: 16px;
+      background: linear-gradient(135deg, rgba(200, 168, 78, 0.1) 0%, rgba(200, 168, 78, 0.05) 100%);
+      border: 1px solid rgba(200, 168, 78, 0.25);
+      border-radius: 12px;
+      animation: adminSlideIn 0.3s ease;
+    }
+
+    .admin-new-season-info {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .admin-new-season-icon {
+      font-size: 1.5rem;
+    }
+
+    .admin-new-season-info strong {
+      display: block;
+      color: var(--accent-gold);
+      font-family: var(--font-display);
+      font-size: 0.85rem;
+    }
+
+    .admin-new-season-info p {
+      color: var(--text-secondary);
+      font-size: 0.72rem;
+      margin-top: 2px;
+    }
+
+    .btn-new-season {
+      background: linear-gradient(135deg, var(--accent-gold) 0%, #b8943c 100%);
+      color: #000;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 8px;
+      font-family: var(--font-body);
+      font-size: 0.75rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      white-space: nowrap;
+    }
+
+    .btn-new-season:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 16px rgba(200, 168, 78, 0.3);
+    }
+
+    .btn-new-season:disabled {
+      opacity: 0.5;
+      cursor: wait;
+      transform: none;
     }
 
     .btn-logout {
@@ -638,7 +713,10 @@
     <header class="admin-header">
       <div class="admin-header-left">
         <h1>Admin Panel</h1>
-        <span class="admin-badge">Season 1</span>
+        <div class="admin-season-selector">
+          <select id="admin-season-select" onchange="adminChangeSeason(this.value)">
+          </select>
+        </div>
       </div>
       <div class="admin-header-actions">
         <a href="/" class="btn-back">
@@ -647,6 +725,19 @@
         <button class="btn-logout" onclick="handleLogout()">Sign Out</button>
       </div>
     </header>
+
+    <div id="admin-new-season-banner" class="admin-new-season-banner" style="display:none;">
+      <div class="admin-new-season-info">
+        <span class="admin-new-season-icon">🏆</span>
+        <div>
+          <strong>Season Complete!</strong>
+          <p>All matches have been played. Ready to start the next season?</p>
+        </div>
+      </div>
+      <button class="btn-new-season" id="btn-new-season" onclick="createNewSeason()">
+        Continue to Next Season →
+      </button>
+    </div>
 
     <div class="admin-matchday-nav">
       <button class="admin-md-arrow" id="admin-prev" onclick="adminChangeMatchday(-1)">‹</button>
@@ -680,6 +771,7 @@
     let adminKey = '';
     let leagueData = null;
     let adminMatchday = 0;
+    let adminSeasonId = null;
 
     // ── Login ─────────────────────────────────────────
     document.getElementById('login-key').addEventListener('keydown', (e) => {
@@ -724,13 +816,80 @@
     }
 
     // ── Load Data ─────────────────────────────────────
-    async function loadLeagueData() {
+    async function loadLeagueData(seasonId) {
       try {
-        const res = await fetch('/api/data');
+        const url = seasonId ? `/api/data?season=${seasonId}` : '/api/data';
+        const res = await fetch(url);
         leagueData = await res.json();
+        adminSeasonId = leagueData.seasonId || null;
+        renderAdminSeasonSelector();
         renderAdminMatchday();
+        checkSeasonComplete();
       } catch (err) {
         showToast('Failed to load data', 'error');
+      }
+    }
+
+    function renderAdminSeasonSelector() {
+      const select = document.getElementById('admin-season-select');
+      if (!select || !leagueData.seasons) return;
+      select.innerHTML = '';
+      leagueData.seasons.forEach(s => {
+        const opt = document.createElement('option');
+        opt.value = s.id;
+        opt.textContent = s.name + (s.status === 'active' ? ' (Active)' : '');
+        if (s.id === adminSeasonId) opt.selected = true;
+        select.appendChild(opt);
+      });
+    }
+
+    function adminChangeSeason(seasonId) {
+      adminMatchday = 0;
+      loadLeagueData(parseInt(seasonId, 10));
+    }
+
+    function checkSeasonComplete() {
+      const banner = document.getElementById('admin-new-season-banner');
+      if (!banner || !leagueData.fixtures) return;
+      const activeSeason = leagueData.seasons && leagueData.seasons.find(s => s.status === 'active');
+      if (!activeSeason || activeSeason.id !== adminSeasonId) {
+        banner.style.display = 'none';
+        return;
+      }
+      const allCompleted = leagueData.fixtures.every(md =>
+        md.matches.every(m => m.status === 'completed')
+      );
+      banner.style.display = allCompleted ? 'flex' : 'none';
+    }
+
+    async function createNewSeason() {
+      if (!confirm('Start a new season? This will generate a fresh set of fixtures. The current season will be archived.')) {
+        return;
+      }
+      const btn = document.getElementById('btn-new-season');
+      btn.disabled = true;
+      btn.textContent = 'Creating...';
+      try {
+        const res = await fetch('/api/admin/season', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Admin-Key': adminKey,
+          },
+        });
+        const data = await res.json();
+        if (data.success) {
+          showToast(data.message, 'success');
+          adminMatchday = 0;
+          await loadLeagueData(data.season.id);
+        } else {
+          showToast(data.error || 'Failed to create season', 'error');
+        }
+      } catch (err) {
+        showToast('Server error creating season', 'error');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Continue to Next Season →';
       }
     }
 
@@ -861,7 +1020,8 @@
             awayScore: awayScore !== '' ? parseInt(awayScore) : null,
             status,
             homeStreamUrl: homeStreamUrl || null,
-            awayStreamUrl: awayStreamUrl || null
+            awayStreamUrl: awayStreamUrl || null,
+            seasonId: adminSeasonId
           }),
         });
 
@@ -887,7 +1047,7 @@
             'Content-Type': 'application/json',
             'X-Admin-Key': adminKey,
           },
-          body: JSON.stringify({ matchday, homeId, awayId }),
+          body: JSON.stringify({ matchday, homeId, awayId, seasonId: adminSeasonId }),
         });
 
         const data = await res.json();
@@ -920,7 +1080,7 @@
             'Content-Type': 'application/json',
             'X-Admin-Key': adminKey,
           },
-          body: JSON.stringify({ matchday: md.matchday }),
+          body: JSON.stringify({ matchday: md.matchday, seasonId: adminSeasonId }),
         });
 
         const data = await res.json();

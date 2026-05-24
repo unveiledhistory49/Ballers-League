@@ -161,6 +161,83 @@ body {
   border-radius: 4px;
   display: inline-block;
   margin-top: 2px;
+  transition: all 0.2s ease;
+}
+
+.season-badge.has-dropdown {
+  cursor: pointer;
+  user-select: none;
+}
+
+.season-badge.has-dropdown::after {
+  content: '';
+  display: inline-block;
+  width: 0;
+  height: 0;
+  border-left: 3px solid transparent;
+  border-right: 3px solid transparent;
+  border-top: 4px solid var(--accent-gold);
+  margin-left: 5px;
+  vertical-align: middle;
+  transition: transform 0.2s ease;
+}
+
+.season-badge.has-dropdown:hover {
+  background: rgba(200, 168, 78, 0.25);
+}
+
+.league-title {
+  position: relative;
+}
+
+.season-dropdown {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-medium);
+  border-radius: 10px;
+  padding: 4px;
+  min-width: 140px;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.6);
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(-6px);
+  transition: all 0.2s var(--ease-out);
+  z-index: 200;
+}
+
+.season-dropdown.open {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+}
+
+.season-dropdown-item {
+  display: block;
+  width: 100%;
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  font-family: var(--font-body);
+  font-size: 0.72rem;
+  font-weight: 500;
+  text-align: left;
+  padding: 8px 12px;
+  border-radius: 7px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.season-dropdown-item:hover {
+  background: var(--bg-card-hover);
+  color: var(--text-primary);
+}
+
+.season-dropdown-item.active {
+  background: var(--accent-gold-dim);
+  color: var(--accent-gold);
+  font-weight: 700;
 }
 
 /* ═══════════════════════════════════════════════════════════════
