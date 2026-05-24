@@ -2790,44 +2790,43 @@ async function openPlayerProfile(playerId) {
     </div>
   ` : "";
 
-  // Calculate gaming card ratings (0-99 scale)
+  // Calculate gaming card ratings (0-99 scale with a baseline of 60)
   const ppg = currentSeasonStats && currentSeasonStats.played > 0 
     ? (currentSeasonStats.points / currentSeasonStats.played) 
     : 0;
   const ovr = currentSeasonStats && currentSeasonStats.played > 0
-    ? Math.max(45, Math.min(99, Math.round((ppg / 3.0) * 99)))
+    ? Math.max(60, Math.min(99, Math.round(60 + (ppg / 3.0) * 39)))
     : 60;
 
   const gfg = currentSeasonStats && currentSeasonStats.played > 0 
     ? (currentSeasonStats.goalsFor / currentSeasonStats.played) 
     : 0;
   const att = currentSeasonStats && currentSeasonStats.played > 0
-    ? Math.max(45, Math.min(99, Math.round((gfg / 3.5) * 99)))
+    ? Math.max(60, Math.min(99, Math.round(60 + (gfg / 3.5) * 39)))
     : 60;
 
   const gag = currentSeasonStats && currentSeasonStats.played > 0 
     ? (currentSeasonStats.goalsAgainst / currentSeasonStats.played) 
     : 0;
   const def = currentSeasonStats && currentSeasonStats.played > 0
-    ? Math.max(45, Math.min(99, Math.round(99 - (gag / 3.5) * 54)))
+    ? Math.max(50, Math.min(99, Math.round(99 - (gag / 3.5) * 39)))
     : 60;
 
-  // Streak/form-based strength rating
+  // Streak/form-based strength rating projected on a 5-game scale
   const recentFormArray = currentSeasonStats ? currentSeasonStats.form : [];
   let formScore = 0;
   if (recentFormArray.length > 0) {
+    let sum = 0;
     recentFormArray.forEach(r => {
-      if (r === 'W') formScore += 20;
-      else if (r === 'D') formScore += 10;
-      else if (r === 'L') formScore += 5;
+      if (r === 'W') sum += 20;
+      else if (r === 'D') sum += 10;
+      else if (r === 'L') sum += 5;
     });
-    if (recentFormArray.length < 5) {
-      formScore = (formScore / (recentFormArray.length * 20)) * 99;
-    }
+    formScore = (sum / recentFormArray.length) * 5;
   } else {
-    formScore = 60;
+    formScore = 25; // default minimum
   }
-  const str = Math.max(45, Math.min(99, Math.round(formScore)));
+  const str = Math.max(60, Math.min(99, Math.round(60 + ((formScore - 25) / 75) * 39)));
 
   // HTML content for manager card avatars
   let cardAvatarHTML;
