@@ -256,10 +256,18 @@ body {
   margin: 0 auto;
   display: flex;
   height: var(--nav-height);
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none; /* Firefox */
+}
+.nav-inner::-webkit-scrollbar {
+  display: none; /* Chrome, Safari, Opera */
 }
 
 .nav-tab {
-  flex: 1;
+  flex: 0 0 auto;
+  padding: 0 16px;
+  min-width: max-content;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -274,6 +282,14 @@ body {
   cursor: pointer;
   position: relative;
   transition: color 0.3s ease;
+}
+
+@media (min-width: 768px) {
+  .nav-tab {
+    flex: 1;
+    padding: 0;
+    min-width: 0;
+  }
 }
 
 .nav-tab::after {
@@ -3448,8 +3464,16 @@ body {
   margin: 16px 20px;
   padding-bottom: 12px;
   border-bottom: 1px solid var(--border-subtle);
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+.admin-section-tabs::-webkit-scrollbar {
+  display: none;
 }
 .admin-sec-tab {
+  flex: 0 0 auto;
+  white-space: nowrap;
   background: var(--bg-card);
   border: 1px solid var(--border-medium);
   color: var(--text-secondary);
