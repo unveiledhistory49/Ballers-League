@@ -311,6 +311,9 @@ function renderStandings() {
 
     body.appendChild(row);
   });
+
+  // Render season awards if the season is completed
+  renderAwards(standings);
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -1062,18 +1065,63 @@ function renderPredictionWidget(container, matchday, homeId, awayId, homeClub, a
   const homeShort = clubShort[homeClub] || homeClub.substring(0, 3).toUpperCase();
   const awayShort = clubShort[awayClub] || awayClub.substring(0, 3).toUpperCase();
 
+  const activeVoter = localStorage.getItem('voter-name') || '';
+  const options = leagueData.teams ? leagueData.teams.map(t => `<option value="${t.player}" ${activeVoter === t.player ? 'selected' : ''}>${t.player}</option>`).join('') : '';
+  const voterDropdownHTML = `
+    <div class="prediction-voter-select-row" onclick="event.stopPropagation()">
+      <span class="voter-label">Predict as:</span>
+      <select class="voter-select" onchange="localStorage.setItem('voter-name', this.value)">
+        <option value="" disabled ${activeVoter ? '' : 'selected'}>Choose Player...</option>
+        <option value="Guest" ${activeVoter === 'Guest' ? 'selected' : ''}>Guest (Outsider)</option>
+        ${options}
+      </select>
+    </div>
+  `;
+
+  const getVotersHTMLForOption = (opt) => {
+    const optVoters = (serverPredictions && serverPredictions.voters || []).filter(v => v.pick === opt);
+    if (optVoters.length === 0) return '<div class="prediction-voters-list"></div>';
+    
+    const avatars = optVoters.map(v => {
+      if (v.name === 'Guest') {
+        return `<span class="voter-avatar-fallback guest" title="Guest">G</span>`;
+      }
+      const team = leagueData.teams ? leagueData.teams.find(t => t.player === v.name) : null;
+      const club = team ? team.club : '';
+      const logoSrc = clubLogos[club];
+      if (logoSrc) {
+        return `<img src="${logoSrc}" alt="${v.name}" class="voter-avatar" title="${v.name} (${club})">`;
+      }
+      return `<span class="voter-avatar-fallback" title="${v.name}">${v.name.substring(0, 2).toUpperCase()}</span>`;
+    }).join('');
+    
+    return `<div class="prediction-voters-list">${avatars}</div>`;
+  };
+
   let optionsHTML = "";
   if (!hasVoted) {
     optionsHTML = `
-      <button class="prediction-btn" onclick="castPredictionVote(event, ${matchday}, ${homeId}, ${awayId}, 'home', '${homeClub}', '${awayClub}', '${matchStatus}')">
-        ${homeLogoSrc ? `<img src="${homeLogoSrc}" alt="${homeClub}">` : `<span>${homeShort}</span>`}
-      </button>
-      <button class="prediction-btn" onclick="castPredictionVote(event, ${matchday}, ${homeId}, ${awayId}, 'draw', '${homeClub}', '${awayClub}', '${matchStatus}')">
-        <span>X</span>
-      </button>
-      <button class="prediction-btn" onclick="castPredictionVote(event, ${matchday}, ${homeId}, ${awayId}, 'away', '${homeClub}', '${awayClub}', '${matchStatus}')">
-        ${awayLogoSrc ? `<img src="${awayLogoSrc}" alt="${awayClub}">` : `<span>${awayShort}</span>`}
-      </button>
+      ${voterDropdownHTML}
+      <div class="prediction-options-grid">
+        <div class="prediction-option-col">
+          <button class="prediction-btn" onclick="castPredictionVote(event, ${matchday}, ${homeId}, ${awayId}, 'home', '${homeClub}', '${awayClub}', '${matchStatus}')">
+            ${homeLogoSrc ? `<img src="${homeLogoSrc}" alt="${homeClub}">` : `<span>${homeShort}</span>`}
+          </button>
+          ${getVotersHTMLForOption('home')}
+        </div>
+        <div class="prediction-option-col">
+          <button class="prediction-btn" onclick="castPredictionVote(event, ${matchday}, ${homeId}, ${awayId}, 'draw', '${homeClub}', '${awayClub}', '${matchStatus}')">
+            <span>X</span>
+          </button>
+          ${getVotersHTMLForOption('draw')}
+        </div>
+        <div class="prediction-option-col">
+          <button class="prediction-btn" onclick="castPredictionVote(event, ${matchday}, ${homeId}, ${awayId}, 'away', '${homeClub}', '${awayClub}', '${matchStatus}')">
+            ${awayLogoSrc ? `<img src="${awayLogoSrc}" alt="${awayClub}">` : `<span>${awayShort}</span>`}
+          </button>
+          ${getVotersHTMLForOption('away')}
+        </div>
+      </div>
     `;
   } else {
     const homeSelected = userVote === "home" ? "selected" : "";
@@ -1081,21 +1129,32 @@ function renderPredictionWidget(container, matchday, homeId, awayId, homeClub, a
     const awaySelected = userVote === "away" ? "selected" : "";
 
     optionsHTML = `
-      <button class="prediction-btn ${homeSelected}">
-        <div class="prediction-btn-fill" style="width: ${homePercent}%;"></div>
-        ${homeLogoSrc ? `<img src="${homeLogoSrc}" alt="${homeClub}">` : `<span>${homeShort}</span>`}
-        <span class="prediction-percent">${homePercent}%</span>
-      </button>
-      <button class="prediction-btn ${drawSelected}">
-        <div class="prediction-btn-fill" style="width: ${drawPercent}%;"></div>
-        <span>X</span>
-        <span class="prediction-percent">${drawPercent}%</span>
-      </button>
-      <button class="prediction-btn ${awaySelected}">
-        <div class="prediction-btn-fill" style="width: ${awayPercent}%;"></div>
-        ${awayLogoSrc ? `<img src="${awayLogoSrc}" alt="${awayClub}">` : `<span>${awayShort}</span>`}
-        <span class="prediction-percent">${awayPercent}%</span>
-      </button>
+      <div class="prediction-options-grid voted">
+        <div class="prediction-option-col">
+          <button class="prediction-btn ${homeSelected}">
+            <div class="prediction-btn-fill" style="width: ${homePercent}%;"></div>
+            ${homeLogoSrc ? `<img src="${homeLogoSrc}" alt="${homeClub}">` : `<span>${homeShort}</span>`}
+            <span class="prediction-percent">${homePercent}%</span>
+          </button>
+          ${getVotersHTMLForOption('home')}
+        </div>
+        <div class="prediction-option-col">
+          <button class="prediction-btn ${drawSelected}">
+            <div class="prediction-btn-fill" style="width: ${drawPercent}%;"></div>
+            <span>X</span>
+            <span class="prediction-percent">${drawPercent}%</span>
+          </button>
+          ${getVotersHTMLForOption('draw')}
+        </div>
+        <div class="prediction-option-col">
+          <button class="prediction-btn ${awaySelected}">
+            <div class="prediction-btn-fill" style="width: ${awayPercent}%;"></div>
+            ${awayLogoSrc ? `<img src="${awayLogoSrc}" alt="${awayClub}">` : `<span>${awayShort}</span>`}
+            <span class="prediction-percent">${awayPercent}%</span>
+          </button>
+          ${getVotersHTMLForOption('away')}
+        </div>
+      </div>
     `;
   }
 
@@ -1109,7 +1168,7 @@ function renderPredictionWidget(container, matchday, homeId, awayId, homeClub, a
       <span class="prediction-title">${title}</span>
       <span class="prediction-subtitle">${subtitle}</span>
     </div>
-    <div class="prediction-options ${hasVoted ? 'voted' : ''}">
+    <div class="prediction-container-inner">
       ${optionsHTML}
     </div>
   `;
@@ -1119,11 +1178,21 @@ async function castPredictionVote(event, matchday, homeId, awayId, selectedOptio
   event.stopPropagation(); // Avoid collapsing parent card
   const localStorageKey = `prediction-${matchday}-${homeId}-${awayId}`;
 
+  // Find the selected voter name
+  const wrapper = event.target.closest(".fixture-panel");
+  const selectEl = wrapper ? wrapper.querySelector(".voter-select") : null;
+  const voterName = selectEl ? selectEl.value : (localStorage.getItem('voter-name') || '');
+
+  if (!voterName) {
+    alert("Please select your player name from the dropdown before voting!");
+    return;
+  }
+
   try {
     const res = await fetch("/api/prediction", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ matchday, homeId, awayId, option: selectedOption, seasonId: currentSeasonId })
+      body: JSON.stringify({ matchday, homeId, awayId, option: selectedOption, seasonId: currentSeasonId, voterName })
     });
 
     const data = await res.json();
@@ -1132,6 +1201,9 @@ async function castPredictionVote(event, matchday, homeId, awayId, selectedOptio
         // Safe check failed, IP already voted
         localStorage.setItem(localStorageKey, selectedOption);
         alert("You have already voted on this match from this IP address.");
+      } else if (data.error === "You have already voted on this match") {
+        localStorage.setItem(localStorageKey, selectedOption);
+        alert("You have already voted on this match as this player.");
       } else {
         throw new Error(data.error || "Failed to vote");
       }
@@ -1152,8 +1224,12 @@ async function castPredictionVote(event, matchday, homeId, awayId, selectedOptio
       const match = md.matches.find(m => m.home.id === homeId && m.away.id === awayId);
       if (match) {
         if (!match.predictions) {
-          match.predictions = { home: 0, draw: 0, away: 0 };
+          match.predictions = { home: 0, draw: 0, away: 0, ips: [], voters: [] };
         }
+        if (!match.predictions.voters) {
+          match.predictions.voters = [];
+        }
+        match.predictions.voters.push({ name: voterName, pick: selectedOption, ip: '127.0.0.1' });
         match.predictions[selectedOption] = (match.predictions[selectedOption] || 0) + 1;
       }
     }
@@ -1604,6 +1680,95 @@ function renderStats() {
               <div class="bw-team">${awayLogoHTML} <span>${m.away.player}</span></div>
             </div>
             <div class="bw-meta">MD ${m.matchday} · +${m.margin} margin</div>
+          </div>
+        `;
+      }).join('');
+    }
+  }
+
+  // ── Pundit Rankings ──────────────────────────────
+  const punditsMap = {};
+  if (leagueData && leagueData.teams) {
+    leagueData.teams.forEach(t => {
+      punditsMap[t.player] = {
+        player: t.player,
+        club: t.club,
+        correct: 0,
+        total: 0,
+        points: 0
+      };
+    });
+  }
+
+  // Calculate stats from completed matches
+  if (leagueData && leagueData.fixtures) {
+    leagueData.fixtures.forEach(md => {
+      md.matches.forEach(m => {
+        if (m.status === 'completed' && m.homeScore !== null && m.awayScore !== null) {
+          let actualOutcome = 'draw';
+          if (m.homeScore > m.awayScore) {
+            actualOutcome = 'home';
+          } else if (m.awayScore > m.homeScore) {
+            actualOutcome = 'away';
+          }
+
+          const voters = (m.predictions && m.predictions.voters) || [];
+          voters.forEach(v => {
+            if (punditsMap[v.name]) {
+              punditsMap[v.name].total += 1;
+              if (v.pick === actualOutcome) {
+                punditsMap[v.name].correct += 1;
+                punditsMap[v.name].points += 3;
+              }
+            }
+          });
+        }
+      });
+    });
+  }
+
+  const punditsList = Object.values(punditsMap).sort((a, b) => {
+    if (b.points !== a.points) return b.points - a.points;
+    const accA = a.total > 0 ? (a.correct / a.total) : 0;
+    const accB = b.total > 0 ? (b.correct / b.total) : 0;
+    if (accB !== accA) return accB - accA;
+    return b.correct - a.correct;
+  });
+
+  const punditContainer = document.getElementById("stats-pundit-rankings");
+  if (punditContainer) {
+    if (punditsList.length === 0) {
+      punditContainer.innerHTML = '<div class="stats-empty">No prediction data available</div>';
+    } else {
+      punditContainer.innerHTML = punditsList.map((p, i) => {
+        const rankClass = i === 0 ? 'rank-gold' : i === 1 ? 'rank-silver' : i === 2 ? 'rank-bronze' : '';
+        const logoSrc = clubLogos[p.club];
+        const logoHTML = logoSrc
+          ? `<img src="${logoSrc}" alt="${p.club}" class="stats-row-logo">`
+          : `<span class="stats-row-logo-fallback">${clubShort[p.club] || '?'}</span>`;
+        const accuracy = p.total > 0 ? Math.round((p.correct / p.total) * 100) : 0;
+        return `
+          <div class="stats-row ${rankClass}" style="animation-delay: ${i * 0.04}s">
+            <div class="stats-rank">${i + 1}</div>
+            <div class="stats-player-info">
+              ${logoHTML}
+              <div>
+                <div class="stats-player-name">${p.player}</div>
+                <div class="stats-player-club">${p.club}</div>
+              </div>
+            </div>
+            <div class="stats-values">
+              <div class="stats-main-value">${p.points}</div>
+              <div class="stats-sub-label">pts</div>
+            </div>
+            <div class="stats-values stats-secondary">
+              <div class="stats-main-value">${accuracy}%</div>
+              <div class="stats-sub-label">accuracy</div>
+            </div>
+            <div class="stats-values stats-secondary">
+              <div class="stats-main-value">${p.correct}/${p.total}</div>
+              <div class="stats-sub-label">picks</div>
+            </div>
           </div>
         `;
       }).join('');
@@ -2492,4 +2657,193 @@ async function refreshLeagueDataSilent() {
   } catch (err) {
     console.error("Silent refresh error:", err);
   }
+}
+
+// ── End-of-Season Awards Showcase ──────────────────────────────
+async function renderAwards(standings) {
+  const container = document.getElementById("standings-awards");
+  if (!container) return;
+
+  if (!leagueData || !leagueData.seasons || standings.length === 0) {
+    container.style.display = "none";
+    return;
+  }
+
+  // A season is considered completed if marked "completed" OR if all matches are completed
+  const currentSeasonObj = leagueData.seasons.find(s => s.id === currentSeasonId);
+  const isSeasonMarkedCompleted = currentSeasonObj && currentSeasonObj.status === 'completed';
+  const allMatchesCompleted = leagueData.fixtures.length > 0 && leagueData.fixtures.every(md => md.matches.every(m => m.status === 'completed'));
+
+  if (!isSeasonMarkedCompleted && !allMatchesCompleted) {
+    container.style.display = "none";
+    return;
+  }
+
+  container.style.display = "block";
+  container.innerHTML = `<div class="h2h-loading">Calculating season awards...</div>`;
+
+  // 1. Champion
+  const champion = standings[0];
+
+  // 2. Golden Boot
+  const maxGoals = Math.max(...standings.map(s => s.goalsFor));
+  const goldenBootWinners = standings.filter(s => s.goalsFor === maxGoals).map(s => s.player);
+  const goldenBootText = goldenBootWinners.join(" & ");
+
+  // 3. Best Defence
+  const minConceded = Math.min(...standings.map(s => s.goalsAgainst));
+  const bestDefenceWinners = standings.filter(s => s.goalsAgainst === minConceded).map(s => s.player);
+  const bestDefenceText = bestDefenceWinners.join(" & ");
+
+  // 4. Streak King (win streak within the current season)
+  const playerStreaks = {};
+  standings.forEach(t => {
+    playerStreaks[t.id] = { current: 0, max: 0, player: t.player };
+  });
+
+  const seasonMatches = [];
+  leagueData.fixtures.forEach(md => {
+    md.matches.forEach(m => {
+      if (m.status === 'completed' && m.homeScore !== null) {
+        seasonMatches.push(m);
+      }
+    });
+  });
+
+  seasonMatches.forEach(m => {
+    const home = playerStreaks[m.home.id];
+    const away = playerStreaks[m.away.id];
+    if (!home || !away) return;
+
+    if (m.homeScore > m.awayScore) {
+      home.current++;
+      home.max = Math.max(home.max, home.current);
+      away.current = 0;
+    } else if (m.homeScore < m.awayScore) {
+      away.current++;
+      away.max = Math.max(away.max, away.current);
+      home.current = 0;
+    } else {
+      home.current = 0;
+      away.current = 0;
+    }
+  });
+
+  let maxStreak = 0;
+  let streakKingWinners = [];
+  Object.values(playerStreaks).forEach(ps => {
+    if (ps.max > maxStreak) {
+      maxStreak = ps.max;
+      streakKingWinners = [ps.player];
+    } else if (ps.max === maxStreak && maxStreak > 0) {
+      streakKingWinners.push(ps.player);
+    }
+  });
+  const streakKingText = maxStreak > 0 ? `${streakKingWinners.join(" & ")} (${maxStreak} wins)` : "—";
+
+  // 5. Most Improved (climb from previous season)
+  let mostImprovedText = "N/A (Season 1)";
+  if (currentSeasonId > 1) {
+    try {
+      const res = await fetch(`/api/records?_t=${Date.now()}`);
+      if (res.ok) {
+        const recData = await res.json();
+        const prevStandings = computeSeasonStandingsHelper(recData.matches, recData.teams, currentSeasonId - 1);
+        const currStandings = computeSeasonStandingsHelper(recData.matches, recData.teams, currentSeasonId);
+
+        let maxClimb = -99;
+        let maxClimbWinners = [];
+
+        currStandings.forEach((currTeam, currIdx) => {
+          const prevIdx = prevStandings.findIndex(p => p.id === currTeam.id);
+          if (prevIdx >= 0) {
+            const climb = prevIdx - currIdx;
+            if (climb > maxClimb) {
+              maxClimb = climb;
+              maxClimbWinners = [currTeam.player];
+            } else if (climb === maxClimb && climb > 0) {
+              maxClimbWinners.push(currTeam.player);
+            }
+          }
+        });
+
+        if (maxClimb > 0) {
+          mostImprovedText = `${maxClimbWinners.join(" & ")} (+${maxClimb} pos)`;
+        } else {
+          mostImprovedText = "No climbers";
+        }
+      }
+    } catch (e) {
+      console.error("Failed to compute Most Improved award:", e);
+    }
+  }
+
+  container.innerHTML = `
+    <div class="awards-title">🏆 Season Awards Showcase</div>
+    <div class="awards-grid">
+      <div class="award-card champion">
+        <div class="award-trophy">🏆</div>
+        <div class="award-label">Champion</div>
+        <div class="award-winner">${champion.player}</div>
+        <div class="award-meta">${champion.club} · ${champion.points} pts</div>
+      </div>
+      <div class="award-card boot">
+        <div class="award-trophy">⚽</div>
+        <div class="award-label">Golden Boot</div>
+        <div class="award-winner">${goldenBootText}</div>
+        <div class="award-meta">${maxGoals} goals</div>
+      </div>
+      <div class="award-card glove">
+        <div class="award-trophy">🧤</div>
+        <div class="award-label">Best Defence</div>
+        <div class="award-winner">${bestDefenceText}</div>
+        <div class="award-meta">${minConceded} conceded</div>
+      </div>
+      <div class="award-card streak">
+        <div class="award-trophy">🔥</div>
+        <div class="award-label">Streak King</div>
+        <div class="award-winner">${streakKingText}</div>
+        <div class="award-meta">Consecutive wins</div>
+      </div>
+      <div class="award-card improved">
+        <div class="award-trophy">📈</div>
+        <div class="award-label">Most Improved</div>
+        <div class="award-winner">${mostImprovedText}</div>
+        <div class="award-meta">Standings climb</div>
+      </div>
+    </div>
+  `;
+}
+
+function computeSeasonStandingsHelper(allMatches, teams, seasonId) {
+  const seasonMatches = allMatches.filter(m => m.seasonId === seasonId);
+  const standings = {};
+  teams.forEach(t => {
+    standings[t.id] = { id: t.id, player: t.player, club: t.club, points: 0, goalsFor: 0, goalsAgainst: 0, wins: 0, losses: 0, draws: 0, played: 0 };
+  });
+  seasonMatches.forEach(m => {
+    const home = standings[m.homeId];
+    const away = standings[m.awayId];
+    if (!home || !away) return;
+    home.played++; away.played++;
+    home.goalsFor += m.homeScore;
+    home.goalsAgainst += m.awayScore;
+    away.goalsFor += m.awayScore;
+    away.goalsAgainst += m.homeScore;
+    if (m.homeScore > m.awayScore) {
+      home.wins++; home.points += 3; away.losses++;
+    } else if (m.homeScore < m.awayScore) {
+      away.wins++; away.points += 3; home.losses++;
+    } else {
+      home.draws++; away.draws++; home.points += 1; away.points += 1;
+    }
+  });
+  return Object.values(standings).sort((a, b) => {
+    if (b.points !== a.points) return b.points - a.points;
+    const gdA = a.goalsFor - a.goalsAgainst;
+    const gdB = b.goalsFor - b.goalsAgainst;
+    if (gdB !== gdA) return gdB - gdA;
+    if (b.goalsFor !== a.goalsFor) return b.goalsFor - a.goalsFor;
+    return 0;
+  });
 }

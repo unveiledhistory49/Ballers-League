@@ -178,10 +178,10 @@ app.post('/api/admin/login', (req, res) => {
 // ── POST /api/prediction — Cast a prediction vote ──────────────
 app.post('/api/prediction', (req, res) => {
   try {
-    const { matchday, homeId, awayId, option, seasonId } = req.body;
+    const { matchday, homeId, awayId, option, seasonId, voterName } = req.body;
 
-    if (matchday === undefined || homeId === undefined || awayId === undefined || !option) {
-      return res.status(400).json({ error: 'Missing matchday, homeId, awayId, or option' });
+    if (matchday === undefined || homeId === undefined || awayId === undefined || !option || !voterName) {
+      return res.status(400).json({ error: 'Missing matchday, homeId, awayId, option, or voterName' });
     }
 
     if (option !== 'home' && option !== 'draw' && option !== 'away') {
@@ -211,10 +211,17 @@ app.post('/api/prediction', (req, res) => {
     if (!match) return res.status(404).json({ error: 'Match not found' });
 
     if (!match.predictions) {
-      match.predictions = { home: 0, draw: 0, away: 0, ips: [] };
+      match.predictions = { home: 0, draw: 0, away: 0, ips: [], voters: [] };
     }
     if (!match.predictions.ips) {
       match.predictions.ips = [];
+    }
+    if (!match.predictions.voters) {
+      match.predictions.voters = [];
+    }
+
+    if (voterName !== 'Guest' && match.predictions.voters.some(v => v.name === voterName)) {
+      return res.status(400).json({ error: 'You have already voted on this match' });
     }
 
     if (match.predictions.ips.includes(ip)) {
@@ -222,6 +229,7 @@ app.post('/api/prediction', (req, res) => {
     }
 
     match.predictions.ips.push(ip);
+    match.predictions.voters.push({ name: voterName, pick: option, ip });
     match.predictions[option] = (match.predictions[option] || 0) + 1;
 
     saveDB(db);
@@ -328,6 +336,7 @@ app.delete('/api/admin/match', requireAdmin, (req, res) => {
         m.awayScore = null;
         m.status = 'upcoming';
         m.isMotw = false;
+        m.predictions = { home: 0, draw: 0, away: 0, ips: [], voters: [] };
       });
       saveDB(db);
       return res.json({ success: true, message: `Reset all matches for matchday ${matchday}` });
@@ -342,6 +351,7 @@ app.delete('/api/admin/match', requireAdmin, (req, res) => {
     match.awayScore = null;
     match.status = 'upcoming';
     match.isMotw = false;
+    match.predictions = { home: 0, draw: 0, away: 0, ips: [], voters: [] };
 
     saveDB(db);
 

@@ -6,10 +6,10 @@ module.exports = async function handler(req, res) {
   }
 
   try {
-    const { matchday, homeId, awayId, option, seasonId } = req.body;
+    const { matchday, homeId, awayId, option, seasonId, voterName } = req.body;
 
-    if (matchday === undefined || homeId === undefined || awayId === undefined || !option) {
-      return res.status(400).json({ error: 'Missing matchday, homeId, awayId, or option' });
+    if (matchday === undefined || homeId === undefined || awayId === undefined || !option || !voterName) {
+      return res.status(400).json({ error: 'Missing matchday, homeId, awayId, option, or voterName' });
     }
 
     if (option !== 'home' && option !== 'draw' && option !== 'away') {
@@ -39,9 +39,17 @@ module.exports = async function handler(req, res) {
     if (fetchErr) throw fetchErr;
 
     // Initialize predictions if missing
-    let predictions = match.predictions || { home: 0, draw: 0, away: 0, ips: [] };
+    let predictions = match.predictions || { home: 0, draw: 0, away: 0, ips: [], voters: [] };
     if (!predictions.ips) {
       predictions.ips = [];
+    }
+    if (!predictions.voters) {
+      predictions.voters = [];
+    }
+
+    // Check if player already voted (Guest can vote multiple times from different IPs)
+    if (voterName !== 'Guest' && predictions.voters.some(v => v.name === voterName)) {
+      return res.status(400).json({ error: 'You have already voted on this match' });
     }
 
     // Check if IP already voted
@@ -51,6 +59,7 @@ module.exports = async function handler(req, res) {
 
     // Record vote
     predictions.ips.push(ip);
+    predictions.voters.push({ name: voterName, pick: option, ip });
     predictions[option] = (predictions[option] || 0) + 1;
 
     // Update match row — scope by season if provided

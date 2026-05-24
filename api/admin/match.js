@@ -102,6 +102,7 @@ async function handleReset(req, res) {
         away_score: null,
         status: 'upcoming',
         is_motw: false,
+        predictions: { home: 0, draw: 0, away: 0, ips: [], voters: [] }
       })
       .eq('matchday', matchday);
 
