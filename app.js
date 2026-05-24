@@ -936,10 +936,17 @@ function togglePredictionCard(card, matchday, homeId, awayId) {
         match.predictions
       );
 
-      // Render stream player inside wrapper
+      // Render stream player AFTER the panel expansion animation finishes.
+      // Twitch requires the iframe to be fully visible (opacity: 1, not overflow-hidden)
+      // before it will load. The .fixture-prediction panel transitions over 300ms,
+      // so we wait 350ms before injecting the iframe.
       if (hasStream) {
-        const streamWrapper = predContainer.querySelector(".live-stream-wrapper");
-        renderStreamPlayer(streamWrapper, matchday, homeId, awayId, match.home.player, match.away.player, match.homeStreamUrl, match.awayStreamUrl);
+        setTimeout(() => {
+          const streamWrapper = predContainer.querySelector(".live-stream-wrapper");
+          if (streamWrapper && card.classList.contains("expanded")) {
+            renderStreamPlayer(streamWrapper, matchday, homeId, awayId, match.home.player, match.away.player, match.homeStreamUrl, match.awayStreamUrl);
+          }
+        }, 350);
       }
     }
   }
@@ -1224,7 +1231,6 @@ function renderStreamPlayer(container, matchday, homeId, awayId, homePlayer, awa
         <iframe
           src="${embedUrl}"
           frameborder="0"
-          allowfullscreen="true"
           scrolling="no"
           allow="autoplay; fullscreen"
           title="Live stream — ${feedLabel}">
@@ -1303,7 +1309,6 @@ function switchStreamFeed(event, playerId, feed, homeUrlEncoded, awayUrlEncoded,
         <iframe
           src="${embedUrl}"
           frameborder="0"
-          allowfullscreen="true"
           scrolling="no"
           allow="autoplay; fullscreen"
           title="Live stream — ${playerName}">
