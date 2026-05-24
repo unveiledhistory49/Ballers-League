@@ -121,9 +121,10 @@ app.get('/api/data', (req, res) => {
       league: db.league,
       season: season.name,
       seasonId: season.id,
-      seasons: db.seasons.map(s => ({ id: s.id, name: s.name, status: s.status })),
+      seasons: db.seasons.map(s => ({ id: s.id, name: s.name, status: s.status, headline: s.headline || null })),
       teams: db.teams,
       fixtures: season.fixtures,
+      headline: season.headline || null,
     });
   } catch (err) {
     res.status(500).json({ error: 'Failed to load data' });
@@ -357,6 +358,43 @@ app.put('/api/admin/match', requireAdmin, (req, res) => {
   } catch (err) {
     console.error('Error updating match:', err);
     res.status(500).json({ error: 'Failed to update match' });
+  }
+});
+
+// ── PUT /api/admin/headline — Update season headline ──────────
+app.put('/api/admin/headline', requireAdmin, (req, res) => {
+  try {
+    const { headline, seasonId } = req.body;
+
+    if (headline === undefined) {
+      return res.status(400).json({ error: 'Missing headline parameter' });
+    }
+
+    const db = loadDB();
+    let season;
+    if (seasonId) {
+      season = getSeasonById(db, parseInt(seasonId, 10));
+    }
+    if (!season) {
+      season = getActiveSeason(db);
+    }
+
+    if (!season) {
+      return res.status(400).json({ error: 'Season not found' });
+    }
+
+    season.headline = headline ? headline.trim() : null;
+    saveDB(db);
+
+    res.json({
+      success: true,
+      message: 'Headline updated successfully',
+      seasonId: season.id,
+      headline: season.headline,
+    });
+  } catch (err) {
+    console.error('Error updating headline:', err);
+    res.status(500).json({ error: 'Failed to update headline' });
   }
 });
 

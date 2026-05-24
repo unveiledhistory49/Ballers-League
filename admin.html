@@ -255,6 +255,75 @@
       transform: none;
     }
 
+    /* ── Banter Board / Headline Banner ────────────────── */
+    .admin-headline-banner {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      padding: 20px;
+      margin-bottom: 24px;
+      background: var(--bg-card);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      border-radius: 12px;
+      margin-top: 16px;
+    }
+    .admin-headline-title {
+      font-family: var(--font-display);
+      color: var(--text-primary);
+      font-size: 0.95rem;
+      font-weight: 700;
+      margin-bottom: 2px;
+    }
+    .admin-headline-subtitle {
+      color: var(--text-secondary);
+      font-size: 0.72rem;
+      margin-bottom: 12px;
+    }
+    .admin-headline-row {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      width: 100%;
+    }
+    .admin-headline-input {
+      flex: 1;
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 8px;
+      padding: 10px 14px;
+      color: var(--text-primary);
+      font-family: var(--font-body);
+      font-size: 0.8rem;
+      transition: all 0.2s ease;
+    }
+    .admin-headline-input:focus {
+      outline: none;
+      border-color: var(--accent-gold);
+      box-shadow: 0 0 0 2px var(--accent-gold-dim);
+      background: rgba(255, 255, 255, 0.05);
+    }
+    .btn-save-headline {
+      background: var(--accent-gold);
+      color: #000;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 8px;
+      font-family: var(--font-body);
+      font-size: 0.78rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      white-space: nowrap;
+    }
+    .btn-save-headline:hover {
+      opacity: 0.9;
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(200, 168, 78, 0.2);
+    }
+    .btn-save-headline:active {
+      transform: translateY(0);
+    }
+
     .btn-logout {
       background: none;
       border: 1px solid var(--border-medium);
@@ -920,6 +989,16 @@
       </button>
     </div>
 
+    <!-- Banter Board / Headline of the Matchday -->
+    <div class="admin-headline-banner">
+      <div class="admin-headline-title">📣 Banter Board</div>
+      <div class="admin-headline-subtitle">Headline of the Matchday (displays as an animated news ticker on the homepage)</div>
+      <div class="admin-headline-row">
+        <input type="text" id="admin-headline-input" class="admin-headline-input" placeholder="e.g. BTCDOCTOR claims MrLbc is 'past his prime' ahead of tonight's derby!" maxlength="150" />
+        <button class="btn-save-headline" id="btn-save-headline" onclick="saveHeadline()">Update Headline</button>
+      </div>
+    </div>
+
     <div class="admin-matchday-nav">
       <button class="admin-md-arrow" id="admin-prev" onclick="adminChangeMatchday(-1)">‹</button>
       <div class="admin-md-info">
@@ -1045,6 +1124,12 @@
         renderAdminSeasonSelector();
         renderAdminMatchday();
         checkSeasonComplete();
+        
+        // Update headline input
+        const headlineInput = document.getElementById('admin-headline-input');
+        if (headlineInput) {
+          headlineInput.value = leagueData.headline || '';
+        }
       } catch (err) {
         showToast('Failed to load data', 'error');
       }
@@ -1110,6 +1195,48 @@
       } finally {
         btn.disabled = false;
         btn.textContent = 'Continue to Next Season →';
+      }
+    }
+
+    async function saveHeadline() {
+      const input = document.getElementById('admin-headline-input');
+      const btn = document.getElementById('btn-save-headline');
+      if (!input || !btn) return;
+
+      const headlineVal = input.value.trim();
+
+      btn.disabled = true;
+      btn.textContent = 'Updating...';
+
+      try {
+        const res = await fetch('/api/admin/headline', {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Admin-Key': adminKey,
+          },
+          body: JSON.stringify({
+            seasonId: adminSeasonId,
+            headline: headlineVal || null
+          })
+        });
+
+        const data = await res.json();
+        if (data.success) {
+          showToast(data.message, 'success');
+          if (leagueData) {
+            leagueData.headline = data.headline;
+            const season = leagueData.seasons.find(s => s.id === adminSeasonId);
+            if (season) season.headline = data.headline;
+          }
+        } else {
+          showToast(data.error || 'Failed to update headline', 'error');
+        }
+      } catch (err) {
+        showToast('Server error updating headline', 'error');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Update Headline';
       }
     }
 

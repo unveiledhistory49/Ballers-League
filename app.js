@@ -70,6 +70,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     renderFixtures();
     renderStats();
     renderLiveTicker();
+    renderNewsMarquee();
     setupSwipeGestures();
     setupSilentRefresh();
   } catch (err) {
@@ -90,6 +91,7 @@ async function loadSeason(seasonId) {
     renderFixtures();
     renderStats();
     renderLiveTicker();
+    renderNewsMarquee();
     if (document.getElementById("page-history").classList.contains("active")) {
       switchPage("standings");
     }
@@ -329,6 +331,55 @@ function renderStandings() {
     if (pos >= standings.length - 2) row.classList.add("danger-zone");
     row.style.animationDelay = `${idx * 0.04}s`;
 
+    // Compute status badges
+    const badges = [];
+    const last3 = (team.form || []).slice(-3);
+    if (last3.length === 3 && last3.every(r => r === 'W')) {
+      badges.push({ icon: '🔥', title: 'On Fire: 3+ win streak!' });
+    }
+    if (last3.length === 3 && last3.every(r => r === 'L')) {
+      badges.push({ icon: '❄️', title: 'Ice Cold: 3+ losing streak' });
+    }
+
+    if (pos > 6) {
+      // Find last completed match
+      let lastMatch = null;
+      let lastMatchday = -1;
+      leagueData.fixtures.forEach(md => {
+        md.matches.forEach(m => {
+          if (m.status === 'completed' && m.homeScore !== null && m.awayScore !== null) {
+            if (m.home.id === team.id || m.away.id === team.id) {
+              if (md.matchday > lastMatchday) {
+                lastMatchday = md.matchday;
+                lastMatch = m;
+              }
+            }
+          }
+        });
+      });
+
+      if (lastMatch) {
+        let won = false;
+        let opponentId = null;
+        if (lastMatch.home.id === team.id && lastMatch.homeScore > lastMatch.awayScore) {
+          won = true;
+          opponentId = lastMatch.away.id;
+        } else if (lastMatch.away.id === team.id && lastMatch.awayScore > lastMatch.homeScore) {
+          won = true;
+          opponentId = lastMatch.home.id;
+        }
+
+        if (won && opponentId !== null) {
+          const opponentIdx = standings.findIndex(t => t.id === opponentId);
+          if (opponentIdx >= 0 && (opponentIdx + 1) <= 4) {
+            badges.push({ icon: '🛡️', title: `Giant Killer: Defeated top-4 player ${standings[opponentIdx].player} in their last match!` });
+          }
+        }
+      }
+    }
+
+    const badgesHTML = badges.map(b => `<span class="standings-badge-icon" title="${b.title}">${b.icon}</span>`).join('');
+
     const colors = clubColors[team.club] || { bg: "#333", text: "#fff" };
     const short = clubShort[team.club] || team.club.substring(0, 3).toUpperCase();
 
@@ -378,7 +429,7 @@ function renderStandings() {
           ${logoHTML}
         </div>
         <div class="club-info">
-          <span class="club-player" onclick="event.stopPropagation(); openPlayerProfile(${team.id})">${team.player} <span class="profile-hint">ⓘ</span></span>
+          <span class="club-player" onclick="event.stopPropagation(); openPlayerProfile(${team.id})">${team.player} ${badgesHTML} <span class="profile-hint">ⓘ</span></span>
           <span class="club-team">${team.club}</span>
         </div>
       </div>
@@ -434,7 +485,7 @@ function renderFixtures(direction = null) {
 
   md.matches.forEach((match, idx) => {
     const card = document.createElement("div");
-    card.className = "fixture-card";
+    card.className = `fixture-card ${idx === motwIdx ? 'is-motw' : ''}`;
     card.style.animationDelay = `${idx * 0.06}s`;
     card.onclick = () => togglePredictionCard(card, md.matchday, match.home.id, match.away.id);
 
@@ -1948,6 +1999,53 @@ function renderLiveTicker() {
   };
 }
 
+// ── NEWS MARQUEE (Banter Board) ───────────────────────────────
+function renderNewsMarquee() {
+  if (!leagueData) return;
+
+  const container = document.getElementById("news-marquee-container");
+  const marqueeText = document.getElementById("news-marquee-text");
+  if (!container || !marqueeText) return;
+
+  const headline = leagueData.headline;
+  if (!headline || !headline.trim()) {
+    container.style.display = 'none';
+    return;
+  }
+
+  container.style.display = 'flex';
+
+  let formattedHeadline = headline.trim();
+  // Escape HTML but allow <strong> tags
+  formattedHeadline = formattedHeadline
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+
+  // Restore <strong> and </strong> if they were entered
+  formattedHeadline = formattedHeadline
+    .replace(/&lt;strong&gt;/gi, '<strong>')
+    .replace(/&lt;\/strong&gt;/gi, '</strong>');
+
+  // Dynamically wrap player/club names in <strong> if they exist in teams
+  if (leagueData.teams && leagueData.teams.length > 0) {
+    const sortedTeams = [...leagueData.teams].sort((a, b) => b.player.length - a.player.length);
+    sortedTeams.forEach(t => {
+      if (!t.player) return;
+      const playerRegex = new RegExp(`\\b(${t.player})\\b`, 'gi');
+      formattedHeadline = formattedHeadline.replace(playerRegex, (match) => {
+        return `<strong>${match}</strong>`;
+      });
+    });
+  }
+
+  // Duplicate the text content so it scrolls seamlessly without leaving a giant empty gap
+  marqueeText.innerHTML = `${formattedHeadline} &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; · &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ${formattedHeadline} &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; · &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ${formattedHeadline}`;
+}
+
+
 // ═══════════════════════════════════════════════════════════════
 // BATCH 2: H2H, RECORDS, PLAYER PROFILES
 // ═══════════════════════════════════════════════════════════════
@@ -2692,33 +2790,107 @@ async function openPlayerProfile(playerId) {
     </div>
   ` : "";
 
-  profileContent.innerHTML = `
-    <div class="profile-header-card">
-      <div class="profile-logo-container">
-        ${logoHTML}
-      </div>
-      <div class="profile-title-info">
-        <div class="profile-name">${currentTeam.player}</div>
-        <div class="profile-club">${currentTeam.club}</div>
-      </div>
-    </div>
+  // Calculate gaming card ratings (0-99 scale)
+  const ppg = currentSeasonStats && currentSeasonStats.played > 0 
+    ? (currentSeasonStats.points / currentSeasonStats.played) 
+    : 0;
+  const ovr = currentSeasonStats && currentSeasonStats.played > 0
+    ? Math.max(45, Math.min(99, Math.round((ppg / 3.0) * 99)))
+    : 60;
 
-    <div class="profile-stats-grid">
-      <div class="profile-stat-box">
-        <div class="profile-stat-lbl">Played</div>
-        <div class="profile-stat-num">${currentSeasonStats ? currentSeasonStats.played : 0}</div>
-      </div>
-      <div class="profile-stat-box">
-        <div class="profile-stat-lbl">Rank</div>
-        <div class="profile-stat-num">${currentSeasonRank > 0 ? `#${currentSeasonRank}` : '—'}</div>
-      </div>
-      <div class="profile-stat-box">
-        <div class="profile-stat-lbl">Points</div>
-        <div class="profile-stat-num">${currentSeasonStats ? currentSeasonStats.points : 0}</div>
-      </div>
-      <div class="profile-stat-box">
-        <div class="profile-stat-lbl">Win %</div>
-        <div class="profile-stat-num">${winPct}%</div>
+  const gfg = currentSeasonStats && currentSeasonStats.played > 0 
+    ? (currentSeasonStats.goalsFor / currentSeasonStats.played) 
+    : 0;
+  const att = currentSeasonStats && currentSeasonStats.played > 0
+    ? Math.max(45, Math.min(99, Math.round((gfg / 3.5) * 99)))
+    : 60;
+
+  const gag = currentSeasonStats && currentSeasonStats.played > 0 
+    ? (currentSeasonStats.goalsAgainst / currentSeasonStats.played) 
+    : 0;
+  const def = currentSeasonStats && currentSeasonStats.played > 0
+    ? Math.max(45, Math.min(99, Math.round(99 - (gag / 3.5) * 54)))
+    : 60;
+
+  // Streak/form-based strength rating
+  const recentFormArray = currentSeasonStats ? currentSeasonStats.form : [];
+  let formScore = 0;
+  if (recentFormArray.length > 0) {
+    recentFormArray.forEach(r => {
+      if (r === 'W') formScore += 20;
+      else if (r === 'D') formScore += 10;
+      else if (r === 'L') formScore += 5;
+    });
+    if (recentFormArray.length < 5) {
+      formScore = (formScore / (recentFormArray.length * 20)) * 99;
+    }
+  } else {
+    formScore = 60;
+  }
+  const str = Math.max(45, Math.min(99, Math.round(formScore)));
+
+  // HTML content for manager card avatars
+  let cardAvatarHTML;
+  if (photoUrl) {
+    cardAvatarHTML = `<img src="${photoUrl}" alt="${currentTeam.player}" class="card-avatar-img">`;
+  } else {
+    cardAvatarHTML = `
+      <svg class="card-avatar-svg" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.4)" stroke-width="1.5">
+        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" stroke-linecap="round" stroke-linejoin="round"/>
+        <circle cx="12" cy="7" r="4" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    `;
+  }
+
+  let cardClubLogoHTML;
+  if (logoSrc) {
+    cardClubLogoHTML = `<img src="${logoSrc}" alt="${currentTeam.club}" class="card-club-img">`;
+  } else {
+    cardClubLogoHTML = `<span class="card-club-fallback">${clubShort[currentTeam.club] || currentTeam.club.substring(0,3).toUpperCase()}</span>`;
+  }
+
+  profileContent.innerHTML = `
+    <div class="manager-card-wrapper">
+      <div class="manager-card">
+        <div class="holographic-shine"></div>
+        <div class="card-top">
+          <div class="card-meta">
+            <div class="card-ovr">${ovr}</div>
+            <div class="card-position">MGR</div>
+            <div class="card-club-logo">
+              ${cardClubLogoHTML}
+            </div>
+          </div>
+          <div class="card-avatar">
+            ${cardAvatarHTML}
+          </div>
+        </div>
+        <div class="card-bottom">
+          <div class="card-name">${currentTeam.player}</div>
+          <div class="card-divider"></div>
+          <div class="card-stats-grid">
+            <div class="card-stat">
+              <span class="card-stat-val">${att}</span>
+              <span class="card-stat-lbl">ATT</span>
+            </div>
+            <div class="card-stat">
+              <span class="card-stat-val">${def}</span>
+              <span class="card-stat-lbl">DEF</span>
+            </div>
+            <div class="card-stat">
+              <span class="card-stat-val">${str}</span>
+              <span class="card-stat-lbl">STR</span>
+            </div>
+            <div class="card-stat">
+              <span class="card-stat-val">${currentSeasonStats ? currentSeasonStats.points : 0}</span>
+              <span class="card-stat-lbl">PTS</span>
+            </div>
+          </div>
+          <div class="card-footer-info">
+            <span>PPG: ${ppg.toFixed(2)}</span>
+            <span>RANK: #${currentSeasonRank > 0 ? currentSeasonRank : '—'}</span>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -2766,8 +2938,9 @@ async function refreshLeagueDataSilent() {
     // Check if dynamic data (fixtures state or team stats) actually changed before re-rendering
     const fixturesChanged = JSON.stringify(freshData.fixtures) !== JSON.stringify(leagueData.fixtures);
     const teamsChanged = JSON.stringify(freshData.teams) !== JSON.stringify(leagueData.teams);
+    const headlineChanged = freshData.headline !== leagueData.headline;
 
-    if (fixturesChanged || teamsChanged) {
+    if (fixturesChanged || teamsChanged || headlineChanged) {
       leagueData = freshData;
       cachedRecordsData = null; // Clear records cache when fixtures/teams change
       
@@ -2783,8 +2956,9 @@ async function refreshLeagueDataSilent() {
         renderStats();
       }
 
-      // Always update ticker as it is a global header element
+      // Always update ticker and news marquee as they are global header elements
       renderLiveTicker();
+      renderNewsMarquee();
     }
   } catch (err) {
     console.error("Silent refresh error:", err);

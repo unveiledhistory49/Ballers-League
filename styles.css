@@ -2190,6 +2190,74 @@ body {
   50% { opacity: 0.4; transform: scale(0.8); }
 }
 
+/* ── Banter Board / News Marquee Ticker ──────────────────────── */
+.news-marquee-container {
+  display: flex;
+  align-items: center;
+  background: #0a0a0a;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  height: 36px;
+  overflow: hidden;
+  position: relative;
+  z-index: 90;
+  font-family: var(--font-body);
+}
+
+.news-marquee-badge {
+  background: #e63946; /* Red */
+  color: #fff;
+  font-family: var(--font-display);
+  font-size: 0.65rem;
+  font-weight: 900;
+  padding: 0 16px;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  z-index: 10;
+  transform: skewX(-12deg);
+  margin-left: -6px;
+  margin-right: 12px;
+  box-shadow: 4px 0 12px rgba(230, 57, 70, 0.4);
+  letter-spacing: 0.05em;
+  white-space: nowrap;
+}
+
+.news-marquee-content {
+  flex: 1;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  position: relative;
+  height: 100%;
+}
+
+.news-marquee-text {
+  display: inline-block;
+  white-space: nowrap;
+  padding-left: 100%;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  letter-spacing: 0.01em;
+  animation: marquee-scroll 25s linear infinite;
+}
+
+.news-marquee-text strong {
+  color: var(--accent-gold);
+  font-weight: 700;
+}
+
+@keyframes marquee-scroll {
+  0% {
+    transform: translate3d(0, 0, 0);
+  }
+  100% {
+    transform: translate3d(-100%, 0, 0);
+  }
+}
+
 /* ═══════════════════════════════════════════════════════════════
    MATCH OF THE WEEK BADGE
    ═══════════════════════════════════════════════════════════════ */
@@ -2224,9 +2292,41 @@ body {
   100% { background-position: 200% center; }
 }
 
-.fixture-card:has(.motw-badge) {
-  border-color: rgba(200, 168, 78, 0.25);
-  box-shadow: 0 0 20px rgba(200, 168, 78, 0.06);
+.fixture-card:has(.motw-badge),
+.fixture-card.is-motw {
+  border-color: rgba(200, 168, 78, 0.4);
+  animation: cardIn 0.4s var(--ease-out) forwards, motwCardGlow 2.5s ease-in-out 0.4s infinite;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Pulsating golden shadow for MOTW card */
+@keyframes motwCardGlow {
+  0%, 100% {
+    box-shadow: 0 0 15px rgba(200, 168, 78, 0.12), inset 0 0 10px rgba(200, 168, 78, 0.03);
+    border-color: rgba(200, 168, 78, 0.35);
+  }
+  50% {
+    box-shadow: 0 0 25px rgba(200, 168, 78, 0.3), inset 0 0 18px rgba(200, 168, 78, 0.1);
+    border-color: rgba(200, 168, 78, 0.75);
+  }
+}
+
+/* Standings status badges */
+.standings-badge-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: 6px;
+  font-size: 0.85rem;
+  cursor: help;
+  user-select: none;
+  animation: badgeScaleIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+@keyframes badgeScaleIn {
+  from { transform: scale(0); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
 }
 
 /* ═══════════════════════════════════════════════════════════════
@@ -3096,4 +3196,246 @@ body {
 @keyframes championGlow {
   0%, 100% { filter: drop-shadow(0 0 4px rgba(200, 168, 78, 0.3)); }
   50% { filter: drop-shadow(0 0 12px rgba(200, 168, 78, 0.6)); }
+}
+
+/* ── Holographic Manager gaming card ─────────────────────────── */
+.manager-card-wrapper {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 16px 0;
+  perspective: 1000px;
+}
+
+.manager-card {
+  position: relative;
+  width: 250px;
+  height: 380px;
+  background: linear-gradient(135deg, #1f1a0e 0%, #110f08 100%);
+  border: 2px solid #c8a84e;
+  border-radius: 18px;
+  padding: 24px 16px 16px;
+  box-sizing: border-box;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6), 0 0 20px rgba(200, 168, 78, 0.15);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  overflow: hidden;
+  font-family: var(--font-body);
+  transition: transform 0.5s cubic-bezier(0.2, 0.8, 0.2, 1);
+  transform-style: preserve-3d;
+}
+
+.manager-card::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: linear-gradient(
+    45deg,
+    rgba(255, 255, 255, 0) 45%,
+    rgba(255, 255, 255, 0.15) 50%,
+    rgba(255, 255, 255, 0) 55%
+  );
+  transition: transform 0.5s ease;
+  z-index: 2;
+  pointer-events: none;
+}
+
+.manager-card:hover {
+  transform: translateY(-8px) rotateX(8deg) rotateY(8deg);
+  box-shadow: 0 15px 40px rgba(0, 0, 0, 0.8), 0 0 30px rgba(200, 168, 78, 0.3);
+}
+
+.manager-card:hover::before {
+  transform: translate(25%, 25%);
+}
+
+.holographic-shine {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(
+    135deg,
+    rgba(200, 168, 78, 0.15) 0%,
+    rgba(255, 215, 0, 0.05) 30%,
+    rgba(255, 255, 255, 0.05) 50%,
+    rgba(0, 0, 0, 0) 70%,
+    rgba(200, 168, 78, 0.1) 100%
+  );
+  z-index: 1;
+  pointer-events: none;
+}
+
+.card-top {
+  display: flex;
+  width: 100%;
+  height: 150px;
+  justify-content: space-between;
+  align-items: flex-end;
+  position: relative;
+  z-index: 3;
+}
+
+.card-meta {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding-left: 8px;
+}
+
+.card-ovr {
+  font-family: var(--font-display);
+  font-size: 2.8rem;
+  font-weight: 900;
+  color: #c8a84e;
+  line-height: 1;
+  text-shadow: 0 2px 10px rgba(200, 168, 78, 0.3);
+}
+
+.card-position {
+  font-family: var(--font-display);
+  font-size: 0.85rem;
+  font-weight: 800;
+  color: #fff;
+  letter-spacing: 0.1em;
+  opacity: 0.8;
+}
+
+.card-club-logo {
+  width: 32px;
+  height: 32px;
+  margin-top: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.card-club-img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.card-club-fallback {
+  font-size: 0.6rem;
+  font-weight: 800;
+  color: var(--text-secondary);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-subtle);
+  border-radius: 4px;
+  padding: 4px;
+  display: inline-block;
+}
+
+.card-avatar {
+  flex: 1;
+  height: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: flex-end;
+  overflow: hidden;
+  position: relative;
+}
+
+.card-avatar-img {
+  max-height: 140px;
+  max-width: 100%;
+  object-fit: cover;
+  border-radius: 12px;
+  border-bottom: 2px solid #c8a84e;
+  filter: drop-shadow(0 5px 10px rgba(0,0,0,0.5));
+}
+
+.card-avatar-svg {
+  width: 110px;
+  height: 110px;
+  margin-bottom: 10px;
+  opacity: 0.3;
+}
+
+.card-bottom {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-top: 14px;
+  z-index: 3;
+}
+
+.card-name {
+  font-family: var(--font-display);
+  font-size: 1.15rem;
+  font-weight: 900;
+  color: #fff;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+  text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+}
+
+.card-divider {
+  width: 80%;
+  height: 1.5px;
+  background: linear-gradient(90deg, rgba(200,168,78,0) 0%, rgba(200,168,78,0.6) 50%, rgba(200,168,78,0) 100%);
+  margin: 10px 0;
+}
+
+.card-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  width: 100%;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.card-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.card-stat-val {
+  font-family: var(--font-display);
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: #fff;
+  line-height: 1.1;
+}
+
+.card-stat-lbl {
+  font-size: 0.62rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  letter-spacing: 0.05em;
+  margin-top: 2px;
+}
+
+.card-footer-info {
+  display: flex;
+  justify-content: space-around;
+  width: 90%;
+  margin-top: 16px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  font-size: 0.65rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.card-footer-info span {
+  display: flex;
+  align-items: center;
 }

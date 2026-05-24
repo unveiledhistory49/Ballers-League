@@ -78,9 +78,10 @@ module.exports = async function handler(req, res) {
       league: 'Ballers League',
       season: currentSeason ? currentSeason.name : 'Season 1',
       seasonId: seasonId,
-      seasons: seasons.map(s => ({ id: s.id, name: s.name, status: s.status })),
+      seasons: seasons.map(s => ({ id: s.id, name: s.name, status: s.status, headline: s.headline })),
       teams,
       fixtures,
+      headline: currentSeason ? currentSeason.headline : null,
     });
   } catch (err) {
     console.error('API /data error:', err);
