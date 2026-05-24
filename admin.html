@@ -1332,12 +1332,17 @@
         const checkRoundComplete = (roundData) => {
           return roundData && roundData.matches && roundData.matches.every(m => m.status === 'completed');
         };
+        const checkRoundStarted = (roundData) => {
+          return roundData && roundData.matches && roundData.matches.some(m => m.status !== 'upcoming');
+        };
 
         if (!checkRoundComplete(r16)) {
+          const started = checkRoundStarted(r16);
           drawHtml = `
             <div class="admin-tournament-panel">
               <h3>Round of 16 in Progress</h3>
               <p>Complete all Round of 16 matches to unlock the Quarter-finals draw.</p>
+              ${!started ? `<button class="admin-draw-btn" style="margin-top: 12px; background: #e63946; color: #fff;" onclick="drawCupRound('cup_r16', true)">Re-draw Round of 16</button>` : ''}
             </div>
           `;
         } else if (!qf) {
@@ -1349,10 +1354,12 @@
             </div>
           `;
         } else if (!checkRoundComplete(qf)) {
+          const started = checkRoundStarted(qf);
           drawHtml = `
             <div class="admin-tournament-panel">
               <h3>Quarter-finals in Progress</h3>
               <p>Complete all Quarter-final matches to unlock the Semi-finals draw.</p>
+              ${!started ? `<button class="admin-draw-btn" style="margin-top: 12px; background: #e63946; color: #fff;" onclick="drawCupRound('cup_qf', true)">Re-draw Quarter-finals</button>` : ''}
             </div>
           `;
         } else if (!sf) {
@@ -1364,10 +1371,12 @@
             </div>
           `;
         } else if (!checkRoundComplete(sf)) {
+          const started = checkRoundStarted(sf);
           drawHtml = `
             <div class="admin-tournament-panel">
               <h3>Semi-finals in Progress</h3>
               <p>Complete all Semi-final matches to unlock the Cup Final draw.</p>
+              ${!started ? `<button class="admin-draw-btn" style="margin-top: 12px; background: #e63946; color: #fff;" onclick="drawCupRound('cup_sf', true)">Re-draw Semi-finals</button>` : ''}
             </div>
           `;
         } else if (!final) {
@@ -1379,10 +1388,12 @@
             </div>
           `;
         } else if (!checkRoundComplete(final)) {
+          const started = checkRoundStarted(final);
           drawHtml = `
             <div class="admin-tournament-panel">
               <h3>Cup Final in Progress</h3>
               <p>Play the final match to crown the Ballers Cup Champion!</p>
+              ${!started ? `<button class="admin-draw-btn" style="margin-top: 12px; background: #e63946; color: #fff;" onclick="drawCupRound('cup_final', true)">Re-draw Cup Final</button>` : ''}
             </div>
           `;
         } else {
@@ -1830,8 +1841,11 @@
     }
 
     // ── Draw Cup Round ─────────────────────────────────
-    async function drawCupRound(round) {
-      if (!confirm(`Are you sure you want to draw the matches for ${round}?`)) {
+    async function drawCupRound(round, force = false) {
+      const confirmMsg = force 
+        ? `Are you sure you want to RE-DRAW the matches for ${round}? This will clear the current pairings.`
+        : `Are you sure you want to draw the matches for ${round}?`;
+      if (!confirm(confirmMsg)) {
         return;
       }
       try {
@@ -1841,7 +1855,7 @@
             'Content-Type': 'application/json',
             'X-Admin-Key': adminKey,
           },
-          body: JSON.stringify({ round, seasonId: adminSeasonId }),
+          body: JSON.stringify({ round, seasonId: adminSeasonId, force }),
         });
         const data = await res.json();
         if (data.success) {

@@ -388,7 +388,7 @@ app.put('/api/admin/match', requireAdmin, (req, res) => {
 // ── POST /api/admin/cup/draw — Generate Cup draw ─────────────
 app.post('/api/admin/cup/draw', requireAdmin, (req, res) => {
   try {
-    const { round, seasonId } = req.body;
+    const { round, seasonId, force } = req.body;
     if (!round) return res.status(400).json({ error: 'Missing round parameter (cup_r16, cup_qf, cup_sf, cup_final)' });
 
     const db = loadDB();
@@ -405,9 +405,18 @@ app.post('/api/admin/cup/draw', requireAdmin, (req, res) => {
       season.cupFixtures = [];
     }
 
-    const stageExists = season.cupFixtures.some(f => f.stage === round);
-    if (stageExists) {
-      return res.status(400).json({ error: `Draw for ${round} already exists.` });
+    const existingIndex = season.cupFixtures.findIndex(f => f.stage === round);
+    if (existingIndex !== -1) {
+      if (force) {
+        const roundData = season.cupFixtures[existingIndex];
+        const hasStarted = roundData.matches.some(m => m.status !== 'upcoming');
+        if (hasStarted) {
+          return res.status(400).json({ error: `Cannot re-draw. Some matches in this round are already in progress or completed.` });
+        }
+        season.cupFixtures.splice(existingIndex, 1);
+      } else {
+        return res.status(400).json({ error: `Draw for ${round} already exists.` });
+      }
     }
 
     let drawTeams = [];

@@ -11,7 +11,7 @@ module.exports = async function handler(req, res) {
   }
 
   try {
-    const { round, seasonId } = req.body;
+    const { round, seasonId, force } = req.body;
     if (!round) {
       return res.status(400).json({ error: 'Missing round parameter (cup_r16, cup_qf, cup_sf, cup_final)' });
     }
@@ -35,9 +35,9 @@ module.exports = async function handler(req, res) {
 
     // 2. Fetch all teams
     const { data: teams, error: teamsErr } = await supabase
-      .from('teams')
-      .select('*')
-      .order('id');
+        .from('teams')
+        .select('*')
+        .order('id');
     if (teamsErr) throw teamsErr;
 
     // 3. Fetch existing matches for this season to see what is already played/drawn
@@ -50,7 +50,20 @@ module.exports = async function handler(req, res) {
     // Filter matches of this cup stage to check if already drawn
     const stageMatches = matches.filter(m => m.stage === round);
     if (stageMatches.length > 0) {
-      return res.status(400).json({ error: `Draw for ${round} has already been generated for this season.` });
+      if (force) {
+        const hasStarted = stageMatches.some(m => m.status !== 'upcoming');
+        if (hasStarted) {
+          return res.status(400).json({ error: `Cannot re-draw ${getRoundLabel(round)}. Some matches in this round are already in progress or completed.` });
+        }
+        const { error: deleteErr } = await supabase
+          .from('matches')
+          .delete()
+          .eq('season_id', activeSeasonId)
+          .eq('stage', round);
+        if (deleteErr) throw deleteErr;
+      } else {
+        return res.status(400).json({ error: `Draw for ${round} has already been generated for this season.` });
+      }
     }
 
     let drawTeams = [];
