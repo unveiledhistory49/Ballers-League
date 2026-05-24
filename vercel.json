@@ -4,7 +4,9 @@
   "outputDirectory": ".",
   "framework": null,
   "rewrites": [
-    { "source": "/admin", "destination": "/admin.html" }
+    { "source": "/admin", "destination": "/admin.html" },
+    { "source": "/api/admin/cup/draw", "destination": "/api/admin/cup.js" },
+    { "source": "/api/admin/playoffs/generate", "destination": "/api/admin/playoffs.js" }
   ],
   "headers": [
     {
