@@ -2538,10 +2538,13 @@ async function openPlayerProfile(playerId) {
     return 'D';
   });
 
+  const photoUrl = currentTeam.photoUrl || currentTeam.photo_url;
   const logoSrc = clubLogos[currentTeam.club];
-  const logoHTML = logoSrc
-    ? `<img src="${logoSrc}" alt="${currentTeam.club}" class="profile-logo-img">`
-    : `<span class="profile-logo-fallback">${clubShort[currentTeam.club] || currentTeam.club.substring(0,3).toUpperCase()}</span>`;
+  const logoHTML = photoUrl
+    ? `<img src="${photoUrl}" alt="${currentTeam.player}" class="profile-logo-img" style="object-fit: cover; border-radius: 50%;">`
+    : (logoSrc
+      ? `<img src="${logoSrc}" alt="${currentTeam.club}" class="profile-logo-img">`
+      : `<span class="profile-logo-fallback">${clubShort[currentTeam.club] || currentTeam.club.substring(0,3).toUpperCase()}</span>`);
 
   const last10Dots = last10Form.map(res => {
     const cls = res === 'W' ? 'win' : (res === 'L' ? 'loss' : 'draw');

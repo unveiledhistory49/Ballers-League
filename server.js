@@ -132,6 +132,68 @@ app.get('/api/data', (req, res) => {
 
 
 
+// ── POST /api/admin/player — Add a player to the league and regenerate fixtures ──
+app.post('/api/admin/player', requireAdmin, (req, res) => {
+  try {
+    const { player, club, photoUrl } = req.body;
+    if (!player || !club) {
+      return res.status(400).json({ error: 'Missing username (player) or club name.' });
+    }
+
+    const db = loadDB();
+    const activeSeason = getActiveSeason(db);
+
+    if (!activeSeason) {
+      return res.status(400).json({ error: 'No active season found' });
+    }
+
+    // Check if any matches have been played in the active season
+    const seasonStarted = activeSeason.fixtures.some(md =>
+      md.matches.some(m => m.status !== 'upcoming')
+    );
+
+    if (seasonStarted) {
+      return res.status(400).json({ 
+        error: 'Cannot add player to the active season. Matches have already started.' 
+      });
+    }
+
+    // Fetch maximum ID to calculate the next unique ID
+    const maxId = db.teams.reduce((max, t) => t.id > max ? t.id : max, 0);
+    const newTeamId = maxId + 1;
+
+    // Create and add new team
+    const newTeam = {
+      id: newTeamId,
+      player: player.trim(),
+      club: club.trim(),
+      photoUrl: photoUrl ? photoUrl.trim() : null
+    };
+
+    db.teams.push(newTeam);
+
+    // Regenerate active season's fixtures
+    const newFixtures = generateFixtures(db.teams);
+    activeSeason.fixtures = newFixtures;
+
+    saveDB(db);
+
+    const totalMatches = newFixtures.reduce((sum, md) => sum + md.matches.length, 0);
+
+    res.json({
+      success: true,
+      message: `Registered ${player} (${club}) successfully. Re-generated ${totalMatches} fixtures across ${newFixtures.length} matchdays.`,
+      team: newTeam,
+      totalMatches,
+      totalMatchdays: newFixtures.length,
+    });
+
+  } catch (err) {
+    console.error('Local add player error:', err);
+    res.status(500).json({ error: 'Failed to add player: ' + err.message });
+  }
+});
+
 // ── POST /api/admin/login — Verify admin key ──────────────────
 app.post('/api/admin/login', (req, res) => {
   const { key } = req.body;

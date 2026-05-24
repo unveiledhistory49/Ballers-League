@@ -7,7 +7,8 @@
 CREATE TABLE IF NOT EXISTS teams (
   id INTEGER PRIMARY KEY,
   player TEXT NOT NULL,
-  club TEXT NOT NULL
+  club TEXT NOT NULL,
+  photo_url TEXT DEFAULT NULL
 );
 
 -- Seasons table

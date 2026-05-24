@@ -722,6 +722,151 @@
         gap: 12px;
       }
     }
+
+    .btn-add-player {
+      background: var(--dot-win);
+      color: #000;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 8px;
+      font-family: var(--font-body);
+      font-size: 0.75rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    .btn-add-player:hover {
+      background: #00e676;
+      transform: translateY(-1px);
+    }
+
+    /* ── Add Player Modal ──────────────────────────────── */
+    .modal-overlay {
+      position: fixed;
+      top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(0,0,0,0.8);
+      backdrop-filter: blur(8px);
+      z-index: 1000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      animation: modalFadeIn 0.3s ease;
+    }
+
+    @keyframes modalFadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+
+    .modal-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-medium);
+      border-radius: 20px;
+      padding: 32px;
+      width: 100%;
+      max-width: 400px;
+      position: relative;
+      animation: modalSlideUp 0.3s var(--ease-out);
+    }
+
+    @keyframes modalSlideUp {
+      from { transform: translateY(20px); }
+      to { transform: translateY(0); }
+    }
+
+    .modal-close {
+      position: absolute;
+      top: 20px; right: 20px;
+      background: none; border: none;
+      color: var(--text-muted);
+      font-size: 1.1rem;
+      cursor: pointer;
+      transition: color 0.2s ease;
+    }
+
+    .modal-close:hover {
+      color: var(--text-primary);
+    }
+
+    .modal-card h2 {
+      font-family: var(--font-display);
+      font-size: 1.35rem;
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+
+    .modal-subtitle {
+      color: var(--text-muted);
+      font-size: 0.72rem;
+      margin-bottom: 24px;
+    }
+
+    .form-group {
+      margin-bottom: 18px;
+      text-align: left;
+    }
+
+    .form-group label {
+      display: block;
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--text-secondary);
+      margin-bottom: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .form-group input, .form-group select {
+      width: 100%;
+      padding: 10px 12px;
+      background: var(--bg-input);
+      border: 1px solid var(--border-medium);
+      border-radius: 8px;
+      color: var(--text-primary);
+      font-family: var(--font-body);
+      font-size: 0.82rem;
+      outline: none;
+      transition: border-color 0.3s ease;
+    }
+
+    .form-group input:focus, .form-group select:focus {
+      border-color: var(--border-focus);
+    }
+
+    .modal-card button#btn-submit-player {
+      width: 100%;
+      padding: 12px;
+      margin-top: 8px;
+      background: var(--dot-win);
+      color: #000;
+      border: none;
+      border-radius: 8px;
+      font-family: var(--font-body);
+      font-size: 0.8rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .modal-card button#btn-submit-player:hover {
+      background: #00e676;
+      transform: translateY(-1px);
+    }
+
+    .modal-card button#btn-submit-player:disabled {
+      opacity: 0.5;
+      cursor: wait;
+      transform: none;
+    }
+
+    .modal-error {
+      color: var(--dot-loss);
+      font-size: 0.75rem;
+      margin-top: 10px;
+      min-height: 18px;
+      text-align: center;
+    }
   </style>
 </head>
 <body>
@@ -754,6 +899,7 @@
         </div>
       </div>
       <div class="admin-header-actions">
+        <button class="btn-add-player" onclick="openAddPlayerModal()">Add Player</button>
         <a href="/" class="btn-back">
           <span>← Site</span>
         </a>
@@ -800,6 +946,45 @@
 
   <!-- Toast -->
   <div class="toast" id="toast"></div>
+
+  <!-- Add Player Modal Overlay -->
+  <div id="add-player-overlay" class="modal-overlay" style="display:none;" onclick="closeAddPlayerModal(event)">
+    <div class="modal-card" onclick="event.stopPropagation()">
+      <button class="modal-close" onclick="closeAddPlayerModal(null)">✕</button>
+      <h2>Add New Player</h2>
+      <p class="modal-subtitle">Register a player and regenerate the active season's fixtures.</p>
+      
+      <div class="form-group">
+        <label for="new-player-username">Player Username</label>
+        <input type="text" id="new-player-username" placeholder="e.g. MrLbc" autocomplete="off" />
+      </div>
+      
+      <div class="form-group">
+        <label for="new-player-club-select">Club</label>
+        <select id="new-player-club-select" onchange="toggleCustomClubInput()">
+          <option value="" disabled selected>Select Club...</option>
+          <option value="Man U">Man U</option>
+          <option value="Tottenham">Tottenham</option>
+          <option value="Liverpool">Liverpool</option>
+          <option value="Barcelona">Barcelona</option>
+          <option value="Man City">Man City</option>
+          <option value="Arsenal FC">Arsenal FC</option>
+          <option value="Bayern">Bayern</option>
+          <option value="PSG">PSG</option>
+          <option value="custom">Other / Custom Club...</option>
+        </select>
+        <input type="text" id="new-player-custom-club" placeholder="Enter custom club name" style="display:none; margin-top:8px;" autocomplete="off" />
+      </div>
+      
+      <div class="form-group">
+        <label for="new-player-photo">Profile Photo URL (Optional)</label>
+        <input type="url" id="new-player-photo" placeholder="https://example.com/avatar.jpg" autocomplete="off" />
+      </div>
+      
+      <button id="btn-submit-player" onclick="submitNewPlayer()">Add Player to League</button>
+      <p class="modal-error" id="modal-error"></p>
+    </div>
+  </div>
 
   <script>
     // ── State ──────────────────────────────────────────
@@ -1158,6 +1343,87 @@
         }
       } catch (err) {
         showToast('Server error', 'error');
+      }
+    }
+
+    // ── Add Player ─────────────────────────────────────
+    function openAddPlayerModal() {
+      // Form fields reset
+      document.getElementById('new-player-username').value = '';
+      document.getElementById('new-player-club-select').selectedIndex = 0;
+      document.getElementById('new-player-custom-club').value = '';
+      document.getElementById('new-player-custom-club').style.display = 'none';
+      document.getElementById('new-player-photo').value = '';
+      document.getElementById('modal-error').textContent = '';
+      
+      document.getElementById('add-player-overlay').style.display = 'flex';
+    }
+
+    function closeAddPlayerModal(event) {
+      if (event && event.target !== event.currentTarget) return;
+      document.getElementById('add-player-overlay').style.display = 'none';
+    }
+
+    function toggleCustomClubInput() {
+      const select = document.getElementById('new-player-club-select');
+      const customInput = document.getElementById('new-player-custom-club');
+      if (select.value === 'custom') {
+        customInput.style.display = 'block';
+        customInput.focus();
+      } else {
+        customInput.style.display = 'none';
+      }
+    }
+
+    async function submitNewPlayer() {
+      const player = document.getElementById('new-player-username').value.trim();
+      const select = document.getElementById('new-player-club-select');
+      let club = select.value;
+      if (club === 'custom') {
+        club = document.getElementById('new-player-custom-club').value.trim();
+      }
+      const photoUrl = document.getElementById('new-player-photo').value.trim();
+      const errEl = document.getElementById('modal-error');
+      
+      errEl.textContent = '';
+      
+      if (!player) {
+        errEl.textContent = 'Please enter a player username.';
+        return;
+      }
+      if (!club) {
+        errEl.textContent = 'Please select or enter a club.';
+        return;
+      }
+
+      const btn = document.getElementById('btn-submit-player');
+      btn.disabled = true;
+      btn.textContent = 'Adding Player...';
+
+      try {
+        const res = await fetch('/api/admin/player', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Admin-Key': adminKey
+          },
+          body: JSON.stringify({ player, club, photoUrl })
+        });
+
+        const data = await res.json();
+        if (data.success) {
+          showToast(data.message, 'success');
+          document.getElementById('add-player-overlay').style.display = 'none';
+          // Refresh data
+          await loadLeagueData(adminSeasonId);
+        } else {
+          errEl.textContent = data.error || 'Failed to add player';
+        }
+      } catch (err) {
+        errEl.textContent = 'Connection error. Please try again.';
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Add Player to League';
       }
     }
 
