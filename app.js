@@ -344,23 +344,8 @@ function renderFixtures(direction = null) {
 
   container.innerHTML = "";
 
-  // Determine Match of the Week (highest combined rank for upcoming/live matches)
-  const standingsData = computeStandings();
-  const rankMap = {};
-  standingsData.standings.forEach((s, i) => rankMap[s.id] = i + 1);
-  let motwIdx = -1;
-  let motwScore = -1;
-  md.matches.forEach((match, idx) => {
-    if (match.status !== 'completed') {
-      const homeRank = rankMap[match.home.id] || 99;
-      const awayRank = rankMap[match.away.id] || 99;
-      const score = (leagueData.teams.length - homeRank) + (leagueData.teams.length - awayRank);
-      if (score > motwScore) {
-        motwScore = score;
-        motwIdx = idx;
-      }
-    }
-  });
+  // Find manually selected Match of the Week
+  const motwIdx = md.matches.findIndex(m => m.isMotw === true);
 
   md.matches.forEach((match, idx) => {
     const card = document.createElement("div");

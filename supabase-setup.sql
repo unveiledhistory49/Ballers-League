@@ -35,6 +35,7 @@ CREATE TABLE IF NOT EXISTS matches (
   home_stream_url TEXT DEFAULT NULL,
   away_stream_url TEXT DEFAULT NULL,
   predictions JSONB DEFAULT '{"home": 0, "draw": 0, "away": 0, "ips": []}',
+  is_motw BOOLEAN NOT NULL DEFAULT FALSE,
   UNIQUE(season_id, matchday, home_id, away_id)
 );
 

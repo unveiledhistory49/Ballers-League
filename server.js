@@ -240,7 +240,7 @@ app.post('/api/prediction', (req, res) => {
 // ── PUT /api/admin/match — Update a match result ──────────────
 app.put('/api/admin/match', requireAdmin, (req, res) => {
   try {
-    const { matchday, homeId, awayId, homeScore, awayScore, status, homeStreamUrl, awayStreamUrl, seasonId } = req.body;
+    const { matchday, homeId, awayId, homeScore, awayScore, status, homeStreamUrl, awayStreamUrl, seasonId, isMotw } = req.body;
 
     if (matchday === undefined || homeId === undefined || awayId === undefined) {
       return res.status(400).json({ error: 'Missing matchday, homeId, or awayId' });
@@ -279,6 +279,18 @@ app.put('/api/admin/match', requireAdmin, (req, res) => {
     match.homeStreamUrl = homeStreamUrl || null;
     match.awayStreamUrl = awayStreamUrl || null;
 
+    if (isMotw !== undefined) {
+      if (isMotw) {
+        // Clear MOTW for all other matches on this matchday
+        md.matches.forEach(m => {
+          m.isMotw = false;
+        });
+        match.isMotw = true;
+      } else {
+        match.isMotw = false;
+      }
+    }
+
     saveDB(db);
 
     res.json({
@@ -315,6 +327,7 @@ app.delete('/api/admin/match', requireAdmin, (req, res) => {
         m.homeScore = null;
         m.awayScore = null;
         m.status = 'upcoming';
+        m.isMotw = false;
       });
       saveDB(db);
       return res.json({ success: true, message: `Reset all matches for matchday ${matchday}` });
@@ -328,6 +341,7 @@ app.delete('/api/admin/match', requireAdmin, (req, res) => {
     match.homeScore = null;
     match.awayScore = null;
     match.status = 'upcoming';
+    match.isMotw = false;
 
     saveDB(db);
 

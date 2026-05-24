@@ -68,6 +68,7 @@ module.exports = async function handler(req, res) {
         homeStreamUrl: m.home_stream_url,
         awayStreamUrl: m.away_stream_url,
         predictions: m.predictions,
+        isMotw: m.is_motw || false,
       });
     }
 

@@ -18,7 +18,7 @@ module.exports = async function handler(req, res) {
 
 async function handleUpdate(req, res) {
   try {
-    const { matchday, homeId, awayId, homeScore, awayScore, status, homeStreamUrl, awayStreamUrl, seasonId } = req.body;
+    const { matchday, homeId, awayId, homeScore, awayScore, status, homeStreamUrl, awayStreamUrl, seasonId, isMotw } = req.body;
 
     if (matchday === undefined || homeId === undefined || awayId === undefined) {
       return res.status(400).json({ error: 'Missing matchday, homeId, or awayId' });
@@ -43,6 +43,24 @@ async function handleUpdate(req, res) {
     }
 
     const supabase = getSupabase();
+
+    if (isMotw !== undefined) {
+      if (isMotw) {
+        // Reset all MOTW for this matchday
+        let resetQuery = supabase
+          .from('matches')
+          .update({ is_motw: false })
+          .eq('matchday', matchday);
+        
+        if (seasonId) {
+          resetQuery = resetQuery.eq('season_id', seasonId);
+        }
+        
+        const { error: resetErr } = await resetQuery;
+        if (resetErr) throw resetErr;
+      }
+      updateData.is_motw = isMotw;
+    }
 
     let query = supabase
       .from('matches')
@@ -83,6 +101,7 @@ async function handleReset(req, res) {
         home_score: null,
         away_score: null,
         status: 'upcoming',
+        is_motw: false,
       })
       .eq('matchday', matchday);
 

@@ -536,6 +536,41 @@
       color: var(--dot-loss);
     }
 
+    /* Match of the Week Button */
+    .match-motw-row {
+      margin-top: 12px;
+      display: flex;
+    }
+
+    .btn-motw {
+      width: 100%;
+      padding: 10px;
+      background: none;
+      border: 1px dashed rgba(200, 168, 78, 0.4);
+      color: rgba(200, 168, 78, 0.8);
+      border-radius: 10px;
+      font-family: var(--font-body);
+      font-size: 0.72rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .btn-motw:hover {
+      background: rgba(200, 168, 78, 0.05);
+      border-color: rgba(200, 168, 78, 0.7);
+      color: rgba(200, 168, 78, 1);
+    }
+
+    .btn-motw.active {
+      background: rgba(200, 168, 78, 0.15);
+      border: 1px solid var(--accent-gold);
+      color: var(--accent-gold);
+      box-shadow: 0 0 10px rgba(200, 168, 78, 0.1);
+    }
+
     /* Status indicator */
     .match-status {
       display: flex;
@@ -974,6 +1009,14 @@
             </div>
           </div>
 
+          <div class="match-motw-row">
+            <button id="motw-${match.home.id}-${match.away.id}" 
+              class="btn-motw ${match.isMotw ? 'active' : ''}" 
+              onclick="toggleMotwUI(${match.home.id}, ${match.away.id})">
+              ⚡ ${match.isMotw ? 'Match of the Week' : 'Set Match of the Week'}
+            </button>
+          </div>
+
           <div class="match-actions">
             <button class="btn-save" onclick="saveMatch(${md.matchday}, ${match.home.id}, ${match.away.id})">
               Save Match
@@ -992,6 +1035,26 @@
       });
     }
 
+    // Toggle MOTW selection in UI (only one active per matchday)
+    function toggleMotwUI(homeId, awayId) {
+      const activeBtn = document.getElementById(`motw-${homeId}-${awayId}`);
+      if (!activeBtn) return;
+      const wasActive = activeBtn.classList.contains('active');
+
+      // Deactivate all MOTW buttons in the current matchday view
+      const buttons = document.querySelectorAll('.btn-motw');
+      buttons.forEach(btn => {
+        btn.classList.remove('active');
+        btn.innerHTML = '⚡ Set Match of the Week';
+      });
+
+      // Toggle state
+      if (!wasActive) {
+        activeBtn.classList.add('active');
+        activeBtn.innerHTML = '⚡ Match of the Week';
+      }
+    }
+
     // ── Save Match ─────────────────────────────────────
     async function saveMatch(matchday, homeId, awayId) {
       const homeScore = document.getElementById(`home-${homeId}-${awayId}`).value;
@@ -999,6 +1062,7 @@
       const status = document.getElementById(`status-${homeId}-${awayId}`).value;
       const homeStreamUrl = document.getElementById(`home-stream-${homeId}-${awayId}`).value.trim();
       const awayStreamUrl = document.getElementById(`away-stream-${homeId}-${awayId}`).value.trim();
+      const isMotw = document.getElementById(`motw-${homeId}-${awayId}`).classList.contains('active');
 
       if (status === 'completed' && (homeScore === '' || awayScore === '')) {
         showToast('Enter both scores to mark match as completed', 'error');
@@ -1021,7 +1085,8 @@
             status,
             homeStreamUrl: homeStreamUrl || null,
             awayStreamUrl: awayStreamUrl || null,
-            seasonId: adminSeasonId
+            seasonId: adminSeasonId,
+            isMotw
           }),
         });
 
