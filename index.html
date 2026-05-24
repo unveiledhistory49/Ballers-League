@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
   <meta name="description" content="Ballers League - The ultimate eFootball Mobile league. Live standings, fixtures, and match results.">
-  <title>Ballers League — Season 1</title>
+  <title>Ballers League</title>
 
   <!-- Google Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -35,6 +35,14 @@
     </div>
   </header>
 
+  <!-- LIVE MATCH TICKER -->
+  <div id="live-ticker" class="live-ticker" style="display:none;">
+    <div class="live-ticker-inner">
+      <span class="live-ticker-dot"></span>
+      <span class="live-ticker-text" id="live-ticker-text">LIVE NOW</span>
+    </div>
+  </div>
+
   <!-- ═══════════════════════════════════════════ -->
   <!-- NAVIGATION TABS -->
   <!-- ═══════════════════════════════════════════ -->
@@ -56,6 +64,12 @@
           <line x1="11" y1="2" x2="11" y2="14" stroke="currentColor" stroke-width="0.8" opacity="0.4"/>
         </svg>
         <span>Fixtures</span>
+      </button>
+      <button id="nav-stats" class="nav-tab" onclick="switchPage('stats')">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+          <path d="M8 1L10 5.5L15 6.2L11.5 9.5L12.4 14.5L8 12L3.6 14.5L4.5 9.5L1 6.2L6 5.5Z" opacity="0.85"/>
+        </svg>
+        <span>Stats</span>
       </button>
     </div>
   </nav>
@@ -192,6 +206,50 @@
       <!-- Fixture Cards involving the selected team -->
       <div id="history-container" class="fixtures-container">
         <!-- Injected by JS -->
+      </div>
+    </div>
+  </main>
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- PAGE: STATS -->
+  <!-- ═══════════════════════════════════════════ -->
+  <main id="page-stats" class="page">
+    <div class="page-content">
+      <div class="stats-header">
+        <h2>Player Stats</h2>
+      </div>
+
+      <!-- Top Scorers -->
+      <div class="stats-section">
+        <div class="stats-section-header">
+          <span class="stats-section-icon">⚽</span>
+          <h3>Top Scorers</h3>
+        </div>
+        <div id="stats-top-scorers" class="stats-leaderboard">
+          <!-- Injected by JS -->
+        </div>
+      </div>
+
+      <!-- Best Defence -->
+      <div class="stats-section">
+        <div class="stats-section-header">
+          <span class="stats-section-icon">🧤</span>
+          <h3>Best Defence</h3>
+        </div>
+        <div id="stats-best-defence" class="stats-leaderboard">
+          <!-- Injected by JS -->
+        </div>
+      </div>
+
+      <!-- Biggest Wins -->
+      <div class="stats-section">
+        <div class="stats-section-header">
+          <span class="stats-section-icon">💥</span>
+          <h3>Biggest Wins</h3>
+        </div>
+        <div id="stats-biggest-wins" class="stats-list">
+          <!-- Injected by JS -->
+        </div>
       </div>
     </div>
   </main>

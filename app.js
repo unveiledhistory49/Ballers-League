@@ -66,6 +66,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     renderSeasonSelector();
     renderStandings();
     renderFixtures();
+    renderStats();
+    renderLiveTicker();
     setupSwipeGestures();
   } catch (err) {
     console.error("Failed to load league data:", err);
@@ -83,6 +85,8 @@ async function loadSeason(seasonId) {
     renderSeasonSelector();
     renderStandings();
     renderFixtures();
+    renderStats();
+    renderLiveTicker();
     if (document.getElementById("page-history").classList.contains("active")) {
       switchPage("standings");
     }
@@ -332,6 +336,24 @@ function renderFixtures(direction = null) {
 
   container.innerHTML = "";
 
+  // Determine Match of the Week (highest combined rank for upcoming/live matches)
+  const standingsData = computeStandings();
+  const rankMap = {};
+  standingsData.standings.forEach((s, i) => rankMap[s.id] = i + 1);
+  let motwIdx = -1;
+  let motwScore = -1;
+  md.matches.forEach((match, idx) => {
+    if (match.status !== 'completed') {
+      const homeRank = rankMap[match.home.id] || 99;
+      const awayRank = rankMap[match.away.id] || 99;
+      const score = (leagueData.teams.length - homeRank) + (leagueData.teams.length - awayRank);
+      if (score > motwScore) {
+        motwScore = score;
+        motwIdx = idx;
+      }
+    }
+  });
+
   md.matches.forEach((match, idx) => {
     const card = document.createElement("div");
     card.className = "fixture-card";
@@ -368,6 +390,7 @@ function renderFixtures(direction = null) {
     }
 
     card.innerHTML = `
+      ${idx === motwIdx ? '<div class="motw-badge"><span class="motw-icon">⚡</span> MATCH OF THE WEEK</div>' : ''}
       <div class="fixture-label">
         <span>Home</span>
         <span>Away</span>
@@ -1440,5 +1463,199 @@ window.switchStreamFeed = switchStreamFeed;
 window.toggleStreamFullscreen = toggleStreamFullscreen;
 window.togglePredictionCard = togglePredictionCard;
 
+// ═══════════════════════════════════════════════════════════════
+// STATS & LEADERBOARDS
+// ═══════════════════════════════════════════════════════════════
+function renderStats() {
+  if (!leagueData) return;
 
+  const { standings } = computeStandings();
 
+  // ── Top Scorers ──────────────────────────────────
+  const scorers = [...standings]
+    .filter(s => s.played > 0)
+    .sort((a, b) => {
+      if (b.goalsFor !== a.goalsFor) return b.goalsFor - a.goalsFor;
+      return a.played - b.played; // fewer games = better ratio
+    });
+
+  const scorersContainer = document.getElementById("stats-top-scorers");
+  if (scorersContainer) {
+    scorersContainer.innerHTML = scorers.map((s, i) => {
+      const rankClass = i === 0 ? 'rank-gold' : i === 1 ? 'rank-silver' : i === 2 ? 'rank-bronze' : '';
+      const logoSrc = clubLogos[s.club];
+      const logoHTML = logoSrc
+        ? `<img src="${logoSrc}" alt="${s.club}" class="stats-row-logo">`
+        : `<span class="stats-row-logo-fallback">${clubShort[s.club] || '?'}</span>`;
+      const gpg = s.played > 0 ? (s.goalsFor / s.played).toFixed(1) : '0.0';
+      return `
+        <div class="stats-row ${rankClass}" style="animation-delay: ${i * 0.04}s">
+          <div class="stats-rank">${i + 1}</div>
+          <div class="stats-player-info">
+            ${logoHTML}
+            <div>
+              <div class="stats-player-name">${s.player}</div>
+              <div class="stats-player-club">${s.club}</div>
+            </div>
+          </div>
+          <div class="stats-values">
+            <div class="stats-main-value">${s.goalsFor}</div>
+            <div class="stats-sub-label">goals</div>
+          </div>
+          <div class="stats-values stats-secondary">
+            <div class="stats-main-value">${gpg}</div>
+            <div class="stats-sub-label">per game</div>
+          </div>
+          <div class="stats-values stats-secondary">
+            <div class="stats-main-value">${s.played}</div>
+            <div class="stats-sub-label">GP</div>
+          </div>
+        </div>
+      `;
+    }).join('');
+  }
+
+  // ── Best Defence ─────────────────────────────────
+  const defence = [...standings]
+    .filter(s => s.played > 0)
+    .sort((a, b) => {
+      const gaPerA = a.goalsAgainst / a.played;
+      const gaPerB = b.goalsAgainst / b.played;
+      if (gaPerA !== gaPerB) return gaPerA - gaPerB; // fewer = better
+      return a.goalsAgainst - b.goalsAgainst;
+    });
+
+  const defenceContainer = document.getElementById("stats-best-defence");
+  if (defenceContainer) {
+    defenceContainer.innerHTML = defence.map((s, i) => {
+      const rankClass = i === 0 ? 'rank-gold' : i === 1 ? 'rank-silver' : i === 2 ? 'rank-bronze' : '';
+      const logoSrc = clubLogos[s.club];
+      const logoHTML = logoSrc
+        ? `<img src="${logoSrc}" alt="${s.club}" class="stats-row-logo">`
+        : `<span class="stats-row-logo-fallback">${clubShort[s.club] || '?'}</span>`;
+      const gapg = s.played > 0 ? (s.goalsAgainst / s.played).toFixed(1) : '0.0';
+      return `
+        <div class="stats-row ${rankClass}" style="animation-delay: ${i * 0.04}s">
+          <div class="stats-rank">${i + 1}</div>
+          <div class="stats-player-info">
+            ${logoHTML}
+            <div>
+              <div class="stats-player-name">${s.player}</div>
+              <div class="stats-player-club">${s.club}</div>
+            </div>
+          </div>
+          <div class="stats-values">
+            <div class="stats-main-value">${s.goalsAgainst}</div>
+            <div class="stats-sub-label">conceded</div>
+          </div>
+          <div class="stats-values stats-secondary">
+            <div class="stats-main-value">${gapg}</div>
+            <div class="stats-sub-label">per game</div>
+          </div>
+          <div class="stats-values stats-secondary">
+            <div class="stats-main-value">${s.played}</div>
+            <div class="stats-sub-label">GP</div>
+          </div>
+        </div>
+      `;
+    }).join('');
+  }
+
+  // ── Biggest Wins ─────────────────────────────────
+  const completedMatches = [];
+  leagueData.fixtures.forEach(md => {
+    md.matches.forEach(m => {
+      if (m.status === 'completed' && m.homeScore !== null && m.awayScore !== null) {
+        const margin = Math.abs(m.homeScore - m.awayScore);
+        const totalGoals = m.homeScore + m.awayScore;
+        const winner = m.homeScore > m.awayScore ? m.home : m.away;
+        const loser = m.homeScore > m.awayScore ? m.away : m.home;
+        completedMatches.push({
+          winner, loser, margin, totalGoals,
+          homeScore: m.homeScore, awayScore: m.awayScore,
+          home: m.home, away: m.away,
+          matchday: md.matchday,
+        });
+      }
+    });
+  });
+
+  const biggestWins = completedMatches
+    .filter(m => m.margin > 0)
+    .sort((a, b) => b.margin - a.margin || b.totalGoals - a.totalGoals)
+    .slice(0, 5);
+
+  const winsContainer = document.getElementById("stats-biggest-wins");
+  if (winsContainer) {
+    if (biggestWins.length === 0) {
+      winsContainer.innerHTML = '<div class="stats-empty">No completed matches yet</div>';
+    } else {
+      winsContainer.innerHTML = biggestWins.map((m, i) => {
+        const homeLogoSrc = clubLogos[m.home.club];
+        const awayLogoSrc = clubLogos[m.away.club];
+        const homeLogoHTML = homeLogoSrc
+          ? `<img src="${homeLogoSrc}" alt="${m.home.club}" class="bw-logo">`
+          : `<span class="bw-logo-text">${clubShort[m.home.club]}</span>`;
+        const awayLogoHTML = awayLogoSrc
+          ? `<img src="${awayLogoSrc}" alt="${m.away.club}" class="bw-logo">`
+          : `<span class="bw-logo-text">${clubShort[m.away.club]}</span>`;
+        return `
+          <div class="biggest-win-card" style="animation-delay: ${i * 0.06}s">
+            <div class="bw-rank">${i + 1}</div>
+            <div class="bw-match">
+              <div class="bw-team">${homeLogoHTML} <span>${m.home.player}</span></div>
+              <div class="bw-score">${m.homeScore} - ${m.awayScore}</div>
+              <div class="bw-team">${awayLogoHTML} <span>${m.away.player}</span></div>
+            </div>
+            <div class="bw-meta">MD ${m.matchday} · +${m.margin} margin</div>
+          </div>
+        `;
+      }).join('');
+    }
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// LIVE MATCH TICKER
+// ═══════════════════════════════════════════════════════════════
+function renderLiveTicker() {
+  if (!leagueData) return;
+
+  const ticker = document.getElementById("live-ticker");
+  const tickerText = document.getElementById("live-ticker-text");
+  if (!ticker || !tickerText) return;
+
+  // Find all live matches across all matchdays
+  const liveMatches = [];
+  leagueData.fixtures.forEach(md => {
+    md.matches.forEach(m => {
+      if (m.status === 'live') {
+        liveMatches.push({ match: m, matchday: md.matchday });
+      }
+    });
+  });
+
+  if (liveMatches.length === 0) {
+    ticker.style.display = 'none';
+    return;
+  }
+
+  ticker.style.display = 'block';
+
+  const texts = liveMatches.map(({ match, matchday }) => {
+    return `${match.home.player} vs ${match.away.player}`;
+  });
+
+  tickerText.textContent = `LIVE NOW: ${texts.join(' · ')}`;
+
+  // Make ticker clickable — switch to fixtures and find the live matchday
+  ticker.onclick = () => {
+    const firstLive = liveMatches[0];
+    const mdIdx = leagueData.fixtures.findIndex(f => f.matchday === firstLive.matchday);
+    if (mdIdx >= 0) {
+      currentMatchday = mdIdx;
+      switchPage('fixtures');
+      renderFixtures();
+    }
+  };
+}
