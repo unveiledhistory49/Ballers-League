@@ -1129,8 +1129,27 @@ function getStreamEmbedUrl(url) {
     const parts = url.replace(/\/+$/, "").split("/");
     const channel = parts[parts.length - 1];
     if (!channel) return null;
-    const parentDomain = window.location.hostname;
-    return `https://player.twitch.tv/?channel=${channel}&parent=${parentDomain}&autoplay=true&muted=true`;
+
+    // Twitch requires ALL ancestor domains in the parent chain.
+    // Vercel preview URLs look like: project-abc123-user.vercel.app
+    // We need to pass both the full hostname AND the root domain.
+    const hostname = window.location.hostname;
+    const parentParams = [`parent=${hostname}`];
+
+    // Extract root domain (e.g. "vercel.app" from "my-app-abc123.vercel.app")
+    const domainParts = hostname.split(".");
+    if (domainParts.length > 2) {
+      const rootDomain = domainParts.slice(-2).join(".");
+      parentParams.push(`parent=${rootDomain}`);
+    }
+
+    const embedUrl = `https://player.twitch.tv/?channel=${channel}&${parentParams.join("&")}&autoplay=true&muted=true`;
+    console.log("[Twitch Debug] Input URL:", url);
+    console.log("[Twitch Debug] Parsed channel:", channel);
+    console.log("[Twitch Debug] Hostname:", hostname);
+    console.log("[Twitch Debug] Parent params:", parentParams);
+    console.log("[Twitch Debug] Final embed URL:", embedUrl);
+    return embedUrl;
   }
 
   // Kick channel: https://kick.com/channelname
