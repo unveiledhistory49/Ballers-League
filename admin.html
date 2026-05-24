@@ -818,7 +818,7 @@
     // ── Load Data ─────────────────────────────────────
     async function loadLeagueData(seasonId) {
       try {
-        const url = seasonId ? `/api/data?season=${seasonId}` : '/api/data';
+        const url = seasonId ? `/api/data?season=${seasonId}&_t=${Date.now()}` : `/api/data?_t=${Date.now()}`;
         const res = await fetch(url);
         leagueData = await res.json();
         adminSeasonId = leagueData.seasonId || null;

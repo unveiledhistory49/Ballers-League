@@ -55,11 +55,11 @@ document.addEventListener("DOMContentLoaded", async () => {
     // Try API first (local Express server), fall back to static fixtures.json (Vercel)
     let res;
     try {
-      res = await fetch("/api/data");
+      res = await fetch("/api/data?_t=" + Date.now());
       if (!res.ok) throw new Error("API not available");
       leagueData = await res.json();
     } catch {
-      res = await fetch("/fixtures.json");
+      res = await fetch("/fixtures.json?_t=" + Date.now());
       leagueData = await res.json();
     }
     currentSeasonId = leagueData.seasonId || null;
@@ -69,6 +69,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     renderStats();
     renderLiveTicker();
     setupSwipeGestures();
+    setupSilentRefresh();
   } catch (err) {
     console.error("Failed to load league data:", err);
   }
@@ -77,7 +78,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 // ── Season Switching ──────────────────────────────────────────
 async function loadSeason(seasonId) {
   try {
-    const res = await fetch(`/api/data?season=${seasonId}`);
+    const res = await fetch(`/api/data?season=${seasonId}&_t=${Date.now()}`);
     if (!res.ok) throw new Error("Failed to load season data");
     leagueData = await res.json();
     currentSeasonId = leagueData.seasonId || seasonId;
@@ -152,6 +153,13 @@ function switchPage(page) {
 
   // Scroll to top
   window.scrollTo({ top: 0, behavior: "smooth" });
+
+  // Load records page data on first visit
+  if (page === 'records') {
+    renderRecords();
+  } else {
+    refreshLeagueDataSilent();
+  }
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -288,7 +296,7 @@ function renderStandings() {
           ${logoHTML}
         </div>
         <div class="club-info">
-          <span class="club-player">${team.player}</span>
+          <span class="club-player" onclick="event.stopPropagation(); openPlayerProfile(${team.id})">${team.player} <span class="profile-hint">ⓘ</span></span>
           <span class="club-team">${team.club}</span>
         </div>
       </div>
@@ -1030,6 +1038,9 @@ function togglePredictionCard(card, matchday, homeId, awayId) {
           }
         }, 350);
       }
+
+      // Fetch and render H2H data
+      loadH2HBar(predContainer, homeId, awayId, match.home.player, match.away.player);
     }
   }
 }
@@ -1658,4 +1669,842 @@ function renderLiveTicker() {
       renderFixtures();
     }
   };
+}
+
+// ═══════════════════════════════════════════════════════════════
+// BATCH 2: H2H, RECORDS, PLAYER PROFILES
+// ═══════════════════════════════════════════════════════════════
+
+// ── Head-to-Head History Bar ─────────────────────────────────
+async function loadH2HBar(container, homeId, awayId, homePlayer, awayPlayer) {
+  let h2hSec = container.querySelector(".h2h-section");
+  if (!h2hSec) {
+    h2hSec = document.createElement("div");
+    h2hSec.className = "h2h-section";
+    container.appendChild(h2hSec);
+  }
+  h2hSec.innerHTML = `<div class="h2h-loading">Loading Head-to-Head history...</div>`;
+
+  try {
+    const res = await fetch(`/api/h2h?home=${homeId}&away=${awayId}`);
+    if (!res.ok) throw new Error("H2H fetch failed");
+    const data = await res.json();
+
+    const total = data.totalPlayed;
+    if (total === 0) {
+      h2hSec.innerHTML = `
+        <div class="h2h-title">📊 Head-to-Head History</div>
+        <div class="h2h-empty">No previous matches recorded.</div>
+      `;
+      return;
+    }
+
+    const winsAPct = ((data.winsA / total) * 100).toFixed(0);
+    const drawsPct = ((data.draws / total) * 100).toFixed(0);
+    const winsBPct = ((data.winsB / total) * 100).toFixed(0);
+
+    const recentDots = data.recentForm.map(form => {
+      const cls = form === 'W' ? 'win' : (form === 'L' ? 'loss' : 'draw');
+      const label = form === 'W' ? 'Win' : (form === 'L' ? 'Loss' : 'Draw');
+      return `<span class="form-dot ${cls}" title="${label}"></span>`;
+    }).join("");
+
+    h2hSec.innerHTML = `
+      <div class="h2h-title">📊 Head-to-Head History</div>
+      <div class="h2h-stats">
+        <div class="h2h-stat-side home">
+          <span class="h2h-stat-player">${homePlayer}</span>
+          <span class="h2h-stat-val">${data.winsA} Win${data.winsA === 1 ? '' : 's'}</span>
+        </div>
+        <div class="h2h-stat-draw">
+          <span class="h2h-stat-val">${data.draws} Draw${data.draws === 1 ? '' : 's'}</span>
+        </div>
+        <div class="h2h-stat-side away">
+          <span class="h2h-stat-val">${data.winsB} Win${data.winsB === 1 ? '' : 's'}</span>
+          <span class="h2h-stat-player">${awayPlayer}</span>
+        </div>
+      </div>
+      <div class="h2h-bar-container">
+        <div class="h2h-bar home" style="width: ${winsAPct}%" title="${winsAPct}% ${homePlayer} Wins"></div>
+        <div class="h2h-bar draw" style="width: ${drawsPct}%" title="${drawsPct}% Draws"></div>
+        <div class="h2h-bar away" style="width: ${winsBPct}%" title="${winsBPct}% ${awayPlayer} Wins"></div>
+      </div>
+      <div class="h2h-form-row">
+        <span class="h2h-form-lbl">Recent Meetings (oldest to newest):</span>
+        <div class="h2h-form-dots">${recentDots}</div>
+      </div>
+    `;
+  } catch (err) {
+    console.error("H2H error, calculating from current season:", err);
+    if (leagueData && leagueData.fixtures) {
+      let winsA = 0, winsB = 0, draws = 0;
+      const recentForm = [];
+      const matches = [];
+      leagueData.fixtures.forEach(md => {
+        md.matches.forEach(m => {
+          if (m.status !== 'completed' || m.homeScore === null) return;
+          const isMatch = (m.home.id === homeId && m.away.id === awayId) ||
+                          (m.home.id === awayId && m.away.id === homeId);
+          if (!isMatch) return;
+
+          let scoreA, scoreB;
+          if (m.home.id === homeId) {
+            scoreA = m.homeScore; scoreB = m.awayScore;
+          } else {
+            scoreA = m.awayScore; scoreB = m.homeScore;
+          }
+
+          if (scoreA > scoreB) { winsA++; recentForm.push('W'); }
+          else if (scoreA < scoreB) { winsB++; recentForm.push('L'); }
+          else { draws++; recentForm.push('D'); }
+          matches.push(m);
+        });
+      });
+      
+      const total = matches.length;
+      if (total === 0) {
+        h2hSec.innerHTML = `
+          <div class="h2h-title">📊 Head-to-Head History</div>
+          <div class="h2h-empty">No previous matches recorded.</div>
+        `;
+        return;
+      }
+      const winsAPct = ((winsA / total) * 100).toFixed(0);
+      const drawsPct = ((draws / total) * 100).toFixed(0);
+      const winsBPct = ((winsB / total) * 100).toFixed(0);
+
+      const recentDots = recentForm.slice(-5).map(form => {
+        const cls = form === 'W' ? 'win' : (form === 'L' ? 'loss' : 'draw');
+        const label = form === 'W' ? 'Win' : (form === 'L' ? 'Loss' : 'Draw');
+        return `<span class="form-dot ${cls}" title="${label}"></span>`;
+      }).join("");
+
+      h2hSec.innerHTML = `
+        <div class="h2h-title">📊 Head-to-Head History (Current Season)</div>
+        <div class="h2h-stats">
+          <div class="h2h-stat-side home">
+            <span class="h2h-stat-player">${homePlayer}</span>
+            <span class="h2h-stat-val">${winsA} Win${winsA === 1 ? '' : 's'}</span>
+          </div>
+          <div class="h2h-stat-draw">
+            <span class="h2h-stat-val">${draws} Draw${draws === 1 ? '' : 's'}</span>
+          </div>
+          <div class="h2h-stat-side away">
+            <span class="h2h-stat-val">${winsB} Win${winsB === 1 ? '' : 's'}</span>
+            <span class="h2h-stat-player">${awayPlayer}</span>
+          </div>
+        </div>
+        <div class="h2h-bar-container">
+          <div class="h2h-bar home" style="width: ${winsAPct}%"></div>
+          <div class="h2h-bar draw" style="width: ${drawsPct}%"></div>
+          <div class="h2h-bar away" style="width: ${winsBPct}%"></div>
+        </div>
+        <div class="h2h-form-row">
+          <span class="h2h-form-lbl">Recent Meetings:</span>
+          <div class="h2h-form-dots">${recentDots}</div>
+        </div>
+      `;
+    } else {
+      h2hSec.innerHTML = `<div class="h2h-error">Could not load H2H history</div>`;
+    }
+  }
+}
+
+// ── League Records Wall ──────────────────────────────────────
+async function renderRecords() {
+  const container = document.getElementById("records-container");
+  if (!container) return;
+
+  container.innerHTML = `<div class="records-loading">Aggregating league records...</div>`;
+
+  try {
+    const res = await fetch("/api/records");
+    if (!res.ok) throw new Error("Records fetch failed");
+    const data = await res.json();
+
+    const { matches, seasons, teams } = data;
+
+    if (matches.length === 0) {
+      container.innerHTML = `<div class="records-loading">No completed matches yet. Check back later!</div>`;
+      return;
+    }
+
+    // 1. Championships (Most Titles)
+    const titles = {};
+    seasons.forEach(s => {
+      if (s.status !== 'completed') return;
+      const seasonMatches = matches.filter(m => m.seasonId === s.id);
+      const standings = {};
+      teams.forEach(t => {
+        standings[t.id] = { id: t.id, player: t.player, club: t.club, points: 0, goalsFor: 0, goalsAgainst: 0 };
+      });
+      seasonMatches.forEach(m => {
+        const home = standings[m.homeId];
+        const away = standings[m.awayId];
+        if (!home || !away) return;
+        home.goalsFor += m.homeScore;
+        home.goalsAgainst += m.awayScore;
+        away.goalsFor += m.awayScore;
+        away.goalsAgainst += m.homeScore;
+        if (m.homeScore > m.awayScore) {
+          home.points += 3;
+        } else if (m.homeScore < m.awayScore) {
+          away.points += 3;
+        } else {
+          home.points += 1;
+          away.points += 1;
+        }
+      });
+      const sorted = Object.values(standings).sort((a, b) => {
+        if (b.points !== a.points) return b.points - a.points;
+        const gdA = a.goalsFor - a.goalsAgainst;
+        const gdB = b.goalsFor - b.goalsAgainst;
+        if (gdB !== gdA) return gdB - gdA;
+        if (b.goalsFor !== a.goalsFor) return b.goalsFor - a.goalsFor;
+        return 0;
+      });
+      if (sorted.length > 0) {
+        const champion = sorted[0];
+        titles[champion.player] = (titles[champion.player] || 0) + 1;
+      }
+    });
+
+    let maxTitlesPlayer = "None";
+    let maxTitlesCount = 0;
+    Object.entries(titles).forEach(([player, count]) => {
+      if (count > maxTitlesCount) {
+        maxTitlesCount = count;
+        maxTitlesPlayer = player;
+      }
+    });
+    const titlesText = maxTitlesCount > 0 ? `${maxTitlesPlayer} (${maxTitlesCount} title${maxTitlesCount === 1 ? '' : 's'})` : "None awarded yet";
+
+    // 2. Biggest Win (All-Time)
+    let biggestWin = null;
+    matches.forEach(m => {
+      const margin = Math.abs(m.homeScore - m.awayScore);
+      if (!biggestWin || margin > biggestWin.margin) {
+        biggestWin = { ...m, margin };
+      } else if (biggestWin && margin === biggestWin.margin) {
+        const currentMaxScore = Math.max(biggestWin.homeScore, biggestWin.awayScore);
+        const thisMaxScore = Math.max(m.homeScore, m.awayScore);
+        if (thisMaxScore > currentMaxScore) {
+          biggestWin = { ...m, margin };
+        }
+      }
+    });
+    let biggestWinText = "—";
+    let biggestWinMeta = "";
+    if (biggestWin) {
+      const winner = biggestWin.homeScore > biggestWin.awayScore ? biggestWin.homePlayer : biggestWin.awayPlayer;
+      const winnerScore = Math.max(biggestWin.homeScore, biggestWin.awayScore);
+      const loser = biggestWin.homeScore > biggestWin.awayScore ? biggestWin.awayPlayer : biggestWin.homePlayer;
+      const loserScore = Math.min(biggestWin.homeScore, biggestWin.awayScore);
+      biggestWinText = `${winner} ${winnerScore}-${loserScore} ${loser}`;
+      biggestWinMeta = `Season ${biggestWin.seasonId} · Matchday ${biggestWin.matchday}`;
+    }
+
+    // 3 & 4. Streaks
+    const playerStreaks = {};
+    teams.forEach(t => {
+      playerStreaks[t.id] = {
+        player: t.player,
+        currentWin: 0,
+        maxWin: 0,
+        maxWinSeason: null,
+        currentUnbeaten: 0,
+        maxUnbeaten: 0,
+        maxUnbeatenSeason: null
+      };
+    });
+
+    const sortedMatches = [...matches].sort((a, b) => a.seasonId - b.seasonId || a.matchday - b.matchday);
+    sortedMatches.forEach(m => {
+      const home = playerStreaks[m.homeId];
+      const away = playerStreaks[m.awayId];
+      if (!home || !away) return;
+
+      if (m.homeScore > m.awayScore) {
+        home.currentWin++;
+        if (home.currentWin > home.maxWin) {
+          home.maxWin = home.currentWin;
+          home.maxWinSeason = m.seasonId;
+        }
+        home.currentUnbeaten++;
+        if (home.currentUnbeaten > home.maxUnbeaten) {
+          home.maxUnbeaten = home.currentUnbeaten;
+          home.maxUnbeatenSeason = m.seasonId;
+        }
+        away.currentWin = 0;
+        away.currentUnbeaten = 0;
+      } else if (m.homeScore < m.awayScore) {
+        away.currentWin++;
+        if (away.currentWin > away.maxWin) {
+          away.maxWin = away.currentWin;
+          away.maxWinSeason = m.seasonId;
+        }
+        away.currentUnbeaten++;
+        if (away.currentUnbeaten > away.maxUnbeaten) {
+          away.maxUnbeaten = away.currentUnbeaten;
+          away.maxUnbeatenSeason = m.seasonId;
+        }
+        home.currentWin = 0;
+        home.currentUnbeaten = 0;
+      } else {
+        home.currentWin = 0;
+        home.currentUnbeaten++;
+        if (home.currentUnbeaten > home.maxUnbeaten) {
+          home.maxUnbeaten = home.currentUnbeaten;
+          home.maxUnbeatenSeason = m.seasonId;
+        }
+        away.currentWin = 0;
+        away.currentUnbeaten++;
+        if (away.currentUnbeaten > away.maxUnbeaten) {
+          away.maxUnbeaten = away.currentUnbeaten;
+          away.maxUnbeatenSeason = m.seasonId;
+        }
+      }
+    });
+
+    let bestWinStreak = { player: "None", streak: 0, season: "" };
+    let bestUnbeaten = { player: "None", streak: 0, season: "" };
+
+    Object.values(playerStreaks).forEach(ps => {
+      if (ps.maxWin > bestWinStreak.streak) {
+        bestWinStreak = { player: ps.player, streak: ps.maxWin, season: ps.maxWinSeason ? `Season ${ps.maxWinSeason}` : "" };
+      }
+      if (ps.maxUnbeaten > bestUnbeaten.streak) {
+        bestUnbeaten = { player: ps.player, streak: ps.maxUnbeaten, season: ps.maxUnbeatenSeason ? `Season ${ps.maxUnbeatenSeason}` : "" };
+      }
+    });
+
+    // 5. Highest Scoring Game
+    let highGame = null;
+    matches.forEach(m => {
+      const total = m.homeScore + m.awayScore;
+      if (!highGame || total > highGame.total) {
+        highGame = { ...m, total };
+      }
+    });
+    let highGameText = "—";
+    let highGameMeta = "";
+    if (highGame) {
+      highGameText = `${highGame.homePlayer} ${highGame.homeScore}-${highGame.awayScore} ${highGame.awayPlayer}`;
+      highGameMeta = `${highGame.total} goals · Season ${highGame.seasonId} · MD ${highGame.matchday}`;
+    }
+
+    // 6. Most Goals in a Season
+    const seasonGoals = {};
+    matches.forEach(m => {
+      const keyHome = `${m.homeId}-${m.seasonId}`;
+      const keyAway = `${m.awayId}-${m.seasonId}`;
+      seasonGoals[keyHome] = (seasonGoals[keyHome] || 0) + m.homeScore;
+      seasonGoals[keyAway] = (seasonGoals[keyAway] || 0) + m.awayScore;
+    });
+    let maxSeasonGoals = 0;
+    let maxSeasonGoalsPlayer = "—";
+    let maxSeasonGoalsSeasonId = null;
+    Object.entries(seasonGoals).forEach(([key, goals]) => {
+      if (goals > maxSeasonGoals) {
+        maxSeasonGoals = goals;
+        const [playerId, seasonId] = key.split('-');
+        const team = teams.find(t => t.id === parseInt(playerId, 10));
+        if (team) {
+          maxSeasonGoalsPlayer = team.player;
+          maxSeasonGoalsSeasonId = parseInt(seasonId, 10);
+        }
+      }
+    });
+    const maxSeasonGoalsText = maxSeasonGoals > 0 ? `${maxSeasonGoalsPlayer} (${maxSeasonGoals} goals)` : "—";
+    const maxSeasonGoalsMeta = maxSeasonGoalsSeasonId ? `Season ${maxSeasonGoalsSeasonId}` : "";
+
+    // 7. Most Goals (All-Time)
+    const allTimeGoals = {};
+    matches.forEach(m => {
+      allTimeGoals[m.homePlayer] = (allTimeGoals[m.homePlayer] || 0) + m.homeScore;
+      allTimeGoals[m.awayPlayer] = (allTimeGoals[m.awayPlayer] || 0) + m.awayScore;
+    });
+    let maxAllTimeGoals = 0;
+    let maxAllTimeGoalsPlayer = "—";
+    Object.entries(allTimeGoals).forEach(([player, goals]) => {
+      if (goals > maxAllTimeGoals) {
+        maxAllTimeGoals = goals;
+        maxAllTimeGoalsPlayer = player;
+      }
+    });
+    const maxAllTimeGoalsText = maxAllTimeGoals > 0 ? `${maxAllTimeGoalsPlayer} (${maxAllTimeGoals} goals)` : "—";
+
+    container.innerHTML = `
+      <div class="record-card">
+        <div class="record-icon">🏆</div>
+        <div class="record-label">Most Championships</div>
+        <div class="record-holder">${titlesText}</div>
+        <div class="record-meta">Championship trophies won</div>
+      </div>
+      <div class="record-card">
+        <div class="record-icon">💥</div>
+        <div class="record-label">Biggest Win (All-Time)</div>
+        <div class="record-holder">${biggestWinText}</div>
+        <div class="record-meta">${biggestWinMeta}</div>
+      </div>
+      <div class="record-card">
+        <div class="record-icon">🔥</div>
+        <div class="record-label">Longest Win Streak</div>
+        <div class="record-holder">${bestWinStreak.streak > 0 ? `${bestWinStreak.player} (${bestWinStreak.streak} wins)` : '—'}</div>
+        <div class="record-meta">${bestWinStreak.season}</div>
+      </div>
+      <div class="record-card">
+        <div class="record-icon">🛡️</div>
+        <div class="record-label">Longest Unbeaten Run</div>
+        <div class="record-holder">${bestUnbeaten.streak > 0 ? `${bestUnbeaten.player} (${bestUnbeaten.streak} games)` : '—'}</div>
+        <div class="record-meta">${bestUnbeaten.season}</div>
+      </div>
+      <div class="record-card">
+        <div class="record-icon">🎯</div>
+        <div class="record-label">Highest Scoring Game</div>
+        <div class="record-holder">${highGameText}</div>
+        <div class="record-meta">${highGameMeta}</div>
+      </div>
+      <div class="record-card">
+        <div class="record-icon">📊</div>
+        <div class="record-label">Most Goals in a Season</div>
+        <div class="record-holder">${maxSeasonGoalsText}</div>
+        <div class="record-meta">${maxSeasonGoalsMeta}</div>
+      </div>
+      <div class="record-card">
+        <div class="record-icon">⚽</div>
+        <div class="record-label">Most Goals (All-Time)</div>
+        <div class="record-holder">${maxAllTimeGoalsText}</div>
+        <div class="record-meta">Career goals across all seasons</div>
+      </div>
+    `;
+
+  } catch (err) {
+    console.error("Records page error, calculating from current season:", err);
+    if (leagueData && leagueData.fixtures && leagueData.teams) {
+      const matches = [];
+      leagueData.fixtures.forEach(md => {
+        md.matches.forEach(m => {
+          if (m.status === 'completed' && m.homeScore !== null) {
+            matches.push({
+              homeId: m.home.id, awayId: m.away.id,
+              homeScore: m.homeScore, awayScore: m.awayScore,
+              homePlayer: m.home.player, awayPlayer: m.away.player,
+              homeClub: m.home.club, awayClub: m.away.club,
+              seasonId: currentSeasonId || 1, matchday: md.matchday
+            });
+          }
+        });
+      });
+
+      const teams = leagueData.teams;
+      
+      if (matches.length === 0) {
+        container.innerHTML = `<div class="records-loading">No completed matches in this season yet.</div>`;
+        return;
+      }
+
+      let biggestWin = null;
+      matches.forEach(m => {
+        const margin = Math.abs(m.homeScore - m.awayScore);
+        if (!biggestWin || margin > biggestWin.margin) {
+          biggestWin = { ...m, margin };
+        }
+      });
+      const winner = biggestWin.homeScore > biggestWin.awayScore ? biggestWin.homePlayer : biggestWin.awayPlayer;
+      const winnerScore = Math.max(biggestWin.homeScore, biggestWin.awayScore);
+      const loser = biggestWin.homeScore > biggestWin.awayScore ? biggestWin.awayPlayer : biggestWin.homePlayer;
+      const loserScore = Math.min(biggestWin.homeScore, biggestWin.awayScore);
+      const biggestWinText = `${winner} ${winnerScore}-${loserScore} ${loser}`;
+      const biggestWinMeta = `Season ${biggestWin.seasonId} · Matchday ${biggestWin.matchday}`;
+
+      const playerStreaks = {};
+      teams.forEach(t => {
+        playerStreaks[t.id] = { player: t.player, currentWin: 0, maxWin: 0, currentUnbeaten: 0, maxUnbeaten: 0 };
+      });
+      matches.forEach(m => {
+        const home = playerStreaks[m.homeId];
+        const away = playerStreaks[m.awayId];
+        if (!home || !away) return;
+        if (m.homeScore > m.awayScore) {
+          home.currentWin++; home.maxWin = Math.max(home.maxWin, home.currentWin);
+          home.currentUnbeaten++; home.maxUnbeaten = Math.max(home.maxUnbeaten, home.currentUnbeaten);
+          away.currentWin = 0; away.currentUnbeaten = 0;
+        } else if (m.homeScore < m.awayScore) {
+          away.currentWin++; away.maxWin = Math.max(away.maxWin, away.currentWin);
+          away.currentUnbeaten++; away.maxUnbeaten = Math.max(away.maxUnbeaten, away.currentUnbeaten);
+          home.currentWin = 0; home.currentUnbeaten = 0;
+        } else {
+          home.currentWin = 0; home.currentUnbeaten++; home.maxUnbeaten = Math.max(home.maxUnbeaten, home.currentUnbeaten);
+          away.currentWin = 0; away.currentUnbeaten++; away.maxUnbeaten = Math.max(away.maxUnbeaten, away.currentUnbeaten);
+        }
+      });
+      let bestWinStreak = { player: "None", streak: 0 };
+      let bestUnbeaten = { player: "None", streak: 0 };
+      Object.values(playerStreaks).forEach(ps => {
+        if (ps.maxWin > bestWinStreak.streak) bestWinStreak = { player: ps.player, streak: ps.maxWin };
+        if (ps.maxUnbeaten > bestUnbeaten.streak) bestUnbeaten = { player: ps.player, streak: ps.maxUnbeaten };
+      });
+
+      let highGame = null;
+      matches.forEach(m => {
+        const total = m.homeScore + m.awayScore;
+        if (!highGame || total > highGame.total) highGame = { ...m, total };
+      });
+      const highGameText = `${highGame.homePlayer} ${highGame.homeScore}-${highGame.awayScore} ${highGame.awayPlayer}`;
+      const highGameMeta = `${highGame.total} goals · Season ${highGame.seasonId} · MD ${highGame.matchday}`;
+
+      const seasonGoals = {};
+      matches.forEach(m => {
+        seasonGoals[m.homePlayer] = (seasonGoals[m.homePlayer] || 0) + m.homeScore;
+        seasonGoals[m.awayPlayer] = (seasonGoals[m.awayPlayer] || 0) + m.awayScore;
+      });
+      let maxGoals = 0, maxGoalsPlayer = "—";
+      Object.entries(seasonGoals).forEach(([p, g]) => {
+        if (g > maxGoals) { maxGoals = g; maxGoalsPlayer = p; }
+      });
+
+      container.innerHTML = `
+        <div class="record-card">
+          <div class="record-icon">🏆</div>
+          <div class="record-label">Most Championships</div>
+          <div class="record-holder">Calculated cross-season</div>
+          <div class="record-meta">Run the full server to view cross-season awards</div>
+        </div>
+        <div class="record-card">
+          <div class="record-icon">💥</div>
+          <div class="record-label">Biggest Win (Current Season)</div>
+          <div class="record-holder">${biggestWinText}</div>
+          <div class="record-meta">${biggestWinMeta}</div>
+        </div>
+        <div class="record-card">
+          <div class="record-icon">🔥</div>
+          <div class="record-label">Longest Win Streak</div>
+          <div class="record-holder">${bestWinStreak.streak > 0 ? `${bestWinStreak.player} (${bestWinStreak.streak} wins)` : '—'}</div>
+          <div class="record-meta">Current Season</div>
+        </div>
+        <div class="record-card">
+          <div class="record-icon">🛡️</div>
+          <div class="record-label">Longest Unbeaten Run</div>
+          <div class="record-holder">${bestUnbeaten.streak > 0 ? `${bestUnbeaten.player} (${bestUnbeaten.streak} games)` : '—'}</div>
+          <div class="record-meta">Current Season</div>
+        </div>
+        <div class="record-card">
+          <div class="record-icon">🎯</div>
+          <div class="record-label">Highest Scoring Game</div>
+          <div class="record-holder">${highGameText}</div>
+          <div class="record-meta">${highGameMeta}</div>
+        </div>
+        <div class="record-card">
+          <div class="record-icon">📊</div>
+          <div class="record-label">Most Goals (Current Season)</div>
+          <div class="record-holder">${maxGoalsPlayer} (${maxGoals} goals)</div>
+          <div class="record-meta">Current Season</div>
+        </div>
+      `;
+    } else {
+      container.innerHTML = `<div class="records-loading text-red-500">Could not load records.</div>`;
+    }
+  }
+}
+
+// ── Player Profiles Modal ─────────────────────────────────────
+async function openPlayerProfile(playerId) {
+  const profileContent = document.getElementById("profile-content");
+  if (!profileContent) return;
+
+  profileContent.innerHTML = `<div class="h2h-loading">Loading player profile...</div>`;
+  document.getElementById("player-profile-overlay").style.display = "flex";
+
+  // Calculate local/current season data
+  const { standings } = computeStandings();
+  const currentTeam = standings.find(t => t.id === playerId) || (leagueData && leagueData.teams && leagueData.teams.find(t => t.id === playerId));
+  if (!currentTeam) {
+    profileContent.innerHTML = `<div class="h2h-error">Player details not found</div>`;
+    return;
+  }
+
+  const currentSeasonRank = standings.findIndex(t => t.id === playerId) + 1;
+  const currentSeasonStats = standings.find(t => t.id === playerId);
+
+  // Compute Win %
+  const winPct = currentSeasonStats && currentSeasonStats.played > 0 
+    ? ((currentSeasonStats.wins / currentSeasonStats.played) * 100).toFixed(0) 
+    : 0;
+
+  // Local calculation of last 10 form
+  const playerMatches = [];
+  if (leagueData && leagueData.fixtures) {
+    leagueData.fixtures.forEach(md => {
+      md.matches.forEach(m => {
+        if (m.status !== 'completed' || m.homeScore === null) return;
+        if (m.home.id === playerId || m.away.id === playerId) {
+          playerMatches.push({
+            matchday: md.matchday,
+            home: m.home,
+            away: m.away,
+            homeScore: m.homeScore,
+            awayScore: m.awayScore,
+          });
+        }
+      });
+    });
+  }
+  playerMatches.sort((a, b) => a.matchday - b.matchday);
+  const last10Matches = playerMatches.slice(-10);
+  const last10Form = last10Matches.map(m => {
+    const isHome = m.home.id === playerId;
+    const scoreSelf = isHome ? m.homeScore : m.awayScore;
+    const scoreOpp = isHome ? m.awayScore : m.homeScore;
+    if (scoreSelf > scoreOpp) return 'W';
+    if (scoreSelf < scoreOpp) return 'L';
+    return 'D';
+  });
+
+  const logoSrc = clubLogos[currentTeam.club];
+  const logoHTML = logoSrc
+    ? `<img src="${logoSrc}" alt="${currentTeam.club}" class="profile-logo-img">`
+    : `<span class="profile-logo-fallback">${clubShort[currentTeam.club] || currentTeam.club.substring(0,3).toUpperCase()}</span>`;
+
+  const last10Dots = last10Form.map(res => {
+    const cls = res === 'W' ? 'win' : (res === 'L' ? 'loss' : 'draw');
+    return `<span class="form-dot ${cls}" title="${res}"></span>`;
+  }).join("");
+
+  // Fetch cross-season records data if available
+  let recordsData = null;
+  try {
+    const res = await fetch("/api/records");
+    if (res.ok) {
+      recordsData = await res.json();
+    }
+  } catch (e) {
+    console.error("Failed to fetch player profile cross-season history", e);
+  }
+
+  // 1. Season-by-season rows
+  let historyRowsHTML = "";
+  if (recordsData && recordsData.seasons) {
+    recordsData.seasons.forEach(s => {
+      const seasonMatches = recordsData.matches.filter(m => m.seasonId === s.id);
+      const standingsMap = {};
+      recordsData.teams.forEach(t => {
+        standingsMap[t.id] = { id: t.id, player: t.player, club: t.club, points: 0, goalsFor: 0, goalsAgainst: 0, wins: 0, draws: 0, losses: 0, played: 0 };
+      });
+      seasonMatches.forEach(m => {
+        const home = standingsMap[m.homeId];
+        const away = standingsMap[m.awayId];
+        if (!home || !away) return;
+        home.played++;
+        away.played++;
+        home.goalsFor += m.homeScore;
+        home.goalsAgainst += m.awayScore;
+        away.goalsFor += m.awayScore;
+        away.goalsAgainst += m.homeScore;
+        if (m.homeScore > m.awayScore) {
+          home.wins++; home.points += 3; away.losses++;
+        } else if (m.homeScore < m.awayScore) {
+          away.wins++; away.points += 3; home.losses++;
+        } else {
+          home.draws++; away.draws++; home.points += 1; away.points += 1;
+        }
+      });
+      const sorted = Object.values(standingsMap).sort((a, b) => {
+        if (b.points !== a.points) return b.points - a.points;
+        const gdA = a.goalsFor - a.goalsAgainst;
+        const gdB = b.goalsFor - b.goalsAgainst;
+        if (gdB !== gdA) return gdB - gdA;
+        if (b.goalsFor !== a.goalsFor) return b.goalsFor - a.goalsFor;
+        return a.player.localeCompare(b.player);
+      });
+
+      const playerIdx = sorted.findIndex(t => t.id === playerId);
+      if (playerIdx >= 0) {
+        const playerStat = sorted[playerIdx];
+        const rank = playerIdx + 1;
+        const recordStr = `${playerStat.wins}-${playerStat.draws}-${playerStat.losses}`;
+        const isCurrent = s.id === (leagueData && leagueData.seasonId);
+        historyRowsHTML += `
+          <tr class="${isCurrent ? 'current-season-row' : ''}">
+            <td>${s.name} ${isCurrent ? '<span class="current-tag">Active</span>' : ''}</td>
+            <td>${playerStat.club}</td>
+            <td class="text-center font-bold">${rank}</td>
+            <td class="text-center">${playerStat.points}</td>
+            <td class="text-center text-muted">${recordStr}</td>
+          </tr>
+        `;
+      }
+    });
+  }
+
+  const historySection = historyRowsHTML ? `
+    <div class="profile-section">
+      <div class="profile-section-title">📊 Season History</div>
+      <div class="profile-history-table-wrapper">
+        <table class="profile-history-table">
+          <thead>
+            <tr>
+              <th>Season</th>
+              <th>Club</th>
+              <th class="text-center">Rank</th>
+              <th class="text-center">Pts</th>
+              <th class="text-center">W-D-L</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${historyRowsHTML}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  ` : "";
+
+  // 2. Rivals
+  let rivalsHTML = "";
+  if (recordsData && recordsData.matches) {
+    const opponentStats = {};
+    recordsData.matches.forEach(m => {
+      if (m.homeId !== playerId && m.awayId !== playerId) return;
+      const isHome = m.homeId === playerId;
+      const oppId = isHome ? m.awayId : m.homeId;
+      const oppPlayer = isHome ? m.awayPlayer : m.homePlayer;
+      const oppClub = isHome ? m.awayClub : m.homeClub;
+      
+      if (!opponentStats[oppId]) {
+        opponentStats[oppId] = { id: oppId, name: oppPlayer, club: oppClub, played: 0, wins: 0, draws: 0, losses: 0 };
+      }
+      const stat = opponentStats[oppId];
+      stat.played++;
+      
+      const selfScore = isHome ? m.homeScore : m.awayScore;
+      const oppScore = isHome ? m.awayScore : m.homeScore;
+      if (selfScore > oppScore) stat.wins++;
+      else if (selfScore < oppScore) stat.losses++;
+      else stat.draws++;
+    });
+
+    const rivals = Object.values(opponentStats)
+      .sort((a, b) => b.played - a.played || b.wins - a.wins)
+      .slice(0, 3);
+
+    rivalsHTML = rivals.map(rival => {
+      return `
+        <div class="profile-rival-card">
+          <div class="rival-info">
+            <span class="profile-rival-name">${rival.name}</span>
+            <span class="profile-rival-club text-muted font-normal block text-xs" style="font-size:0.65rem;">${rival.club}</span>
+          </div>
+          <div class="rival-stats text-right" style="display:flex; flex-direction:column; align-items:flex-end;">
+            <span class="profile-rival-h2h">${rival.wins}W - ${rival.draws}D - ${rival.losses}L</span>
+            <span class="block text-xxs text-muted mt-1" style="font-size:0.6rem; margin-top:2px;">${rival.played} meeting${rival.played === 1 ? '' : 's'}</span>
+          </div>
+        </div>
+      `;
+    }).join("");
+  }
+
+  const rivalsSection = rivalsHTML ? `
+    <div class="profile-section mt-4">
+      <div class="profile-section-title">⚔️ Top Rivals</div>
+      <div class="profile-rivals" style="display:flex; flex-direction:column; gap:8px;">
+        ${rivalsHTML}
+      </div>
+    </div>
+  ` : "";
+
+  profileContent.innerHTML = `
+    <div class="profile-header-card">
+      <div class="profile-logo-container">
+        ${logoHTML}
+      </div>
+      <div class="profile-title-info">
+        <div class="profile-name">${currentTeam.player}</div>
+        <div class="profile-club">${currentTeam.club}</div>
+      </div>
+    </div>
+
+    <div class="profile-stats-grid">
+      <div class="profile-stat-box">
+        <div class="profile-stat-lbl">Played</div>
+        <div class="profile-stat-num">${currentSeasonStats ? currentSeasonStats.played : 0}</div>
+      </div>
+      <div class="profile-stat-box">
+        <div class="profile-stat-lbl">Rank</div>
+        <div class="profile-stat-num">${currentSeasonRank > 0 ? `#${currentSeasonRank}` : '—'}</div>
+      </div>
+      <div class="profile-stat-box">
+        <div class="profile-stat-lbl">Points</div>
+        <div class="profile-stat-num">${currentSeasonStats ? currentSeasonStats.points : 0}</div>
+      </div>
+      <div class="profile-stat-box">
+        <div class="profile-stat-lbl">Win %</div>
+        <div class="profile-stat-num">${winPct}%</div>
+      </div>
+    </div>
+
+    <div class="profile-section">
+      <div class="profile-section-title">📈 Recent Form (Last 10)</div>
+      <div class="profile-form-chart">
+        <div class="profile-chart-bar" style="display:flex; gap:6px; align-items:center;">
+          ${last10Dots.length > 0 ? last10Dots : '<span class="text-muted text-xs">No matches played yet</span>'}
+        </div>
+      </div>
+    </div>
+
+    ${historySection}
+    ${rivalsSection}
+  `;
+}
+
+function closePlayerProfile(event) {
+  if (event && event.target !== event.currentTarget) return;
+  document.getElementById("player-profile-overlay").style.display = "none";
+}
+
+// ── Silent Real-time Refresh & Polling ─────────────────────────
+function setupSilentRefresh() {
+  // Listen for visibility state change to refresh data immediately when user switches tabs back
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible") {
+      refreshLeagueDataSilent();
+    }
+  });
+
+  // Set up repeating interval to refresh data silently every 15 seconds
+  setInterval(refreshLeagueDataSilent, 15000);
+}
+
+async function refreshLeagueDataSilent() {
+  if (!leagueData || !currentSeasonId) return;
+
+  try {
+    const res = await fetch(`/api/data?season=${currentSeasonId}&_t=${Date.now()}`);
+    if (!res.ok) throw new Error("Silent refresh fetch failed");
+    const freshData = await res.json();
+
+    // Check if dynamic data (fixtures state or team stats) actually changed before re-rendering
+    const fixturesChanged = JSON.stringify(freshData.fixtures) !== JSON.stringify(leagueData.fixtures);
+    const teamsChanged = JSON.stringify(freshData.teams) !== JSON.stringify(leagueData.teams);
+
+    if (fixturesChanged || teamsChanged) {
+      leagueData = freshData;
+      
+      // Determine which page is currently active and only re-render relevant components to optimize performance
+      const activePage = document.querySelector(".page.active");
+      const activeId = activePage ? activePage.id : "";
+
+      if (activeId === "page-standings") {
+        renderStandings();
+      } else if (activeId === "page-fixtures") {
+        renderFixtures();
+      } else if (activeId === "page-stats") {
+        renderStats();
+      }
+
+      // Always update ticker as it is a global header element
+      renderLiveTicker();
+    }
+  } catch (err) {
+    console.error("Silent refresh error:", err);
+  }
 }

@@ -21,6 +21,15 @@ const FIXTURES_PATH = path.join(__dirname, 'fixtures.json');
 
 // ── Middleware ──────────────────────────────────────────────────
 app.use(express.json());
+
+// Cache-control middleware to prevent browser/CDN caching of API responses
+app.use('/api', (req, res, next) => {
+  res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+  res.set('Pragma', 'no-cache');
+  res.set('Expires', '0');
+  next();
+});
+
 app.use(express.static(__dirname, {
   index: 'index.html',
   extensions: ['html'],
@@ -378,6 +387,85 @@ app.post('/api/admin/season', requireAdmin, (req, res) => {
   } catch (err) {
     console.error('Error creating season:', err);
     res.status(500).json({ error: 'Failed to create new season: ' + err.message });
+  }
+});
+
+// ── GET /api/h2h — Head-to-Head record between two players ────
+app.get('/api/h2h', (req, res) => {
+  try {
+    const homeId = parseInt(req.query.home, 10);
+    const awayId = parseInt(req.query.away, 10);
+    if (!homeId || !awayId) return res.status(400).json({ error: 'Missing home or away' });
+
+    const db = loadDB();
+    let winsA = 0, winsB = 0, draws = 0;
+    const recentResults = [];
+    const matches = [];
+
+    for (const season of db.seasons) {
+      for (const md of season.fixtures) {
+        for (const m of md.matches) {
+          if (m.status !== 'completed' || m.homeScore === null) continue;
+          const isMatch = (m.home.id === homeId && m.away.id === awayId) ||
+                          (m.home.id === awayId && m.away.id === homeId);
+          if (!isMatch) continue;
+
+          let scoreA, scoreB;
+          if (m.home.id === homeId) {
+            scoreA = m.homeScore; scoreB = m.awayScore;
+          } else {
+            scoreA = m.awayScore; scoreB = m.homeScore;
+          }
+
+          if (scoreA > scoreB) { winsA++; recentResults.push('W'); }
+          else if (scoreA < scoreB) { winsB++; recentResults.push('L'); }
+          else { draws++; recentResults.push('D'); }
+
+          matches.push({
+            seasonId: season.id, matchday: md.matchday,
+            homeId: m.home.id, awayId: m.away.id,
+            homeScore: m.homeScore, awayScore: m.awayScore,
+            homePlayer: m.home.player, awayPlayer: m.away.player,
+          });
+        }
+      }
+    }
+
+    res.json({ homeId, awayId, totalPlayed: matches.length, winsA, draws, winsB, recentForm: recentResults.slice(-5), matches });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to load H2H data' });
+  }
+});
+
+// ── GET /api/records — All completed matches across all seasons ──
+app.get('/api/records', (req, res) => {
+  try {
+    const db = loadDB();
+    const allMatches = [];
+
+    for (const season of db.seasons) {
+      for (const md of season.fixtures) {
+        for (const m of md.matches) {
+          if (m.status === 'completed' && m.homeScore !== null) {
+            allMatches.push({
+              homeId: m.home.id, awayId: m.away.id,
+              homeScore: m.homeScore, awayScore: m.awayScore,
+              homePlayer: m.home.player, awayPlayer: m.away.player,
+              homeClub: m.home.club, awayClub: m.away.club,
+              seasonId: season.id, matchday: md.matchday,
+            });
+          }
+        }
+      }
+    }
+
+    res.json({
+      matches: allMatches,
+      seasons: db.seasons.map(s => ({ id: s.id, name: s.name, status: s.status })),
+      teams: db.teams,
+    });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to load records data' });
   }
 });
 

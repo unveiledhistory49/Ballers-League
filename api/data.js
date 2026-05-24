@@ -6,6 +6,10 @@ module.exports = async function handler(req, res) {
   }
 
   try {
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+
     const supabase = getSupabase();
 
     // Fetch all seasons
