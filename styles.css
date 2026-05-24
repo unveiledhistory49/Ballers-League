@@ -1856,4 +1856,59 @@ body {
   border-radius: 6px;
 }
 
+/* Stream Warning Banner */
+.stream-embed-warning {
+  margin-top: 12px;
+  background: rgba(239, 68, 68, 0.08);
+  border: 1px solid rgba(239, 68, 68, 0.25);
+  border-radius: 10px;
+  padding: 10px 14px;
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  box-sizing: border-box;
+}
+
+.stream-embed-warning-icon {
+  color: #ef4444;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 1px;
+}
+
+.stream-embed-warning-text {
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+  line-height: 1.45;
+  text-align: left;
+}
+
+.stream-embed-warning-text strong {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.stream-embed-warning-text code {
+  background: rgba(255, 255, 255, 0.08);
+  padding: 1px 4px;
+  border-radius: 4px;
+  font-family: monospace;
+  font-size: 0.68rem;
+  color: var(--accent-gold);
+}
+
+.stream-embed-warning-text a {
+  color: var(--accent-gold);
+  text-decoration: underline;
+  font-weight: 600;
+  transition: opacity 0.2s ease;
+}
+
+.stream-embed-warning-text a:hover {
+  opacity: 0.8;
+}
+
+
 

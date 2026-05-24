@@ -1144,6 +1144,34 @@ function getStreamEmbedUrl(url) {
   return null;
 }
 
+// Check if Twitch embed parent needs a warning (IP address or file://)
+function shouldShowTwitchParentWarning(url) {
+  if (!url || !url.includes("twitch.tv")) return false;
+  const hostname = window.location.hostname;
+  const isIP = /^(?:[0-9]{1,3}\.){3}[0-9]{1,3}$/.test(hostname);
+  const isFile = window.location.protocol === 'file:';
+  return isIP || isFile;
+}
+
+// Render the Twitch warning block
+function renderTwitchParentWarning() {
+  const currentAddress = window.location.protocol === 'file:' ? 'direct file access' : window.location.hostname;
+  return `
+    <div class="stream-embed-warning">
+      <div class="stream-embed-warning-icon">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+          <line x1="12" y1="9" x2="12" y2="13"></line>
+          <line x1="12" y1="17" x2="12.01" y2="17"></line>
+        </svg>
+      </div>
+      <div class="stream-embed-warning-text">
+        <strong>Twitch Stream Warning:</strong> Twitch embeds do not support IP addresses or direct file access (current: <code>${currentAddress}</code>). Please access the website via <a href="http://localhost:3000" target="_blank">http://localhost:3000</a> or your production domain for the stream to load properly.
+      </div>
+    </div>
+  `;
+}
+
 // Render the stream player with real embeds and feed toggle
 function renderStreamPlayer(container, matchday, homeId, awayId, homePlayer, awayPlayer, homeStreamUrl, awayStreamUrl) {
   const playerId = `stream-${matchday}-${homeId}-${awayId}`;
@@ -1192,13 +1220,18 @@ function renderStreamPlayer(container, matchday, homeId, awayId, homePlayer, awa
     ? (defaultUrl.includes("twitch.tv") ? "Twitch" : (defaultUrl.includes("kick.com") ? "Kick" : "Stream"))
     : "";
 
+  const warningHTML = shouldShowTwitchParentWarning(defaultUrl) ? renderTwitchParentWarning() : "";
+
   container.innerHTML = `
     <div class="stream-player-wrapper" id="player-${playerId}">
       ${feedToggleHTML}
       <div class="stream-embed-area" id="area-${playerId}">
         ${embedHTML}
       </div>
-      ${platformLabel ? `<div class="stream-platform-badge">${platformLabel}</div>` : ''}
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 8px;">
+        ${platformLabel ? `<div class="stream-platform-badge">${platformLabel}</div>` : ''}
+      </div>
+      ${warningHTML}
     </div>
   `;
 }
@@ -1260,6 +1293,46 @@ function switchStreamFeed(event, playerId, feed, homeUrlEncoded, awayUrlEncoded,
     `;
   } else {
     area.innerHTML = renderNoStreamPlaceholder(playerName);
+  }
+
+  // Update platform badge and warning visibility
+  const playerContainer = document.getElementById(`player-${playerId}`);
+  if (playerContainer) {
+    const badge = playerContainer.querySelector('.stream-platform-badge');
+    if (badge) {
+      const platformLabel = selectedUrl
+        ? (selectedUrl.includes("twitch.tv") ? "Twitch" : (selectedUrl.includes("kick.com") ? "Kick" : "Stream"))
+        : "";
+      badge.textContent = platformLabel;
+      badge.style.display = platformLabel ? 'inline-flex' : 'none';
+    }
+
+    // Toggle warning box
+    let warning = playerContainer.querySelector('.stream-embed-warning');
+    const showWarning = shouldShowTwitchParentWarning(selectedUrl);
+
+    if (showWarning) {
+      if (!warning) {
+        warning = document.createElement('div');
+        warning.className = 'stream-embed-warning';
+        playerContainer.appendChild(warning);
+      }
+      const currentAddress = window.location.protocol === 'file:' ? 'direct file access' : window.location.hostname;
+      warning.innerHTML = `
+        <div class="stream-embed-warning-icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+            <line x1="12" y1="9" x2="12" y2="13"></line>
+            <line x1="12" y1="17" x2="12.01" y2="17"></line>
+          </svg>
+        </div>
+        <div class="stream-embed-warning-text">
+          <strong>Twitch Stream Warning:</strong> Twitch embeds do not support IP addresses or direct file access (current: <code>${currentAddress}</code>). Please access the website via <a href="http://localhost:3000" target="_blank">http://localhost:3000</a> or your production domain for the stream to load properly.
+        </div>
+      `;
+    } else if (warning) {
+      warning.remove();
+    }
   }
 }
 
