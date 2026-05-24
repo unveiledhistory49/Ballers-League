@@ -1131,15 +1131,21 @@ function switchPanel(event, matchday, homeId, awayId, type) {
 function getStreamEmbedUrl(url) {
   if (!url) return null;
 
-  // Twitch channel: https://twitch.tv/channelname
-  if (url.includes("twitch.tv")) {
-    const parts = url.replace(/\/+$/, "").split("/");
-    const channel = parts[parts.length - 1];
+  // Use the URL API to properly parse and strip query params / hash fragments
+  let parsed;
+  try {
+    parsed = new URL(url);
+  } catch (e) {
+    return null;
+  }
+
+  // Twitch channel: https://twitch.tv/channelname or https://www.twitch.tv/channelname?sr=a
+  if (parsed.hostname.includes("twitch.tv")) {
+    // pathname is e.g. "/0xbtcdoctor" — strip leading slash and any trailing slashes
+    const channel = parsed.pathname.replace(/^\/+|\/+$/g, "");
     if (!channel) return null;
 
     // Twitch requires ALL ancestor domains in the parent chain.
-    // Vercel preview URLs look like: project-abc123-user.vercel.app
-    // We need to pass both the full hostname AND the root domain.
     const hostname = window.location.hostname;
     const parentParams = [`parent=${hostname}`];
 
@@ -1150,19 +1156,12 @@ function getStreamEmbedUrl(url) {
       parentParams.push(`parent=${rootDomain}`);
     }
 
-    const embedUrl = `https://player.twitch.tv/?channel=${channel}&${parentParams.join("&")}&autoplay=true&muted=true`;
-    console.log("[Twitch Debug] Input URL:", url);
-    console.log("[Twitch Debug] Parsed channel:", channel);
-    console.log("[Twitch Debug] Hostname:", hostname);
-    console.log("[Twitch Debug] Parent params:", parentParams);
-    console.log("[Twitch Debug] Final embed URL:", embedUrl);
-    return embedUrl;
+    return `https://player.twitch.tv/?channel=${channel}&${parentParams.join("&")}&autoplay=true&muted=true`;
   }
 
-  // Kick channel: https://kick.com/channelname
-  if (url.includes("kick.com")) {
-    const parts = url.replace(/\/+$/, "").split("/");
-    const channel = parts[parts.length - 1];
+  // Kick channel: https://kick.com/channelname or https://kick.com/channelname?some=param
+  if (parsed.hostname.includes("kick.com")) {
+    const channel = parsed.pathname.replace(/^\/+|\/+$/g, "");
     if (!channel) return null;
     return `https://player.kick.com/${channel}`;
   }
