@@ -532,10 +532,28 @@
 
     .match-stream-url-row {
       margin-top: 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .stream-url-input-group {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .stream-url-label {
+      font-size: 0.65rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      min-width: 38px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
     }
 
     .stream-url-input {
-      width: 100%;
+      flex: 1;
       height: 34px;
       background: var(--bg-input);
       border: 1px solid var(--border-medium);
@@ -785,8 +803,16 @@
           </div>
 
           <div class="match-stream-url-row">
-            <input type="url" class="stream-url-input" id="stream-${match.home.id}-${match.away.id}"
-              placeholder="Twitch or YouTube Stream URL" value="${match.streamUrl || ''}">
+            <div class="stream-url-input-group">
+              <span class="stream-url-label">Home</span>
+              <input type="url" class="stream-url-input" id="home-stream-${match.home.id}-${match.away.id}"
+                placeholder="Twitch or Kick URL" value="${match.homeStreamUrl || ''}">
+            </div>
+            <div class="stream-url-input-group">
+              <span class="stream-url-label">Away</span>
+              <input type="url" class="stream-url-input" id="away-stream-${match.home.id}-${match.away.id}"
+                placeholder="Twitch or Kick URL" value="${match.awayStreamUrl || ''}">
+            </div>
           </div>
 
           <div class="match-actions">
@@ -812,7 +838,8 @@
       const homeScore = document.getElementById(`home-${homeId}-${awayId}`).value;
       const awayScore = document.getElementById(`away-${homeId}-${awayId}`).value;
       const status = document.getElementById(`status-${homeId}-${awayId}`).value;
-      const streamUrl = document.getElementById(`stream-${homeId}-${awayId}`).value.trim();
+      const homeStreamUrl = document.getElementById(`home-stream-${homeId}-${awayId}`).value.trim();
+      const awayStreamUrl = document.getElementById(`away-stream-${homeId}-${awayId}`).value.trim();
 
       if (status === 'completed' && (homeScore === '' || awayScore === '')) {
         showToast('Enter both scores to mark match as completed', 'error');
@@ -833,7 +860,8 @@
             homeScore: homeScore !== '' ? parseInt(homeScore) : null,
             awayScore: awayScore !== '' ? parseInt(awayScore) : null,
             status,
-            streamUrl: streamUrl || null
+            homeStreamUrl: homeStreamUrl || null,
+            awayStreamUrl: awayStreamUrl || null
           }),
         });
 

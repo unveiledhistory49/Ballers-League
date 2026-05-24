@@ -40,7 +40,8 @@ module.exports = async function handler(req, res) {
         homeScore: m.home_score,
         awayScore: m.away_score,
         status: m.status,
-        streamUrl: m.stream_url,
+        homeStreamUrl: m.home_stream_url,
+        awayStreamUrl: m.away_stream_url,
         predictions: m.predictions,
       });
     }

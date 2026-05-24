@@ -165,7 +165,7 @@ app.post('/api/prediction', (req, res) => {
 // ── PUT /api/admin/match — Update a match result ──────────────
 app.put('/api/admin/match', requireAdmin, (req, res) => {
   try {
-    const { matchday, homeId, awayId, homeScore, awayScore, status, streamUrl } = req.body;
+    const { matchday, homeId, awayId, homeScore, awayScore, status, homeStreamUrl, awayStreamUrl } = req.body;
 
     if (matchday === undefined || homeId === undefined || awayId === undefined) {
       return res.status(400).json({ error: 'Missing matchday, homeId, or awayId' });
@@ -201,7 +201,8 @@ app.put('/api/admin/match', requireAdmin, (req, res) => {
     }
 
     match.status = status || 'completed';
-    match.streamUrl = streamUrl || null;
+    match.homeStreamUrl = homeStreamUrl || null;
+    match.awayStreamUrl = awayStreamUrl || null;
 
     saveDB(db);
 

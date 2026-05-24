@@ -302,7 +302,7 @@ function renderFixtures(direction = null) {
         </div>
         <span class="score-ft">FT</span>
       `;
-    } else if (match.status === "live") {
+    } else if (match.status === "live" && (match.homeStreamUrl || match.awayStreamUrl)) {
       scoreHTML = `<span class="score-live">LIVE</span>`;
     } else {
       scoreHTML = `<span class="score-upcoming">VS</span>`;
@@ -730,7 +730,7 @@ function showTeamHistory(teamId) {
         </div>
         <span class="score-ft">FT</span>
       `;
-    } else if (match.status === "live") {
+    } else if (match.status === "live" && (match.homeStreamUrl || match.awayStreamUrl)) {
       scoreHTML = `<span class="score-live">LIVE</span>`;
     } else {
       scoreHTML = `<span class="score-upcoming">VS</span>`;
@@ -898,11 +898,11 @@ function togglePredictionCard(card, matchday, homeId, awayId) {
       const md = leagueData.fixtures.find(f => f.matchday === matchday);
       const match = md.matches.find(m => m.home.id === homeId && m.away.id === awayId);
 
+      const hasStream = !!(match.homeStreamUrl || match.awayStreamUrl);
       const isLive = match.status === "live";
-      const isUpcoming = match.status === "upcoming";
 
       let tabsHTML = "";
-      if (isLive || isUpcoming) {
+      if (hasStream) {
         tabsHTML = `
           <div class="fixture-expanded-tabs" onclick="event.stopPropagation()">
             <button class="fixture-expanded-tab ${!isLive ? 'active' : ''}" id="tab-pred-${matchday}-${homeId}-${awayId}" onclick="switchPanel(event, ${matchday}, ${homeId}, ${awayId}, 'pred')">Prediction</button>
@@ -913,10 +913,10 @@ function togglePredictionCard(card, matchday, homeId, awayId) {
 
       predContainer.innerHTML = `
         ${tabsHTML}
-        <div class="fixture-panel ${!isLive ? 'active' : ''}" id="panel-pred-${matchday}-${homeId}-${awayId}" onclick="event.stopPropagation()">
+        <div class="fixture-panel ${!isLive || !hasStream ? 'active' : ''}" id="panel-pred-${matchday}-${homeId}-${awayId}" onclick="event.stopPropagation()">
           <div class="prediction-poll-wrapper"></div>
         </div>
-        ${(isLive || isUpcoming) ? `
+        ${hasStream ? `
           <div class="fixture-panel ${isLive ? 'active' : ''}" id="panel-live-${matchday}-${homeId}-${awayId}" onclick="event.stopPropagation()">
             <div class="live-stream-wrapper"></div>
           </div>
@@ -936,10 +936,10 @@ function togglePredictionCard(card, matchday, homeId, awayId) {
         match.predictions
       );
 
-      // Render video player inside stream wrapper
-      if (isLive || isUpcoming) {
+      // Render stream player inside wrapper
+      if (hasStream) {
         const streamWrapper = predContainer.querySelector(".live-stream-wrapper");
-        renderStreamPlayer(streamWrapper, matchday, homeId, awayId, match.home.player, match.away.player, isLive, match.streamUrl);
+        renderStreamPlayer(streamWrapper, matchday, homeId, awayId, match.home.player, match.away.player, match.homeStreamUrl, match.awayStreamUrl);
       }
     }
   }
@@ -1093,8 +1093,9 @@ async function castPredictionVote(event, matchday, homeId, awayId, selectedOptio
   }
 }
 
-// ── Streaming Configuration
-const STREAM_VIDEO_URL = "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4";
+// ═══════════════════════════════════════════════════════════════
+// MATCH STREAMING — Twitch & Kick Embeds
+// ═══════════════════════════════════════════════════════════════
 
 // Toggle panels (Prediction tab vs Stream Player tab)
 function switchPanel(event, matchday, homeId, awayId, type) {
@@ -1110,338 +1111,162 @@ function switchPanel(event, matchday, homeId, awayId, type) {
     if (tabPred) tabPred.classList.add('active');
     if (tabLive) tabLive.classList.remove('active');
     if (panelPred) panelPred.classList.add('active');
-    if (panelLive) {
-      panelLive.classList.remove('active');
-      const video = panelLive.querySelector("video");
-      if (video) video.pause();
-    }
+    if (panelLive) panelLive.classList.remove('active');
   } else {
     if (tabPred) tabPred.classList.remove('active');
     if (tabLive) tabLive.classList.add('active');
     if (panelPred) panelPred.classList.remove('active');
-    if (panelLive) {
-      panelLive.classList.add('active');
-      const video = panelLive.querySelector("video");
-      if (video) video.play().catch(() => {});
-    }
+    if (panelLive) panelLive.classList.add('active');
   }
 }
 
-// Render custom simulation live stream player or embedded Twitch/YouTube
-function renderStreamPlayer(container, matchday, homeId, awayId, homePlayer, awayPlayer, isLive, streamUrl) {
-  const playerId = `video-${matchday}-${homeId}-${awayId}`;
+// Parse a stream URL into an embeddable iframe src
+function getStreamEmbedUrl(url) {
+  if (!url) return null;
 
-  // If a real stream URL is present, embed the Twitch/YouTube iframe
-  if (streamUrl) {
-    let embedHTML = "";
-    
-    // Check if it's a Twitch link
-    if (streamUrl.includes("twitch.tv")) {
-      const parts = streamUrl.split("/");
-      const channel = parts[parts.length - 1] || parts[parts.length - 2];
-      const parentDomain = window.location.hostname;
-      
-      embedHTML = `
+  // Twitch channel: https://twitch.tv/channelname
+  if (url.includes("twitch.tv")) {
+    const parts = url.replace(/\/+$/, "").split("/");
+    const channel = parts[parts.length - 1];
+    if (!channel) return null;
+    const parentDomain = window.location.hostname;
+    return `https://player.twitch.tv/?channel=${channel}&parent=${parentDomain}&autoplay=true&muted=true`;
+  }
+
+  // Kick channel: https://kick.com/channelname
+  if (url.includes("kick.com")) {
+    const parts = url.replace(/\/+$/, "").split("/");
+    const channel = parts[parts.length - 1];
+    if (!channel) return null;
+    return `https://player.kick.com/${channel}`;
+  }
+
+  return null;
+}
+
+// Render the stream player with real embeds and feed toggle
+function renderStreamPlayer(container, matchday, homeId, awayId, homePlayer, awayPlayer, homeStreamUrl, awayStreamUrl) {
+  const playerId = `stream-${matchday}-${homeId}-${awayId}`;
+  const hasBothFeeds = !!(homeStreamUrl && awayStreamUrl);
+  const defaultFeed = homeStreamUrl ? 'home' : 'away';
+  const defaultUrl = homeStreamUrl || awayStreamUrl;
+
+  let feedToggleHTML = "";
+  if (hasBothFeeds) {
+    feedToggleHTML = `
+      <div class="stream-feed-toggle" onclick="event.stopPropagation()">
+        <button class="stream-feed-btn active" id="btn-feed-home-${playerId}"
+          onclick="switchStreamFeed(event, '${playerId}', 'home', '${encodeURIComponent(homeStreamUrl)}', '${encodeURIComponent(awayStreamUrl)}', '${homePlayer}', '${awayPlayer}')">
+          ${homePlayer}
+        </button>
+        <button class="stream-feed-btn" id="btn-feed-away-${playerId}"
+          onclick="switchStreamFeed(event, '${playerId}', 'away', '${encodeURIComponent(homeStreamUrl)}', '${encodeURIComponent(awayStreamUrl)}', '${homePlayer}', '${awayPlayer}')">
+          ${awayPlayer}
+        </button>
+      </div>
+    `;
+  }
+
+  const embedUrl = getStreamEmbedUrl(defaultUrl);
+  const feedLabel = defaultFeed === 'home' ? homePlayer : awayPlayer;
+
+  let embedHTML = "";
+  if (embedUrl) {
+    embedHTML = `
+      <div class="stream-embed-container" id="embed-${playerId}">
         <iframe
-          src="https://player.twitch.tv/?channel=${channel}&parent=${parentDomain}&autoplay=true&muted=true"
+          src="${embedUrl}"
           frameborder="0"
           allowfullscreen="true"
           scrolling="no"
-          height="100%"
-          width="100%"
-          style="border:1px solid var(--border-medium); border-radius:12px; aspect-ratio:16/9; background:#000;">
+          allow="autoplay; fullscreen"
+          title="Live stream — ${feedLabel}">
         </iframe>
-      `;
-    } 
-    // Check if it's a YouTube link
-    else if (streamUrl.includes("youtube.com") || streamUrl.includes("youtu.be")) {
-      let videoId = "";
-      if (streamUrl.includes("youtu.be")) {
-        const parts = streamUrl.split("/");
-        videoId = parts[parts.length - 1];
-      } else {
-        try {
-          const urlParams = new URLSearchParams(new URL(streamUrl).search);
-          videoId = urlParams.get("v");
-        } catch (e) {
-          const parts = streamUrl.split("/");
-          videoId = parts[parts.length - 1];
-        }
-        if (!videoId) {
-          const parts = streamUrl.split("/");
-          videoId = parts[parts.length - 1];
-        }
-      }
-      
-      embedHTML = `
-        <iframe
-          width="100%"
-          height="100%"
-          src="https://www.youtube.com/embed/${videoId}?autoplay=1&mute=1"
-          title="YouTube video player"
-          frameborder="0"
-          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-          allowfullscreen
-          style="border:1px solid var(--border-medium); border-radius:12px; aspect-ratio:16/9; background:#000;">
-        </iframe>
-      `;
-    }
-    
-    if (embedHTML) {
-      container.innerHTML = `
-        <div class="stream-player-container" id="player-container-${playerId}" style="border:none; box-shadow:none;">
-          ${embedHTML}
-        </div>
-      `;
-      return;
-    }
+      </div>
+    `;
+  } else {
+    embedHTML = renderNoStreamPlaceholder(feedLabel);
   }
 
-  // Fallback to simulated media player
+  const platformLabel = defaultUrl
+    ? (defaultUrl.includes("twitch.tv") ? "Twitch" : (defaultUrl.includes("kick.com") ? "Kick" : "Stream"))
+    : "";
+
   container.innerHTML = `
-    <div class="stream-player-container" id="player-container-${playerId}">
-      <div class="stream-feed-selector">
-        <button class="stream-feed-btn active" id="btn-feed-home-${playerId}" onclick="changeStreamFeed(event, '${playerId}', 'home', '${homePlayer}', '${awayPlayer}')">
-          ${homePlayer}'s Feed
-        </button>
-        <button class="stream-feed-btn" id="btn-feed-away-${playerId}" onclick="changeStreamFeed(event, '${playerId}', 'away', '${homePlayer}', '${awayPlayer}')">
-          ${awayPlayer}'s Feed
-        </button>
+    <div class="stream-player-wrapper" id="player-${playerId}">
+      ${feedToggleHTML}
+      <div class="stream-embed-area" id="area-${playerId}">
+        ${embedHTML}
       </div>
-
-      <div class="stream-video-wrapper">
-        <video id="${playerId}" src="${STREAM_VIDEO_URL}" autoplay muted loop playsinline></video>
-        
-        <div class="stream-buffering-overlay" id="overlay-buffer-${playerId}">
-          <div class="stream-spinner"></div>
-          <span class="stream-buffering-text" id="text-buffer-${playerId}">CONNECTING TO MATCH...</span>
-        </div>
-
-        <div class="stream-controls-overlay">
-          <div class="stream-controls-left">
-            <button class="stream-control-btn" onclick="toggleStreamPlay(event, '${playerId}')" id="btn-play-${playerId}" title="Pause">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-                <rect x="6" y="4" width="4" height="16"></rect>
-                <rect x="14" y="4" width="4" height="16"></rect>
-              </svg>
-            </button>
-            
-            <div class="volume-slider-container">
-              <button class="stream-control-btn" onclick="toggleStreamMute(event, '${playerId}')" id="btn-volume-${playerId}" title="Mute">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77zM3 9v6h4l5 5V4L7 9H3z"></path>
-                </svg>
-              </button>
-              <input type="range" class="volume-slider" min="0" max="1" step="0.1" value="0" oninput="changeStreamVolume(event, '${playerId}')" id="slider-volume-${playerId}">
-            </div>
-          </div>
-
-          <div class="stream-controls-right">
-            <div class="quality-selector">
-              <button class="quality-btn" onclick="toggleQualityMenu(event, '${playerId}')" id="btn-quality-${playerId}">
-                <span>720p</span>
-                <svg width="10" height="10" viewBox="0 0 20 20" fill="currentColor">
-                  <path d="M5 7 L10 13 L15 7" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
-                </svg>
-              </button>
-              <div class="quality-menu" id="menu-quality-${playerId}">
-                <button class="quality-item active" onclick="changeStreamQuality(event, '${playerId}', '720p')">720p</button>
-                <button class="quality-item" onclick="changeStreamQuality(event, '${playerId}', '480p')">480p</button>
-                <button class="quality-item" onclick="changeStreamQuality(event, '${playerId}', '360p')">360p</button>
-              </div>
-            </div>
-
-            <button class="stream-control-btn" onclick="toggleStreamFullscreen(event, '${playerId}')" title="Fullscreen">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/>
-              </svg>
-            </button>
-          </div>
-        </div>
-      </div>
+      ${platformLabel ? `<div class="stream-platform-badge">${platformLabel}</div>` : ''}
     </div>
   `;
-
-  // Bind dropdown click listener to close when clicked outside
-  if (!window.hasGlobalQualityMenuListener) {
-    document.addEventListener("click", () => {
-      document.querySelectorAll(".quality-menu.show").forEach(m => m.classList.remove("show"));
-    });
-    window.hasGlobalQualityMenuListener = true;
-  }
 }
 
-// Custom Player Controls logic
-function toggleStreamPlay(event, playerId) {
-  event.stopPropagation();
-  const video = document.getElementById(playerId);
-  const btn = document.getElementById(`btn-play-${playerId}`);
-  if (!video || !btn) return;
-
-  if (video.paused) {
-    video.play().catch(() => {});
-    btn.innerHTML = `
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-        <rect x="6" y="4" width="4" height="16"></rect>
-        <rect x="14" y="4" width="4" height="16"></rect>
-      </svg>
-    `;
-    btn.title = "Pause";
-  } else {
-    video.pause();
-    btn.innerHTML = `
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-        <path d="M8 5v14l11-7z"></path>
-      </svg>
-    `;
-    btn.title = "Play";
-  }
+// Render a clean placeholder for when no stream URL is available
+function renderNoStreamPlaceholder(playerName) {
+  return `
+    <div class="stream-no-feed">
+      <div class="stream-no-feed-icon">
+        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
+          <line x1="8" y1="21" x2="16" y2="21"></line>
+          <line x1="12" y1="17" x2="12" y2="21"></line>
+        </svg>
+      </div>
+      <span class="stream-no-feed-text">${playerName ? `${playerName} is not streaming` : 'No stream available'}</span>
+    </div>
+  `;
 }
 
-function toggleStreamMute(event, playerId) {
+// Switch between home/away feed iframes
+function switchStreamFeed(event, playerId, feed, homeUrlEncoded, awayUrlEncoded, homePlayer, awayPlayer) {
   event.stopPropagation();
-  const video = document.getElementById(playerId);
-  const slider = document.getElementById(`slider-volume-${playerId}`);
-  const btn = document.getElementById(`btn-volume-${playerId}`);
-  if (!video || !slider || !btn) return;
 
-  if (video.muted || video.volume === 0) {
-    video.muted = false;
-    video.volume = 0.5;
-    slider.value = 0.5;
-    btn.innerHTML = `
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-        <path d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77zM3 9v6h4l5 5V4L7 9H3z"></path>
-      </svg>
-    `;
-  } else {
-    video.muted = true;
-    video.volume = 0;
-    slider.value = 0;
-    btn.innerHTML = `
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-        <path d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.21.05-.42.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51C20.63 14.91 21 13.5 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06c1.38-.31 2.63-.95 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3zM12 4L9.91 6.09 12 8.18V4z"></path>
-      </svg>
-    `;
-  }
-}
+  const homeUrl = decodeURIComponent(homeUrlEncoded);
+  const awayUrl = decodeURIComponent(awayUrlEncoded);
 
-function changeStreamVolume(event, playerId) {
-  event.stopPropagation();
-  const video = document.getElementById(playerId);
-  const slider = event.target;
-  const btn = document.getElementById(`btn-volume-${playerId}`);
-  if (!video || !btn) return;
-
-  video.volume = slider.value;
-  video.muted = slider.value == 0;
-
-  if (video.muted) {
-    btn.innerHTML = `
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-        <path d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.21.05-.42.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51C20.63 14.91 21 13.5 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06c1.38-.31 2.63-.95 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3zM12 4L9.91 6.09 12 8.18V4z"></path>
-      </svg>
-    `;
-  } else {
-    btn.innerHTML = `
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-        <path d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77zM3 9v6h4l5 5V4L7 9H3z"></path>
-      </svg>
-    `;
-  }
-}
-
-function toggleQualityMenu(event, playerId) {
-  event.stopPropagation();
-  const menu = document.getElementById(`menu-quality-${playerId}`);
-  if (menu) menu.classList.toggle("show");
-}
-
-function changeStreamQuality(event, playerId, quality) {
-  event.stopPropagation();
-  const menu = document.getElementById(`menu-quality-${playerId}`);
-  const btn = document.getElementById(`btn-quality-${playerId}`);
-  const overlay = document.getElementById(`overlay-buffer-${playerId}`);
-  const text = document.getElementById(`text-buffer-${playerId}`);
-  const video = document.getElementById(playerId);
-
-  if (menu) menu.classList.remove("show");
-  if (btn) btn.querySelector("span").textContent = quality;
-
-  if (overlay && text) {
-    text.textContent = `SWITCHING TO ${quality.toUpperCase()}...`;
-    overlay.classList.add("active");
-  }
-
-  if (video) {
-    video.pause();
-  }
-
-  setTimeout(() => {
-    if (overlay) overlay.classList.remove("active");
-    if (video) {
-      if (quality === '360p') {
-        video.style.filter = 'blur(1.5px) contrast(0.95)';
-      } else if (quality === '480p') {
-        video.style.filter = 'blur(0.6px)';
-      } else {
-        video.style.filter = 'none';
-      }
-      video.play().catch(() => {});
-    }
-  }, 900);
-
-  if (menu) {
-    menu.querySelectorAll(".quality-item").forEach(item => {
-      if (item.textContent === quality) {
-        item.classList.add("active");
-      } else {
-        item.classList.remove("active");
-      }
-    });
-  }
-}
-
-function changeStreamFeed(event, playerId, type, homePlayer, awayPlayer) {
-  event.stopPropagation();
-  const overlay = document.getElementById(`overlay-buffer-${playerId}`);
-  const text = document.getElementById(`text-buffer-${playerId}`);
   const btnHome = document.getElementById(`btn-feed-home-${playerId}`);
   const btnAway = document.getElementById(`btn-feed-away-${playerId}`);
-  const video = document.getElementById(playerId);
 
   if (btnHome && btnAway) {
-    if (type === 'home') {
-      btnHome.classList.add("active");
-      btnAway.classList.remove("active");
+    if (feed === 'home') {
+      btnHome.classList.add('active');
+      btnAway.classList.remove('active');
     } else {
-      btnHome.classList.remove("active");
-      btnAway.classList.add("active");
+      btnHome.classList.remove('active');
+      btnAway.classList.add('active');
     }
   }
 
-  if (overlay && text) {
-    const activePlayer = type === 'home' ? homePlayer : awayPlayer;
-    text.textContent = `CONNECTING TO ${activePlayer.toUpperCase()}'S FEED...`;
-    overlay.classList.add("active");
-  }
+  const selectedUrl = feed === 'home' ? homeUrl : awayUrl;
+  const playerName = feed === 'home' ? homePlayer : awayPlayer;
+  const area = document.getElementById(`area-${playerId}`);
+  if (!area) return;
 
-  if (video) {
-    video.pause();
+  const embedUrl = getStreamEmbedUrl(selectedUrl);
+  if (embedUrl) {
+    area.innerHTML = `
+      <div class="stream-embed-container" id="embed-${playerId}">
+        <iframe
+          src="${embedUrl}"
+          frameborder="0"
+          allowfullscreen="true"
+          scrolling="no"
+          allow="autoplay; fullscreen"
+          title="Live stream — ${playerName}">
+        </iframe>
+      </div>
+    `;
+  } else {
+    area.innerHTML = renderNoStreamPlaceholder(playerName);
   }
-
-  setTimeout(() => {
-    if (overlay) overlay.classList.remove("active");
-    if (video) {
-      video.src = STREAM_VIDEO_URL + (type === 'away' ? "?feed=away" : "");
-      video.play().catch(() => {});
-    }
-  }, 1000);
 }
 
+// Fullscreen for stream embed
 function toggleStreamFullscreen(event, playerId) {
   event.stopPropagation();
-  const container = document.getElementById(`player-container-${playerId}`);
+  const container = document.getElementById(`player-${playerId}`);
   if (!container) return;
 
   if (!document.fullscreenElement) {
@@ -1456,12 +1281,7 @@ function toggleStreamFullscreen(event, playerId) {
 // Expose handlers to global window object
 window.switchPanel = switchPanel;
 window.castPredictionVote = castPredictionVote;
-window.toggleStreamPlay = toggleStreamPlay;
-window.toggleStreamMute = toggleStreamMute;
-window.changeStreamVolume = changeStreamVolume;
-window.toggleQualityMenu = toggleQualityMenu;
-window.changeStreamQuality = changeStreamQuality;
-window.changeStreamFeed = changeStreamFeed;
+window.switchStreamFeed = switchStreamFeed;
 window.toggleStreamFullscreen = toggleStreamFullscreen;
 window.togglePredictionCard = togglePredictionCard;
 
