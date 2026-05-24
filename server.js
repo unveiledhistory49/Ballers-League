@@ -15,7 +15,7 @@ const app = express();
 const PORT = 3000;
 
 // ── Config ─────────────────────────────────────────────────────
-const ADMIN_KEY = 'ballersleague2026'; // Change this to your secret key
+const ADMIN_KEY = process.env.ADMIN_KEY || 'ballersleague2026'; // Load from environment variable or fallback
 const DB_PATH = path.join(__dirname, 'database.json');
 const FIXTURES_PATH = path.join(__dirname, 'fixtures.json');
 
@@ -130,40 +130,7 @@ app.get('/api/data', (req, res) => {
   }
 });
 
-// ── GET /api/standings — Computed standings for a season ──────
-app.get('/api/standings', (req, res) => {
-  try {
-    const db = loadDB();
-    let season;
-    if (req.query.season) {
-      season = getSeasonById(db, parseInt(req.query.season, 10));
-    }
-    if (!season) {
-      season = getActiveSeason(db);
-    }
-    const standings = computeStandings(db.teams, season.fixtures);
-    res.json(standings);
-  } catch (err) {
-    res.status(500).json({ error: 'Failed to compute standings' });
-  }
-});
 
-// ── GET /api/fixtures — All fixtures for a season ─────────────
-app.get('/api/fixtures', (req, res) => {
-  try {
-    const db = loadDB();
-    let season;
-    if (req.query.season) {
-      season = getSeasonById(db, parseInt(req.query.season, 10));
-    }
-    if (!season) {
-      season = getActiveSeason(db);
-    }
-    res.json({ fixtures: season.fixtures });
-  } catch (err) {
-    res.status(500).json({ error: 'Failed to load fixtures' });
-  }
-});
 
 // ── POST /api/admin/login — Verify admin key ──────────────────
 app.post('/api/admin/login', (req, res) => {

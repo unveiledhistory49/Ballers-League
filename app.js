@@ -12,6 +12,8 @@ let selectedTeamIdForHistory = null;
 let touchStartX = 0;
 let touchEndX = 0;
 const SWIPE_THRESHOLD = 50;
+let cachedRecordsData = null;
+let recordsFetchPromise = null;
 
 // ── Club colors for logo placeholders ──────────────────────────
 const clubColors = {
@@ -1458,6 +1460,7 @@ function shouldShowTwitchParentWarning(url) {
 // Render the Twitch warning block
 function renderTwitchParentWarning() {
   const currentAddress = window.location.protocol === 'file:' ? 'direct file access' : window.location.hostname;
+  const localPort = window.location.port || '3000';
   return `
     <div class="stream-embed-warning">
       <div class="stream-embed-warning-icon">
@@ -1468,7 +1471,7 @@ function renderTwitchParentWarning() {
         </svg>
       </div>
       <div class="stream-embed-warning-text">
-        <strong>Twitch Stream Warning:</strong> Twitch embeds do not support IP addresses or direct file access (current: <code>${currentAddress}</code>). Please access the website via <a href="http://localhost:3000" target="_blank">http://localhost:3000</a> or your production domain for the stream to load properly.
+        <strong>Twitch Stream Warning:</strong> Twitch embeds do not support IP addresses or direct file access (current: <code>${currentAddress}</code>). Please access the website via <a href="http://localhost:${localPort}" target="_blank">http://localhost:${localPort}</a> or your production domain for the stream to load properly.
       </div>
     </div>
   `;
@@ -1618,6 +1621,7 @@ function switchStreamFeed(event, playerId, feed, homeUrlEncoded, awayUrlEncoded,
         playerContainer.appendChild(warning);
       }
       const currentAddress = window.location.protocol === 'file:' ? 'direct file access' : window.location.hostname;
+      const localPort = window.location.port || '3000';
       warning.innerHTML = `
         <div class="stream-embed-warning-icon">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -1627,7 +1631,7 @@ function switchStreamFeed(event, playerId, feed, homeUrlEncoded, awayUrlEncoded,
           </svg>
         </div>
         <div class="stream-embed-warning-text">
-          <strong>Twitch Stream Warning:</strong> Twitch embeds do not support IP addresses or direct file access (current: <code>${currentAddress}</code>). Please access the website via <a href="http://localhost:3000" target="_blank">http://localhost:3000</a> or your production domain for the stream to load properly.
+          <strong>Twitch Stream Warning:</strong> Twitch embeds do not support IP addresses or direct file access (current: <code>${currentAddress}</code>). Please access the website via <a href="http://localhost:${localPort}" target="_blank">http://localhost:${localPort}</a> or your production domain for the stream to load properly.
         </div>
       `;
     } else if (warning) {
@@ -2134,7 +2138,7 @@ async function renderRecords() {
         const gdB = b.goalsFor - b.goalsAgainst;
         if (gdB !== gdA) return gdB - gdA;
         if (b.goalsFor !== a.goalsFor) return b.goalsFor - a.goalsFor;
-        return 0;
+        return a.player.localeCompare(b.player);
       });
       if (sorted.length > 0) {
         const champion = sorted[0];
@@ -2749,6 +2753,7 @@ function setupSilentRefresh() {
 
 async function refreshLeagueDataSilent() {
   if (!leagueData || !currentSeasonId) return;
+  if (document.hidden) return; // Guard: do not poll in background tabs
 
   try {
     const res = await fetch(`/api/data?season=${currentSeasonId}&_t=${Date.now()}`);
@@ -2761,6 +2766,7 @@ async function refreshLeagueDataSilent() {
 
     if (fixturesChanged || teamsChanged) {
       leagueData = freshData;
+      cachedRecordsData = null; // Clear records cache when fixtures/teams change
       
       // Determine which page is currently active and only re-render relevant components to optimize performance
       const activePage = document.querySelector(".page.active");
@@ -2868,9 +2874,26 @@ async function renderAwards(standings) {
   let mostImprovedText = "N/A (Season 1)";
   if (currentSeasonId > 1) {
     try {
-      const res = await fetch(`/api/records?_t=${Date.now()}`);
-      if (res.ok) {
-        const recData = await res.json();
+      let recData;
+      if (cachedRecordsData) {
+        recData = cachedRecordsData;
+      } else {
+        if (!recordsFetchPromise) {
+          recordsFetchPromise = fetch(`/api/records?_t=${Date.now()}`).then(r => {
+            if (!r.ok) throw new Error("Records fetch failed");
+            return r.json();
+          }).then(data => {
+            cachedRecordsData = data;
+            recordsFetchPromise = null;
+            return data;
+          }).catch(err => {
+            recordsFetchPromise = null;
+            throw err;
+          });
+        }
+        recData = await recordsFetchPromise;
+      }
+      if (recData) {
         const prevStandings = computeSeasonStandingsHelper(recData.matches, recData.teams, currentSeasonId - 1);
         const currStandings = computeSeasonStandingsHelper(recData.matches, recData.teams, currentSeasonId);
 
@@ -2967,6 +2990,6 @@ function computeSeasonStandingsHelper(allMatches, teams, seasonId) {
     const gdB = b.goalsFor - b.goalsAgainst;
     if (gdB !== gdA) return gdB - gdA;
     if (b.goalsFor !== a.goalsFor) return b.goalsFor - a.goalsFor;
-    return 0;
+    return a.player.localeCompare(b.player);
   });
 }

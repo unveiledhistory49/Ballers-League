@@ -118,15 +118,12 @@ async function handleCreateSeason(req, res) {
       }
     }
 
-    // Insert in batches of 50
-    for (let i = 0; i < allMatches.length; i += 50) {
-      const batch = allMatches.slice(i, i + 50);
-      const { error: insertErr } = await supabase
-        .from('matches')
-        .insert(batch);
+    // Insert all matches in a single query
+    const { error: insertErr } = await supabase
+      .from('matches')
+      .insert(allMatches);
 
-      if (insertErr) throw insertErr;
-    }
+    if (insertErr) throw insertErr;
 
     res.status(200).json({
       success: true,
