@@ -2619,91 +2619,182 @@ function renderBallersCup() {
     return;
   }
 
-  // Group by stage
-  const roundsOrder = ['cup_r16', 'cup_qf', 'cup_sf', 'cup_final'];
-  const roundLabels = {
-    'cup_r16': 'Round of 16 (Preliminaries)',
-    'cup_qf': 'Quarter-finals',
-    'cup_sf': 'Semi-finals',
-    'cup_final': 'Cup Final 🏆'
+  const cupFixtures = leagueData.cupFixtures;
+  const r16Data = cupFixtures.find(f => f.stage === 'cup_r16');
+  const qfData  = cupFixtures.find(f => f.stage === 'cup_qf');
+  const sfData  = cupFixtures.find(f => f.stage === 'cup_sf');
+  const finalData = cupFixtures.find(f => f.stage === 'cup_final');
+
+  // Helper: get winner ID from a match
+  const getWinnerId = (m) => {
+    if (!m || m.status !== 'completed') return null;
+    if (m.homeScore > m.awayScore) return m.home.id;
+    if (m.awayScore > m.homeScore) return m.away.id;
+    if (m.goldenGoalWinnerId) return m.goldenGoalWinnerId;
+    return null;
   };
 
-  let html = `<div class="cup-bracket-list">`;
-
-  roundsOrder.forEach(roundKey => {
-    const roundData = leagueData.cupFixtures.find(f => f.stage === roundKey);
-    if (!roundData) return;
-
-    html += `
-      <div class="cup-round-section">
-        <div class="cup-round-header">
-          <span>${roundLabels[roundKey]}</span>
-        </div>
-        <div class="cup-matches-grid">
-    `;
-
-    roundData.matches.forEach(m => {
-      const homeColors = clubColors[m.home.club] || { bg: "#333", text: "#fff" };
-      const awayColors = clubColors[m.away.club] || { bg: "#333", text: "#fff" };
-      const homeLogoSrc = clubLogos[m.home.club];
-      const awayLogoSrc = clubLogos[m.away.club];
-      const homeLogoHTML = homeLogoSrc ? `<img src="${homeLogoSrc}" alt="${m.home.club}">` : '';
-      const awayLogoHTML = awayLogoSrc ? `<img src="${awayLogoSrc}" alt="${m.away.club}">` : '';
-
-      let scoreHTML;
-      let goldenGoalText = "";
-
-      if (m.status === 'completed' && m.homeScore !== null) {
-        scoreHTML = `
-          <div class="cup-score-display">
-            <span class="${m.homeScore > m.awayScore ? 'font-bold text-white' : 'text-muted'}">${m.homeScore}</span>
-            <span class="score-separator">-</span>
-            <span class="${m.awayScore > m.homeScore ? 'font-bold text-white' : 'text-muted'}">${m.awayScore}</span>
+  // Helper: render a bracket match card
+  const renderBracketMatch = (m, isFinal) => {
+    if (!m) {
+      return `
+        <div class="bracket-match bracket-match-tbd">
+          <div class="bracket-team bracket-team-tbd">
+            <div class="bracket-team-logo">?</div>
+            <span class="bracket-team-name">TBD</span>
+            <span class="bracket-team-score">—</span>
           </div>
-        `;
-        if (m.homeScore === m.awayScore && m.goldenGoalWinnerId) {
-          const winnerName = m.home.id === m.goldenGoalWinnerId ? m.home.player : m.away.player;
-          goldenGoalText = `<div class="cup-gg-badge">⚡ Golden Goal: <strong>${winnerName}</strong></div>`;
-        }
-      } else {
-        scoreHTML = `<div class="cup-vs">VS</div>`;
-      }
-
-      html += `
-        <div class="cup-match-card ${m.status === 'completed' ? 'completed' : ''}">
-          <div class="cup-team-row">
-            <div class="cup-team-info">
-              <div class="cup-team-logo" style="${!homeLogoSrc ? `background: ${homeColors.bg}; color: ${homeColors.text};` : ''}">
-                ${homeLogoHTML || m.home.club.substring(0,2).toUpperCase()}
-              </div>
-              <span class="cup-player-name ${m.status === 'completed' && m.homeScore > m.awayScore ? 'winner' : ''}">${m.home.player}</span>
-            </div>
-          </div>
-          <div class="cup-score-row">
-            ${scoreHTML}
-            ${goldenGoalText}
-          </div>
-          <div class="cup-team-row">
-            <div class="cup-team-info">
-              <div class="cup-team-logo" style="${!awayLogoSrc ? `background: ${awayColors.bg}; color: ${awayColors.text};` : ''}">
-                ${awayLogoHTML || m.away.club.substring(0,2).toUpperCase()}
-              </div>
-              <span class="cup-player-name ${m.status === 'completed' && m.awayScore > m.homeScore ? 'winner' : ''}">${m.away.player}</span>
-            </div>
+          <div class="bracket-team-divider"></div>
+          <div class="bracket-team bracket-team-tbd">
+            <div class="bracket-team-logo">?</div>
+            <span class="bracket-team-name">TBD</span>
+            <span class="bracket-team-score">—</span>
           </div>
         </div>
       `;
-    });
+    }
 
-    html += `
+    const winnerId = getWinnerId(m);
+    const homeWon = winnerId === m.home.id;
+    const awayWon = winnerId === m.away.id;
+    const completed = m.status === 'completed';
+
+    const homeLogoSrc = clubLogos[m.home.club];
+    const awayLogoSrc = clubLogos[m.away.club];
+    const homeColors = clubColors[m.home.club] || { bg: "#333", text: "#fff" };
+    const awayColors = clubColors[m.away.club] || { bg: "#333", text: "#fff" };
+
+    let ggBadge = '';
+    if (completed && m.homeScore === m.awayScore && m.goldenGoalWinnerId) {
+      const ggName = m.goldenGoalWinnerId === m.home.id ? m.home.player : m.away.player;
+      ggBadge = `<div class="bracket-gg-badge">⚡ Golden Goal: <strong>${ggName}</strong></div>`;
+    }
+
+    return `
+      <div class="bracket-match ${completed ? 'completed' : ''} ${isFinal ? 'bracket-match-final' : ''}">
+        <div class="bracket-team ${completed ? (homeWon ? 'winner' : 'loser') : ''}">
+          <div class="bracket-team-logo" style="${!homeLogoSrc ? `background: ${homeColors.bg}; color: ${homeColors.text};` : ''}">
+            ${homeLogoSrc ? `<img src="${homeLogoSrc}" alt="${m.home.club}">` : m.home.club.substring(0,3).toUpperCase()}
+          </div>
+          <span class="bracket-team-name">${m.home.player}</span>
+          <span class="bracket-team-score">${completed ? m.homeScore : '—'}</span>
         </div>
+        <div class="bracket-team-divider"></div>
+        <div class="bracket-team ${completed ? (awayWon ? 'winner' : 'loser') : ''}">
+          <div class="bracket-team-logo" style="${!awayLogoSrc ? `background: ${awayColors.bg}; color: ${awayColors.text};` : ''}">
+            ${awayLogoSrc ? `<img src="${awayLogoSrc}" alt="${m.away.club}">` : m.away.club.substring(0,3).toUpperCase()}
+          </div>
+          <span class="bracket-team-name">${m.away.player}</span>
+          <span class="bracket-team-score">${completed ? m.awayScore : '—'}</span>
+        </div>
+        ${ggBadge}
       </div>
     `;
-  });
+  };
 
-  html += `</div>`;
+  // Split matches into left/right halves for the bracket
+  const r16Matches = r16Data ? r16Data.matches : [];
+  const qfMatches  = qfData ? qfData.matches : [];
+  const sfMatches  = sfData ? sfData.matches : [];
+  const finalMatch = finalData && finalData.matches.length > 0 ? finalData.matches[0] : null;
+
+  // Split R16: first half left, second half right
+  const r16Left  = r16Matches.slice(0, 2);
+  const r16Right = r16Matches.slice(2, 4);
+
+  // Split QF: first half left, second half right
+  const qfLeft  = qfMatches.slice(0, 2);
+  const qfRight = qfMatches.slice(2, 4);
+
+  // Split SF: one left, one right
+  const sfLeft  = sfMatches[0] || null;
+  const sfRight = sfMatches[1] || null;
+
+  // Pad with TBD if rounds haven't been drawn yet
+  const padMatches = (arr, count) => {
+    const result = [...arr];
+    while (result.length < count) result.push(null);
+    return result;
+  };
+
+  const r16LeftPadded  = padMatches(r16Left, 2);
+  const r16RightPadded = padMatches(r16Right, 2);
+  const qfLeftPadded   = padMatches(qfLeft, 2);
+  const qfRightPadded  = padMatches(qfRight, 2);
+
+  // Build bracket HTML
+  let html = `
+    <div class="bracket-wrapper">
+      <div class="bracket-grid">
+        <!-- Left side: R16 → QF → SF -->
+        <div class="bracket-column bracket-col-r16-left">
+          <div class="bracket-col-label">R16</div>
+          ${r16LeftPadded.map(m => renderBracketMatch(m, false)).join('')}
+        </div>
+        <div class="bracket-column bracket-col-qf-left">
+          <div class="bracket-col-label">QF</div>
+          ${qfLeftPadded.map(m => renderBracketMatch(m, false)).join('')}
+        </div>
+        <div class="bracket-column bracket-col-sf-left">
+          <div class="bracket-col-label">SF</div>
+          ${renderBracketMatch(sfLeft, false)}
+        </div>
+
+        <!-- Center: Final + Trophy -->
+        <div class="bracket-column bracket-col-final">
+          <div class="bracket-col-label">FINAL</div>
+          <div class="bracket-trophy">🏆</div>
+          ${renderBracketMatch(finalMatch, true)}
+        </div>
+
+        <!-- Right side: SF → QF → R16 (mirrored) -->
+        <div class="bracket-column bracket-col-sf-right">
+          <div class="bracket-col-label">SF</div>
+          ${renderBracketMatch(sfRight, false)}
+        </div>
+        <div class="bracket-column bracket-col-qf-right">
+          <div class="bracket-col-label">QF</div>
+          ${qfRightPadded.map(m => renderBracketMatch(m, false)).join('')}
+        </div>
+        <div class="bracket-column bracket-col-r16-right">
+          <div class="bracket-col-label">R16</div>
+          ${r16RightPadded.map(m => renderBracketMatch(m, false)).join('')}
+        </div>
+      </div>
+
+      <!-- Bye teams info for R16 -->
+      ${r16Data && qfData ? (() => {
+        const r16PlayerIds = new Set(r16Matches.flatMap(m => [m.home.id, m.away.id]));
+        const byeTeams = (leagueData.teams || []).filter(t => !r16PlayerIds.has(t.id));
+        if (byeTeams.length > 0) {
+          return `
+            <div class="bracket-bye-info">
+              <span class="bracket-bye-label">R16 Byes (auto-qualified to QF):</span>
+              <div class="bracket-bye-teams">
+                ${byeTeams.map(t => {
+                  const logoSrc = clubLogos[t.club];
+                  const colors = clubColors[t.club] || { bg: '#333', text: '#fff' };
+                  return `
+                    <div class="bracket-bye-team">
+                      <div class="bracket-bye-logo" style="${!logoSrc ? `background: ${colors.bg}; color: ${colors.text};` : ''}">
+                        ${logoSrc ? `<img src="${logoSrc}" alt="${t.club}">` : t.club.substring(0,3).toUpperCase()}
+                      </div>
+                      <span>${t.player}</span>
+                    </div>
+                  `;
+                }).join('')}
+              </div>
+            </div>
+          `;
+        }
+        return '';
+      })() : ''}
+    </div>
+  `;
+
   container.innerHTML = html;
 }
+
 
 // ── CHAMPIONS CUP RENDERING ───────────────────────────────────
 function renderChampionsCup() {
@@ -2733,147 +2824,226 @@ function renderChampionsCup() {
     return;
   }
 
-  // We have playoff fixtures! Let's render the playoffs bracket.
   const semi1Data = leagueData.playoffFixtures.find(f => f.stage === 'champions_semi_1');
   const semi2Data = leagueData.playoffFixtures.find(f => f.stage === 'champions_semi_2');
   const finalData = leagueData.playoffFixtures.find(f => f.stage === 'champions_final');
 
-  let html = `<div class="playoffs-bracket">`;
+  // Build tie data for each semi-final
+  const buildTieData = (teamAId, teamBId, title) => {
+    if (!semi1Data || !semi2Data) return null;
+    const leg1 = semi1Data.matches.find(m => (m.home.id === teamAId && m.away.id === teamBId) || (m.home.id === teamBId && m.away.id === teamAId));
+    const leg2 = semi2Data.matches.find(m => (m.home.id === teamAId && m.away.id === teamBId) || (m.home.id === teamBId && m.away.id === teamAId));
+    if (!leg1 || !leg2) return null;
 
-  // Render Semi-finals
-  if (semi1Data && semi2Data) {
-    html += `
-      <div class="playoffs-section-title">⚔️ Semi-finals (2 Legs)</div>
-      <div class="playoffs-semis-container">
-    `;
+    const teamA = leg2.home.id === teamAId ? leg2.home : leg2.away;
+    const teamB = leg2.home.id === teamBId ? leg2.home : leg2.away;
 
-    // Tie 1: 1st vs 4th. In semi2Data, the home team is the 1st.
-    const firstId = semi2Data.matches[0].home.id;
-    const fourthId = semi2Data.matches[0].away.id;
+    const scoreA1 = leg1.home.id === teamAId ? leg1.homeScore : leg1.awayScore;
+    const scoreB1 = leg1.home.id === teamBId ? leg1.homeScore : leg1.awayScore;
+    const scoreA2 = leg2.home.id === teamAId ? leg2.homeScore : leg2.awayScore;
+    const scoreB2 = leg2.home.id === teamBId ? leg2.homeScore : leg2.awayScore;
 
-    // Tie 2: 2nd vs 3rd. In semi2Data, the home team is the 2nd.
-    const secondId = semi2Data.matches[1].home.id;
-    const thirdId = semi2Data.matches[1].away.id;
+    const played1 = leg1.status === 'completed';
+    const played2 = leg2.status === 'completed';
+    const totalA = (scoreA1 || 0) + (scoreA2 || 0);
+    const totalB = (scoreB1 || 0) + (scoreB2 || 0);
 
-    const renderTie = (teamAId, teamBId, title) => {
-      // Find matches
-      const leg1Match = semi1Data.matches.find(m => (m.home.id === teamAId && m.away.id === teamBId) || (m.home.id === teamBId && m.away.id === teamAId));
-      const leg2Match = semi2Data.matches.find(m => (m.home.id === teamAId && m.away.id === teamBId) || (m.home.id === teamBId && m.away.id === teamAId));
-
-      const teamA = leg2Match.home.id === teamAId ? leg2Match.home : leg2Match.away;
-      const teamB = leg2Match.home.id === teamBId ? leg2Match.home : leg2Match.away;
-
-      let scoreA1 = leg1Match.home.id === teamAId ? leg1Match.homeScore : leg1Match.awayScore;
-      let scoreB1 = leg1Match.home.id === teamBId ? leg1Match.homeScore : leg1Match.awayScore;
-
-      let scoreA2 = leg2Match.home.id === teamAId ? leg2Match.homeScore : leg2Match.awayScore;
-      let scoreB2 = leg2Match.home.id === teamBId ? leg2Match.homeScore : leg2Match.awayScore;
-
-      const played1 = leg1Match.status === 'completed';
-      const played2 = leg2Match.status === 'completed';
-
-      let aggScoreHTML = "—";
-      let ggWinnerHTML = "";
-
-      if (played1 || played2) {
-        const totalA = (scoreA1 || 0) + (scoreA2 || 0);
-        const totalB = (scoreB1 || 0) + (scoreB2 || 0);
-        aggScoreHTML = `${totalA} - ${totalB}`;
-
-        if (played1 && played2 && totalA === totalB && leg2Match.goldenGoalWinnerId) {
-          const ggWinnerName = leg2Match.goldenGoalWinnerId === teamAId ? teamA.player : teamB.player;
-          ggWinnerHTML = `<div class="playoff-gg-badge">⚡ Golden Goal: <strong>${ggWinnerName}</strong></div>`;
-        }
-      }
-
-      return `
-        <div class="playoff-tie-card">
-          <div class="playoff-tie-header">${title}</div>
-          <div class="playoff-tie-body">
-            <div class="playoff-team-row">
-              <span class="playoff-player-name">${teamA.player}</span>
-              <span class="playoff-leg-scores">
-                <span class="leg-score" title="Leg 1">${played1 ? scoreA1 : '—'}</span>
-                <span class="leg-score" title="Leg 2">${played2 ? scoreA2 : '—'}</span>
-              </span>
-            </div>
-            <div class="playoff-team-row">
-              <span class="playoff-player-name">${teamB.player}</span>
-              <span class="playoff-leg-scores">
-                <span class="leg-score" title="Leg 1">${played1 ? scoreB1 : '—'}</span>
-                <span class="leg-score" title="Leg 2">${played2 ? scoreB2 : '—'}</span>
-              </span>
-            </div>
-            <div class="playoff-agg-row">
-              <span>Aggregate:</span>
-              <strong class="playoff-agg-val">${aggScoreHTML}</strong>
-            </div>
-            ${ggWinnerHTML}
-          </div>
-        </div>
-      `;
-    };
-
-    html += renderTie(firstId, fourthId, "Semi-final 1 (1st vs 4th)");
-    html += renderTie(secondId, thirdId, "Semi-final 2 (2nd vs 3rd)");
-    html += `</div>`;
-  }
-
-  // Render Final
-  if (finalData && finalData.matches && finalData.matches.length > 0) {
-    const fm = finalData.matches[0];
-    const homeColors = clubColors[fm.home.club] || { bg: "#333", text: "#fff" };
-    const awayColors = clubColors[fm.away.club] || { bg: "#333", text: "#fff" };
-    const homeLogoSrc = clubLogos[fm.home.club];
-    const awayLogoSrc = clubLogos[fm.away.club];
-
-    let scoreHTML = `<div class="final-vs">VS</div>`;
-    let ggWinnerHTML = "";
-
-    if (fm.status === 'completed' && fm.homeScore !== null) {
-      scoreHTML = `
-        <div class="final-score-display">
-          <span class="${fm.homeScore > fm.awayScore ? 'winner' : 'loser'}">${fm.homeScore}</span>
-          <span class="separator">-</span>
-          <span class="${fm.awayScore > fm.homeScore ? 'winner' : 'loser'}">${fm.awayScore}</span>
-        </div>
-      `;
-      if (fm.homeScore === fm.awayScore && fm.goldenGoalWinnerId) {
-        const winnerName = fm.home.id === fm.goldenGoalWinnerId ? fm.home.player : fm.away.player;
-        ggWinnerHTML = `<div class="playoff-gg-badge">⚡ Golden Goal: <strong>${winnerName}</strong></div>`;
+    let winnerId = null;
+    let ggWinnerName = null;
+    if (played1 && played2) {
+      if (totalA > totalB) winnerId = teamAId;
+      else if (totalB > totalA) winnerId = teamBId;
+      else if (leg2.goldenGoalWinnerId) {
+        winnerId = leg2.goldenGoalWinnerId;
+        ggWinnerName = winnerId === teamAId ? teamA.player : teamB.player;
       }
     }
 
-    html += `
-      <div class="playoffs-section-title mt-6">🏆 Champions Cup Final</div>
-      <div class="playoffs-final-wrapper">
-        <div class="champions-final-card ${fm.status === 'completed' ? 'completed' : ''}">
-          <div class="final-team home">
-            <div class="final-logo" style="${!homeLogoSrc ? `background: ${homeColors.bg}; color: ${homeColors.text};` : ''}">
-              ${homeLogoSrc ? `<img src="${homeLogoSrc}" alt="${fm.home.club}">` : fm.home.club.substring(0,2).toUpperCase()}
+    return { teamA, teamB, scoreA1, scoreB1, scoreA2, scoreB2, played1, played2, totalA, totalB, winnerId, ggWinnerName, title };
+  };
+
+  // Render a champions tie card (semi-final with 2 legs)
+  const renderChampionsTie = (tie) => {
+    if (!tie) {
+      return `
+        <div class="bracket-match bracket-match-tbd">
+          <div class="bracket-team bracket-team-tbd">
+            <div class="bracket-team-logo">?</div>
+            <span class="bracket-team-name">TBD</span>
+            <span class="bracket-team-score">—</span>
+          </div>
+          <div class="bracket-team-divider"></div>
+          <div class="bracket-team bracket-team-tbd">
+            <div class="bracket-team-logo">?</div>
+            <span class="bracket-team-name">TBD</span>
+            <span class="bracket-team-score">—</span>
+          </div>
+        </div>
+      `;
+    }
+
+    const { teamA, teamB, scoreA1, scoreB1, scoreA2, scoreB2, played1, played2, totalA, totalB, winnerId, ggWinnerName, title } = tie;
+    const completed = played1 && played2;
+
+    const logoA = clubLogos[teamA.club];
+    const logoB = clubLogos[teamB.club];
+    const colorsA = clubColors[teamA.club] || { bg: '#333', text: '#fff' };
+    const colorsB = clubColors[teamB.club] || { bg: '#333', text: '#fff' };
+
+    const teamAWon = winnerId === teamA.id;
+    const teamBWon = winnerId === teamB.id;
+
+    let ggBadge = '';
+    if (ggWinnerName) {
+      ggBadge = `<div class="bracket-gg-badge">⚡ Golden Goal: <strong>${ggWinnerName}</strong></div>`;
+    }
+
+    return `
+      <div class="champions-tie-card ${completed ? 'completed' : ''}">
+        <div class="champions-tie-header">${title}</div>
+        <div class="champions-tie-body">
+          <div class="champions-tie-team ${completed ? (teamAWon ? 'winner' : 'loser') : ''}">
+            <div class="bracket-team-logo" style="${!logoA ? `background: ${colorsA.bg}; color: ${colorsA.text};` : ''}">
+              ${logoA ? `<img src="${logoA}" alt="${teamA.club}">` : teamA.club.substring(0,3).toUpperCase()}
             </div>
-            <span class="final-player-name">${fm.home.player}</span>
-            <span class="final-club-name">${fm.home.club}</span>
-          </div>
-          <div class="final-score-area">
-            ${scoreHTML}
-            ${ggWinnerHTML}
-          </div>
-          <div class="final-team away">
-            <div class="final-logo" style="${!awayLogoSrc ? `background: ${awayColors.bg}; color: ${awayColors.text};` : ''}">
-              ${awayLogoSrc ? `<img src="${awayLogoSrc}" alt="${fm.away.club}">` : fm.away.club.substring(0,2).toUpperCase()}
+            <span class="bracket-team-name">${teamA.player}</span>
+            <div class="champions-leg-scores">
+              <span class="champions-leg" title="Leg 1">${played1 ? scoreA1 : '—'}</span>
+              <span class="champions-leg" title="Leg 2">${played2 ? scoreA2 : '—'}</span>
             </div>
-            <span class="final-player-name">${fm.away.player}</span>
-            <span class="final-club-name">${fm.away.club}</span>
+            <span class="champions-agg">${played1 || played2 ? totalA : '—'}</span>
           </div>
+          <div class="bracket-team-divider"></div>
+          <div class="champions-tie-team ${completed ? (teamBWon ? 'winner' : 'loser') : ''}">
+            <div class="bracket-team-logo" style="${!logoB ? `background: ${colorsB.bg}; color: ${colorsB.text};` : ''}">
+              ${logoB ? `<img src="${logoB}" alt="${teamB.club}">` : teamB.club.substring(0,3).toUpperCase()}
+            </div>
+            <span class="bracket-team-name">${teamB.player}</span>
+            <div class="champions-leg-scores">
+              <span class="champions-leg" title="Leg 1">${played1 ? scoreB1 : '—'}</span>
+              <span class="champions-leg" title="Leg 2">${played2 ? scoreB2 : '—'}</span>
+            </div>
+            <span class="champions-agg">${played1 || played2 ? totalB : '—'}</span>
+          </div>
+          ${ggBadge}
+        </div>
+        <div class="champions-tie-footer">
+          <span>L1</span><span>L2</span><span>AGG</span>
         </div>
       </div>
     `;
+  };
+
+  // Render champions final match (2 legs)
+  const renderChampionsFinal = () => {
+    if (!finalData || !finalData.matches || finalData.matches.length === 0) {
+      return `
+        <div class="bracket-match bracket-match-tbd bracket-match-final">
+          <div class="bracket-team bracket-team-tbd">
+            <div class="bracket-team-logo">?</div>
+            <span class="bracket-team-name">TBD</span>
+            <span class="bracket-team-score">—</span>
+          </div>
+          <div class="bracket-team-divider"></div>
+          <div class="bracket-team bracket-team-tbd">
+            <div class="bracket-team-logo">?</div>
+            <span class="bracket-team-name">TBD</span>
+            <span class="bracket-team-score">—</span>
+          </div>
+        </div>
+      `;
+    }
+
+    // Champions final is also 2-legged
+    const finalMatches = finalData.matches;
+    if (finalMatches.length >= 2) {
+      const leg1 = finalMatches[0];
+      const leg2 = finalMatches[1];
+      const teamAId = leg2.home.id;
+      const teamBId = leg2.away.id;
+      const tie = buildTieData(teamAId, teamBId, '🏆 Champions Cup Final');
+      if (tie) {
+        return renderChampionsTie(tie);
+      }
+    }
+
+    // Fallback for single-match final
+    const fm = finalMatches[0];
+    const completed = fm.status === 'completed';
+    const homeLogoSrc = clubLogos[fm.home.club];
+    const awayLogoSrc = clubLogos[fm.away.club];
+    const homeColors = clubColors[fm.home.club] || { bg: '#333', text: '#fff' };
+    const awayColors = clubColors[fm.away.club] || { bg: '#333', text: '#fff' };
+    const homeWon = completed && fm.homeScore > fm.awayScore;
+    const awayWon = completed && fm.awayScore > fm.homeScore;
+
+    let ggBadge = '';
+    if (completed && fm.homeScore === fm.awayScore && fm.goldenGoalWinnerId) {
+      const ggName = fm.goldenGoalWinnerId === fm.home.id ? fm.home.player : fm.away.player;
+      ggBadge = `<div class="bracket-gg-badge">⚡ Golden Goal: <strong>${ggName}</strong></div>`;
+    }
+
+    return `
+      <div class="bracket-match bracket-match-final ${completed ? 'completed' : ''}">
+        <div class="bracket-team ${completed ? (homeWon ? 'winner' : 'loser') : ''}">
+          <div class="bracket-team-logo" style="${!homeLogoSrc ? `background: ${homeColors.bg}; color: ${homeColors.text};` : ''}">
+            ${homeLogoSrc ? `<img src="${homeLogoSrc}" alt="${fm.home.club}">` : fm.home.club.substring(0,3).toUpperCase()}
+          </div>
+          <span class="bracket-team-name">${fm.home.player}</span>
+          <span class="bracket-team-score">${completed ? fm.homeScore : '—'}</span>
+        </div>
+        <div class="bracket-team-divider"></div>
+        <div class="bracket-team ${completed ? (awayWon ? 'winner' : 'loser') : ''}">
+          <div class="bracket-team-logo" style="${!awayLogoSrc ? `background: ${awayColors.bg}; color: ${awayColors.text};` : ''}">
+            ${awayLogoSrc ? `<img src="${awayLogoSrc}" alt="${fm.away.club}">` : fm.away.club.substring(0,3).toUpperCase()}
+          </div>
+          <span class="bracket-team-name">${fm.away.player}</span>
+          <span class="bracket-team-score">${completed ? fm.awayScore : '—'}</span>
+        </div>
+        ${ggBadge}
+      </div>
+    `;
+  };
+
+  // Build semi-final ties
+  let tie1 = null, tie2 = null;
+  if (semi1Data && semi2Data) {
+    const firstId = semi2Data.matches[0].home.id;
+    const fourthId = semi2Data.matches[0].away.id;
+    const secondId = semi2Data.matches[1].home.id;
+    const thirdId = semi2Data.matches[1].away.id;
+    tie1 = buildTieData(firstId, fourthId, 'Semi-final 1 · 1st vs 4th');
+    tie2 = buildTieData(secondId, thirdId, 'Semi-final 2 · 2nd vs 3rd');
   }
 
-  html += `</div>`;
+  const html = `
+    <div class="bracket-wrapper champions-bracket-wrapper">
+      <div class="champions-bracket-grid">
+        <!-- Left: Semi-final 1 -->
+        <div class="bracket-column champions-col-sf-left">
+          <div class="bracket-col-label">SEMI-FINAL</div>
+          ${renderChampionsTie(tie1)}
+        </div>
+
+        <!-- Center: Final + Trophy -->
+        <div class="bracket-column champions-col-final">
+          <div class="bracket-col-label">FINAL</div>
+          <div class="bracket-trophy">🏆</div>
+          ${renderChampionsFinal()}
+        </div>
+
+        <!-- Right: Semi-final 2 -->
+        <div class="bracket-column champions-col-sf-right">
+          <div class="bracket-col-label">SEMI-FINAL</div>
+          ${renderChampionsTie(tie2)}
+        </div>
+      </div>
+    </div>
+  `;
+
   container.innerHTML = html;
 }
+
 
 // ── Player Profiles Modal ─────────────────────────────────────
 async function openPlayerProfile(playerId) {
