@@ -84,6 +84,7 @@ CREATE POLICY "Public read seasons" ON seasons FOR SELECT USING (true);
 -- Allow all operations for service role (used by API)
 CREATE POLICY "Service insert matches" ON matches FOR INSERT WITH CHECK (true);
 CREATE POLICY "Service update matches" ON matches FOR UPDATE USING (true);
+CREATE POLICY "Service delete matches" ON matches FOR DELETE USING (true);
 CREATE POLICY "Service insert teams" ON teams FOR INSERT WITH CHECK (true);
 CREATE POLICY "Service insert seasons" ON seasons FOR INSERT WITH CHECK (true);
 CREATE POLICY "Service update seasons" ON seasons FOR UPDATE USING (true);

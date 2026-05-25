@@ -295,6 +295,8 @@
       font-family: var(--font-body);
       font-size: 0.8rem;
       transition: all 0.2s ease;
+      resize: vertical;
+      min-height: 80px;
     }
     .admin-headline-input:focus {
       outline: none;
@@ -989,13 +991,13 @@
       </button>
     </div>
 
-    <!-- Banter Board / Headline of the Matchday -->
+    <!-- Banter Board / Headlines of the Matchday -->
     <div class="admin-headline-banner">
       <div class="admin-headline-title">📣 Banter Board</div>
-      <div class="admin-headline-subtitle">Headline of the Matchday (displays as an animated news ticker on the homepage)</div>
+      <div class="admin-headline-subtitle">Manager Headlines (Enter one headline per line. Displays as an animated news ticker on the homepage)</div>
       <div class="admin-headline-row">
-        <input type="text" id="admin-headline-input" class="admin-headline-input" placeholder="e.g. BTCDOCTOR claims MrLbc is 'past his prime' ahead of tonight's derby!" maxlength="150" />
-        <button class="btn-save-headline" id="btn-save-headline" onclick="saveHeadline()">Update Headline</button>
+        <textarea id="admin-headline-input" class="admin-headline-input" placeholder="Enter one headline per line. e.g.&#10;BTCDOCTOR claims MrLbc is 'past his prime' ahead of tonight's derby!&#10;KONJI_WARLORD clinches top-4 finish!" rows="3"></textarea>
+        <button class="btn-save-headline" id="btn-save-headline" onclick="saveHeadline()">Update Headlines</button>
       </div>
     </div>
 

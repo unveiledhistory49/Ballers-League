@@ -2019,34 +2019,50 @@ function renderNewsMarquee() {
 
   container.style.display = 'flex';
 
-  let formattedHeadline = headline.trim();
-  // Escape HTML but allow <strong> tags
-  formattedHeadline = formattedHeadline
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#039;");
+  // Split by newlines to support multiple headlines
+  const headlineLines = headline.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+  if (headlineLines.length === 0) {
+    container.style.display = 'none';
+    return;
+  }
 
-  // Restore <strong> and </strong> if they were entered
-  formattedHeadline = formattedHeadline
-    .replace(/&lt;strong&gt;/gi, '<strong>')
-    .replace(/&lt;\/strong&gt;/gi, '</strong>');
+  // Sorted teams for player-name bolding
+  const sortedTeams = (leagueData.teams && leagueData.teams.length > 0)
+    ? [...leagueData.teams].sort((a, b) => b.player.length - a.player.length)
+    : [];
 
-  // Dynamically wrap player/club names in <strong> if they exist in teams
-  if (leagueData.teams && leagueData.teams.length > 0) {
-    const sortedTeams = [...leagueData.teams].sort((a, b) => b.player.length - a.player.length);
+  // Format each headline individually
+  const formattedHeadlines = headlineLines.map(line => {
+    // Escape HTML
+    let formatted = line
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#039;");
+
+    // Restore <strong> and </strong> if they were entered
+    formatted = formatted
+      .replace(/&lt;strong&gt;/gi, '<strong>')
+      .replace(/&lt;\/strong&gt;/gi, '</strong>');
+
+    // Dynamically wrap player/club names in <strong>
     sortedTeams.forEach(t => {
       if (!t.player) return;
       const playerRegex = new RegExp(`\\b(${t.player})\\b`, 'gi');
-      formattedHeadline = formattedHeadline.replace(playerRegex, (match) => {
+      formatted = formatted.replace(playerRegex, (match) => {
         return `<strong>${match}</strong>`;
       });
     });
-  }
 
-  // Duplicate the text content so it scrolls seamlessly without leaving a giant empty gap
-  marqueeText.innerHTML = `${formattedHeadline} &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; · &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ${formattedHeadline} &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; · &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ${formattedHeadline}`;
+    return formatted;
+  });
+
+  const separator = ' &nbsp;&nbsp;&nbsp;&nbsp; · &nbsp;&nbsp;&nbsp;&nbsp; ';
+  // Join all headlines with dot separators to form one continuous ticker string
+  const singlePass = formattedHeadlines.join(separator);
+  // Duplicate the full set for seamless infinite scroll
+  marqueeText.innerHTML = `${singlePass}${separator}${singlePass}${separator}${singlePass}`;
 }
 
 
