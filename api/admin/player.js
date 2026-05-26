@@ -2,17 +2,26 @@ const { getSupabase } = require('../_lib/supabase');
 const { generateFixtures } = require('../../lib/generate-fixtures');
 
 module.exports = async function handler(req, res) {
-  // 1. Verify request method
-  if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' });
-  }
-
-  // 2. Verify admin key
+  // 1. Verify admin key
   const adminKey = req.headers['x-admin-key'];
   if (!adminKey || adminKey !== process.env.ADMIN_KEY) {
     return res.status(401).json({ error: 'Unauthorized. Invalid admin key.' });
   }
 
+  const supabase = getSupabase();
+
+  if (req.method === 'POST') {
+    return handleCreate(req, res, supabase);
+  } else if (req.method === 'PUT') {
+    return handleUpdate(req, res, supabase);
+  } else if (req.method === 'DELETE') {
+    return handleDelete(req, res, supabase);
+  } else {
+    return res.status(405).json({ error: 'Method not allowed' });
+  }
+};
+
+async function handleCreate(req, res, supabase) {
   try {
     const { player, club, photoUrl } = req.body;
 
@@ -20,9 +29,7 @@ module.exports = async function handler(req, res) {
       return res.status(400).json({ error: 'Missing username (player) or club name.' });
     }
 
-    const supabase = getSupabase();
-
-    // 3. Get active season
+    // Get active season
     const { data: seasons, error: seasonsErr } = await supabase
       .from('seasons')
       .select('*')
@@ -35,7 +42,7 @@ module.exports = async function handler(req, res) {
       return res.status(400).json({ error: 'No active season found' });
     }
 
-    // 4. Check if any matches have been played in the active season
+    // Check if any matches have been played in the active season
     const { data: matches, error: matchesErr } = await supabase
       .from('matches')
       .select('status')
@@ -50,7 +57,7 @@ module.exports = async function handler(req, res) {
       });
     }
 
-    // 5. Fetch all teams to calculate new unique ID
+    // Fetch all teams to calculate new unique ID
     const { data: teams, error: teamsErr } = await supabase
       .from('teams')
       .select('*')
@@ -61,12 +68,13 @@ module.exports = async function handler(req, res) {
     const maxId = teams.reduce((max, t) => t.id > max ? t.id : max, 0);
     const newTeamId = maxId + 1;
 
-    // 6. Insert new team row
+    // Insert new team row
     const newTeam = {
       id: newTeamId,
       player: player.trim(),
       club: club.trim(),
-      photo_url: photoUrl ? photoUrl.trim() : null
+      photo_url: photoUrl ? photoUrl.trim() : null,
+      is_active: true
     };
 
     const { error: insertTeamErr } = await supabase
@@ -75,13 +83,13 @@ module.exports = async function handler(req, res) {
 
     if (insertTeamErr) throw insertTeamErr;
 
-    // 7. Combine existing teams with the new one
-    const allTeams = [...teams, newTeam];
+    // Combine active existing teams with the new one
+    const activeTeams = [...teams.filter(t => t.is_active !== false), newTeam];
 
-    // 8. Generate new fixtures for the updated list of teams
-    const fixtures = generateFixtures(allTeams);
+    // Generate new fixtures for the active list of teams
+    const fixtures = generateFixtures(activeTeams);
 
-    // 9. Delete old active season matches
+    // Delete old active season matches
     const { error: deleteMatchesErr } = await supabase
       .from('matches')
       .delete()
@@ -89,7 +97,7 @@ module.exports = async function handler(req, res) {
 
     if (deleteMatchesErr) throw deleteMatchesErr;
 
-    // 10. Flatten and insert all new matches
+    // Flatten and insert all new matches
     const allMatches = [];
     for (const md of fixtures) {
       for (const m of md.matches) {
@@ -127,4 +135,192 @@ module.exports = async function handler(req, res) {
     console.error('Add player API error:', err);
     res.status(500).json({ error: 'Failed to add player: ' + err.message });
   }
-};
+}
+
+async function handleUpdate(req, res, supabase) {
+  try {
+    const { id, player, club, photoUrl, isActive } = req.body;
+    if (!id) return res.status(400).json({ error: 'Missing team id.' });
+
+    const updateData = {};
+    if (player) updateData.player = player.trim();
+    if (club) updateData.club = club.trim();
+    if (photoUrl !== undefined) updateData.photo_url = photoUrl ? photoUrl.trim() : null;
+    if (isActive !== undefined) updateData.is_active = !!isActive;
+
+    const { data: updatedTeam, error: teamErr } = await supabase
+      .from('teams')
+      .update(updateData)
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (teamErr) throw teamErr;
+
+    // Get active season to check if we can regenerate fixtures (only if matches haven't started)
+    const { data: seasons, error: seasonsErr } = await supabase
+      .from('seasons')
+      .select('*')
+      .order('id');
+
+    if (seasonsErr) throw seasonsErr;
+
+    const activeSeason = seasons.find(s => s.status === 'active');
+    if (activeSeason && isActive !== undefined) {
+      const { data: matches, error: matchesErr } = await supabase
+        .from('matches')
+        .select('status')
+        .eq('season_id', activeSeason.id);
+
+      if (matchesErr) throw matchesErr;
+
+      const seasonStarted = matches && matches.some(m => m.status !== 'upcoming');
+      if (!seasonStarted) {
+        // Fetch all teams that are active
+        const { data: teams, error: teamsErr } = await supabase
+          .from('teams')
+          .select('*')
+          .eq('is_active', true)
+          .order('id');
+
+        if (teamsErr) throw teamsErr;
+
+        const fixtures = generateFixtures(teams);
+
+        // Delete old active season matches
+        const { error: deleteMatchesErr } = await supabase
+          .from('matches')
+          .delete()
+          .eq('season_id', activeSeason.id);
+
+        if (deleteMatchesErr) throw deleteMatchesErr;
+
+        const allMatches = [];
+        for (const md of fixtures) {
+          for (const m of md.matches) {
+            allMatches.push({
+              season_id: activeSeason.id,
+              matchday: md.matchday,
+              home_id: m.home.id,
+              home_player: m.home.player,
+              home_club: m.home.club,
+              away_id: m.away.id,
+              away_player: m.away.player,
+              away_club: m.away.club,
+              home_score: null,
+              away_score: null,
+              status: 'upcoming',
+            });
+          }
+        }
+
+        const { error: insertMatchesErr } = await supabase
+          .from('matches')
+          .insert(allMatches);
+
+        if (insertMatchesErr) throw insertMatchesErr;
+      }
+    }
+
+    res.status(200).json({ success: true, message: 'Player details updated successfully.', team: updatedTeam });
+  } catch (err) {
+    console.error('Edit player API error:', err);
+    res.status(500).json({ error: 'Failed to edit player: ' + err.message });
+  }
+}
+
+async function handleDelete(req, res, supabase) {
+  try {
+    const { id } = req.body;
+    if (!id) return res.status(400).json({ error: 'Missing team id.' });
+
+    // Find active season
+    const { data: seasons, error: seasonsErr } = await supabase
+      .from('seasons')
+      .select('*')
+      .order('id');
+
+    if (seasonsErr) throw seasonsErr;
+
+    const activeSeason = seasons.find(s => s.status === 'active');
+    let seasonStarted = false;
+
+    if (activeSeason) {
+      const { data: matches, error: matchesErr } = await supabase
+        .from('matches')
+        .select('status')
+        .eq('season_id', activeSeason.id);
+
+      if (matchesErr) throw matchesErr;
+      seasonStarted = matches && matches.some(m => m.status !== 'upcoming');
+    }
+
+    if (!seasonStarted) {
+      // Hard delete from team list if season hasn't started
+      const { error: deleteTeamErr } = await supabase
+        .from('teams')
+        .delete()
+        .eq('id', id);
+
+      if (deleteTeamErr) throw deleteTeamErr;
+
+      if (activeSeason) {
+        const { data: teams, error: teamsErr } = await supabase
+          .from('teams')
+          .select('*')
+          .eq('is_active', true)
+          .order('id');
+
+        if (teamsErr) throw teamsErr;
+
+        const fixtures = generateFixtures(teams);
+
+        const { error: deleteMatchesErr } = await supabase
+          .from('matches')
+          .delete()
+          .eq('season_id', activeSeason.id);
+
+        if (deleteMatchesErr) throw deleteMatchesErr;
+
+        const allMatches = [];
+        for (const md of fixtures) {
+          for (const m of md.matches) {
+            allMatches.push({
+              season_id: activeSeason.id,
+              matchday: md.matchday,
+              home_id: m.home.id,
+              home_player: m.home.player,
+              home_club: m.home.club,
+              away_id: m.away.id,
+              away_player: m.away.player,
+              away_club: m.away.club,
+              home_score: null,
+              away_score: null,
+              status: 'upcoming',
+            });
+          }
+        }
+
+        const { error: insertMatchesErr } = await supabase
+          .from('matches')
+          .insert(allMatches);
+
+        if (insertMatchesErr) throw insertMatchesErr;
+      }
+      res.status(200).json({ success: true, message: `Player deleted and fixtures re-generated.` });
+    } else {
+      // Archive if season has started
+      const { error: archiveErr } = await supabase
+        .from('teams')
+        .update({ is_active: false })
+        .eq('id', id);
+
+      if (archiveErr) throw archiveErr;
+
+      res.status(200).json({ success: true, message: `Player archived (deactivated for future seasons).` });
+    }
+  } catch (err) {
+    console.error('Delete player API error:', err);
+    res.status(500).json({ error: 'Failed to delete/archive player: ' + err.message });
+  }
+}

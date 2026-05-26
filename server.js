@@ -42,7 +42,17 @@ function loadDB() {
     const fixtureData = JSON.parse(fs.readFileSync(FIXTURES_PATH, 'utf-8'));
     const db = {
       league: fixtureData.league,
-      teams: fixtureData.teams,
+      teams: fixtureData.teams.map(t => ({ ...t, isActive: true })),
+      clubs: [
+        { name: "Man U",       logoUrl: "logos/england_manchester-united_256x256.football-logos.cc.png", primaryColor: "#da020e", textColor: "#fff", shortName: "MU" },
+        { name: "Tottenham",   logoUrl: "logos/england_tottenham_256x256.football-logos.cc.png",         primaryColor: "#132257", textColor: "#fff", shortName: "TOT" },
+        { name: "Liverpool",   logoUrl: "logos/england_liverpool_256x256.football-logos.cc.png",         primaryColor: "#c8102e", textColor: "#fff", shortName: "LIV" },
+        { name: "Barcelona",   logoUrl: "logos/spain_barcelona_256x256.football-logos.cc.png",           primaryColor: "#a50044", textColor: "#fff", shortName: "BAR" },
+        { name: "Man City",    logoUrl: "logos/england_manchester-city_256x256.football-logos.cc.png",    primaryColor: "#6cabdd", textColor: "#1c2c5b", shortName: "MCI" },
+        { name: "Arsenal FC",  logoUrl: "logos/england_arsenal_256x256.football-logos.cc.png",            primaryColor: "#ef0107", textColor: "#fff", shortName: "ARS" },
+        { name: "Bayern",      logoUrl: "logos/germany_bayern-munchen_256x256.football-logos.cc.png",    primaryColor: "#dc052d", textColor: "#fff", shortName: "BAY" },
+        { name: "PSG",         logoUrl: "logos/france_paris-saint-germain_256x256.football-logos.cc.png", primaryColor: "#004170", textColor: "#fff", shortName: "PSG" }
+      ],
       seasons: [
         {
           id: 1,
@@ -61,7 +71,17 @@ function loadDB() {
   if (db.fixtures && !db.seasons) {
     const migrated = {
       league: db.league,
-      teams: db.teams,
+      teams: db.teams.map(t => ({ ...t, isActive: true })),
+      clubs: [
+        { name: "Man U",       logoUrl: "logos/england_manchester-united_256x256.football-logos.cc.png", primaryColor: "#da020e", textColor: "#fff", shortName: "MU" },
+        { name: "Tottenham",   logoUrl: "logos/england_tottenham_256x256.football-logos.cc.png",         primaryColor: "#132257", textColor: "#fff", shortName: "TOT" },
+        { name: "Liverpool",   logoUrl: "logos/england_liverpool_256x256.football-logos.cc.png",         primaryColor: "#c8102e", textColor: "#fff", shortName: "LIV" },
+        { name: "Barcelona",   logoUrl: "logos/spain_barcelona_256x256.football-logos.cc.png",           primaryColor: "#a50044", textColor: "#fff", shortName: "BAR" },
+        { name: "Man City",    logoUrl: "logos/england_manchester-city_256x256.football-logos.cc.png",    primaryColor: "#6cabdd", textColor: "#1c2c5b", shortName: "MCI" },
+        { name: "Arsenal FC",  logoUrl: "logos/england_arsenal_256x256.football-logos.cc.png",            primaryColor: "#ef0107", textColor: "#fff", shortName: "ARS" },
+        { name: "Bayern",      logoUrl: "logos/germany_bayern-munchen_256x256.football-logos.cc.png",    primaryColor: "#dc052d", textColor: "#fff", shortName: "BAY" },
+        { name: "PSG",         logoUrl: "logos/france_paris-saint-germain_256x256.football-logos.cc.png", primaryColor: "#004170", textColor: "#fff", shortName: "PSG" }
+      ],
       seasons: [
         {
           id: 1,
@@ -73,6 +93,33 @@ function loadDB() {
     };
     saveDB(migrated);
     return migrated;
+  }
+
+  // Seed default clubs if missing
+  if (!db.clubs) {
+    db.clubs = [
+      { name: "Man U",       logoUrl: "logos/england_manchester-united_256x256.football-logos.cc.png", primaryColor: "#da020e", textColor: "#fff", shortName: "MU" },
+      { name: "Tottenham",   logoUrl: "logos/england_tottenham_256x256.football-logos.cc.png",         primaryColor: "#132257", textColor: "#fff", shortName: "TOT" },
+      { name: "Liverpool",   logoUrl: "logos/england_liverpool_256x256.football-logos.cc.png",         primaryColor: "#c8102e", textColor: "#fff", shortName: "LIV" },
+      { name: "Barcelona",   logoUrl: "logos/spain_barcelona_256x256.football-logos.cc.png",           primaryColor: "#a50044", textColor: "#fff", shortName: "BAR" },
+      { name: "Man City",    logoUrl: "logos/england_manchester-city_256x256.football-logos.cc.png",    primaryColor: "#6cabdd", textColor: "#1c2c5b", shortName: "MCI" },
+      { name: "Arsenal FC",  logoUrl: "logos/england_arsenal_256x256.football-logos.cc.png",            primaryColor: "#ef0107", textColor: "#fff", shortName: "ARS" },
+      { name: "Bayern",      logoUrl: "logos/germany_bayern-munchen_256x256.football-logos.cc.png",    primaryColor: "#dc052d", textColor: "#fff", shortName: "BAY" },
+      { name: "PSG",         logoUrl: "logos/france_paris-saint-germain_256x256.football-logos.cc.png", primaryColor: "#004170", textColor: "#fff", shortName: "PSG" }
+    ];
+    saveDB(db);
+  }
+
+  // Ensure teams have isActive flag
+  let updated = false;
+  if (db.teams) {
+    db.teams.forEach(t => {
+      if (t.isActive === undefined) {
+        t.isActive = true;
+        updated = true;
+      }
+    });
+    if (updated) saveDB(db);
   }
 
   return db;
@@ -123,6 +170,7 @@ app.get('/api/data', (req, res) => {
       seasonId: season.id,
       seasons: db.seasons.map(s => ({ id: s.id, name: s.name, status: s.status, headline: s.headline || null })),
       teams: db.teams,
+      clubs: db.clubs || [],
       fixtures: season.fixtures || [],
       cupFixtures: season.cupFixtures || [],
       playoffFixtures: season.playoffFixtures || [],
@@ -170,13 +218,15 @@ app.post('/api/admin/player', requireAdmin, (req, res) => {
       id: newTeamId,
       player: player.trim(),
       club: club.trim(),
-      photoUrl: photoUrl ? photoUrl.trim() : null
+      photoUrl: photoUrl ? photoUrl.trim() : null,
+      isActive: true
     };
 
     db.teams.push(newTeam);
 
     // Regenerate active season's fixtures
-    const newFixtures = generateFixtures(db.teams);
+    const activeTeams = db.teams.filter(t => t.isActive !== false);
+    const newFixtures = generateFixtures(activeTeams);
     activeSeason.fixtures = newFixtures;
 
     saveDB(db);
@@ -194,6 +244,155 @@ app.post('/api/admin/player', requireAdmin, (req, res) => {
   } catch (err) {
     console.error('Local add player error:', err);
     res.status(500).json({ error: 'Failed to add player: ' + err.message });
+  }
+});
+
+// ── PUT /api/admin/player — Update a player's details ─────────────────
+app.put('/api/admin/player', requireAdmin, (req, res) => {
+  try {
+    const { id, player, club, photoUrl, isActive } = req.body;
+    if (!id) return res.status(400).json({ error: 'Missing team id.' });
+
+    const db = loadDB();
+    const team = db.teams.find(t => t.id === parseInt(id, 10));
+    if (!team) return res.status(404).json({ error: 'Player/team not found.' });
+
+    if (player) team.player = player.trim();
+    if (club) team.club = club.trim();
+    if (photoUrl !== undefined) team.photoUrl = photoUrl ? photoUrl.trim() : null;
+    if (isActive !== undefined) team.isActive = !!isActive;
+
+    // If matches haven't started and team activation changed, regenerate fixtures
+    const activeSeason = getActiveSeason(db);
+    if (activeSeason) {
+      const seasonStarted = activeSeason.fixtures.some(md =>
+        md.matches.some(m => m.status !== 'upcoming')
+      );
+      if (!seasonStarted && isActive !== undefined) {
+        const activeTeams = db.teams.filter(t => t.isActive !== false);
+        activeSeason.fixtures = generateFixtures(activeTeams);
+      }
+    }
+
+    saveDB(db);
+    res.json({ success: true, message: 'Player details updated successfully.', team });
+  } catch (err) {
+    console.error('Local edit player error:', err);
+    res.status(500).json({ error: 'Failed to edit player: ' + err.message });
+  }
+});
+
+// ── DELETE /api/admin/player — Archive/Soft-delete a player ─────────────
+app.delete('/api/admin/player', requireAdmin, (req, res) => {
+  try {
+    const { id } = req.body;
+    if (!id) return res.status(400).json({ error: 'Missing team id.' });
+
+    const db = loadDB();
+    const team = db.teams.find(t => t.id === parseInt(id, 10));
+    if (!team) return res.status(404).json({ error: 'Player/team not found.' });
+
+    const activeSeason = getActiveSeason(db);
+    const seasonStarted = activeSeason ? activeSeason.fixtures.some(md =>
+      md.matches.some(m => m.status !== 'upcoming')
+    ) : false;
+
+    if (!seasonStarted) {
+      // Hard delete from team list if season hasn't started
+      db.teams = db.teams.filter(t => t.id !== team.id);
+      if (activeSeason) {
+        const activeTeams = db.teams.filter(t => t.isActive !== false);
+        activeSeason.fixtures = generateFixtures(activeTeams);
+      }
+      saveDB(db);
+      res.json({ success: true, message: `Player ${team.player} deleted and fixtures re-generated.` });
+    } else {
+      // Archive if season has started
+      team.isActive = false;
+      saveDB(db);
+      res.json({ success: true, message: `Player ${team.player} archived (deactivated for future seasons).` });
+    }
+  } catch (err) {
+    console.error('Local archive player error:', err);
+    res.status(500).json({ error: 'Failed to archive player: ' + err.message });
+  }
+});
+
+// ── POST /api/admin/club — Add a new club ──────────────────────────────
+app.post('/api/admin/club', requireAdmin, (req, res) => {
+  try {
+    const { name, logoUrl, primaryColor, textColor, shortName } = req.body;
+    if (!name || !logoUrl || !primaryColor || !textColor || !shortName) {
+      return res.status(400).json({ error: 'Missing required club details.' });
+    }
+
+    const db = loadDB();
+    if (!db.clubs) db.clubs = [];
+
+    if (db.clubs.some(c => c.name.toLowerCase() === name.trim().toLowerCase())) {
+      return res.status(400).json({ error: 'Club name already exists.' });
+    }
+
+    const newClub = {
+      name: name.trim(),
+      logoUrl: logoUrl.trim(),
+      primaryColor: primaryColor.trim(),
+      textColor: textColor.trim(),
+      shortName: shortName.trim().toUpperCase()
+    };
+
+    db.clubs.push(newClub);
+    saveDB(db);
+
+    res.json({ success: true, message: `Club ${name} added successfully.`, club: newClub });
+  } catch (err) {
+    console.error('Local add club error:', err);
+    res.status(500).json({ error: 'Failed to add club: ' + err.message });
+  }
+});
+
+// ── PUT /api/admin/club — Edit a club's details ─────────────────────────
+app.put('/api/admin/club', requireAdmin, (req, res) => {
+  try {
+    const { name, logoUrl, primaryColor, textColor, shortName } = req.body;
+    if (!name) return res.status(400).json({ error: 'Missing club name to identify target.' });
+
+    const db = loadDB();
+    const club = db.clubs.find(c => c.name.toLowerCase() === name.trim().toLowerCase());
+    if (!club) return res.status(404).json({ error: 'Club not found.' });
+
+    if (logoUrl) club.logoUrl = logoUrl.trim();
+    if (primaryColor) club.primaryColor = primaryColor.trim();
+    if (textColor) club.textColor = textColor.trim();
+    if (shortName) club.shortName = shortName.trim().toUpperCase();
+
+    saveDB(db);
+    res.json({ success: true, message: `Club ${name} updated successfully.`, club });
+  } catch (err) {
+    console.error('Local edit club error:', err);
+    res.status(500).json({ error: 'Failed to edit club: ' + err.message });
+  }
+});
+
+// ── DELETE /api/admin/club — Delete a club ─────────────────────────────
+app.delete('/api/admin/club', requireAdmin, (req, res) => {
+  try {
+    const { name } = req.body;
+    if (!name) return res.status(400).json({ error: 'Missing club name.' });
+
+    const db = loadDB();
+    const inUse = db.teams.some(t => t.club.toLowerCase() === name.trim().toLowerCase());
+    if (inUse) {
+      return res.status(400).json({ error: 'Cannot delete club. It is currently in use by one or more players.' });
+    }
+
+    db.clubs = db.clubs.filter(c => c.name.toLowerCase() !== name.trim().toLowerCase());
+    saveDB(db);
+
+    res.json({ success: true, message: `Club ${name} deleted successfully.` });
+  } catch (err) {
+    console.error('Local delete club error:', err);
+    res.status(500).json({ error: 'Failed to delete club: ' + err.message });
   }
 });
 
@@ -419,6 +618,7 @@ app.post('/api/admin/cup/draw', requireAdmin, (req, res) => {
       }
     }
 
+    const activeTeams = db.teams.filter(t => t.isActive !== false);
     let drawTeams = [];
 
     const getMatchWinner = (m) => {
@@ -429,63 +629,90 @@ app.post('/api/admin/cup/draw', requireAdmin, (req, res) => {
     };
 
     if (round === 'cup_r16') {
-      const shuffled = shuffle(db.teams);
-      const playing = shuffled.slice(4); // 8 play, 4 byes
+      const N = activeTeams.length;
+      if (N <= 8) {
+        return res.status(400).json({ error: `League has ${N} active players. You should draw Quarter-finals directly.` });
+      }
+      const nextPower = Math.pow(2, Math.ceil(Math.log2(N)));
+      const numByes = nextPower - N;
+      const numPlay = N - numByes;
+
+      const shuffled = shuffle(activeTeams);
+      const byeTeams = shuffled.slice(0, numByes);
+      const playing = shuffled.slice(numByes);
       drawTeams = playing;
     } else if (round === 'cup_qf') {
       const r16Round = season.cupFixtures.find(f => f.stage === 'cup_r16');
-      if (!r16Round) return res.status(400).json({ error: 'Round of 16 has not been generated yet.' });
-      
-      const incomplete = r16Round.matches.some(m => m.status !== 'completed');
-      if (incomplete) return res.status(400).json({ error: 'Cannot draw Quarter-finals. Some Round of 16 matches are incomplete.' });
-
-      const winners = [];
-      for (const m of r16Round.matches) {
-        const w = getMatchWinner(m);
-        if (!w) {
-          return res.status(400).json({ error: `Match ${m.home.player} vs ${m.away.player} ended in a tie. Please specify a Golden Goal winner first.` });
+      if (!r16Round) {
+        if (activeTeams.length <= 8) {
+          drawTeams = activeTeams;
+        } else {
+          return res.status(400).json({ error: 'Round of 16 has not been generated yet.' });
         }
-        winners.push(w);
+      } else {
+        const incomplete = r16Round.matches.some(m => m.status !== 'completed');
+        if (incomplete) return res.status(400).json({ error: 'Cannot draw Quarter-finals. Some Round of 16 matches are incomplete.' });
+
+        const winners = [];
+        for (const m of r16Round.matches) {
+          const w = getMatchWinner(m);
+          if (!w) {
+            return res.status(400).json({ error: `Match ${m.home.player} vs ${m.away.player} ended in a tie. Please specify a Golden Goal winner first.` });
+          }
+          winners.push(w);
+        }
+
+        const playedIds = new Set(r16Round.matches.flatMap(m => [m.home.id, m.away.id]));
+        const byes = activeTeams.filter(t => !playedIds.has(t.id));
+
+        drawTeams = [...winners.map(id => activeTeams.find(t => t.id === id)), ...byes];
       }
-
-      const playedIds = new Set(r16Round.matches.flatMap(m => [m.home.id, m.away.id]));
-      const byes = db.teams.filter(t => !playedIds.has(t.id));
-
-      drawTeams = [...winners.map(id => db.teams.find(t => t.id === id)), ...byes];
     } else if (round === 'cup_sf') {
       const qfRound = season.cupFixtures.find(f => f.stage === 'cup_qf');
-      if (!qfRound) return res.status(400).json({ error: 'Quarter-finals have not been generated yet.' });
-      
-      const incomplete = qfRound.matches.some(m => m.status !== 'completed');
-      if (incomplete) return res.status(400).json({ error: 'Cannot draw Semi-finals. Some Quarter-final matches are incomplete.' });
-
-      const winners = [];
-      for (const m of qfRound.matches) {
-        const w = getMatchWinner(m);
-        if (!w) {
-          return res.status(400).json({ error: `Match ${m.home.player} vs ${m.away.player} ended in a tie. Please specify a Golden Goal winner first.` });
+      if (!qfRound) {
+        if (activeTeams.length <= 4) {
+          drawTeams = activeTeams;
+        } else {
+          return res.status(400).json({ error: 'Quarter-finals have not been generated yet.' });
         }
-        winners.push(w);
-      }
+      } else {
+        const incomplete = qfRound.matches.some(m => m.status !== 'completed');
+        if (incomplete) return res.status(400).json({ error: 'Cannot draw Semi-finals. Some Quarter-final matches are incomplete.' });
 
-      drawTeams = winners.map(id => db.teams.find(t => t.id === id));
+        const winners = [];
+        for (const m of qfRound.matches) {
+          const w = getMatchWinner(m);
+          if (!w) {
+            return res.status(400).json({ error: `Match ${m.home.player} vs ${m.away.player} ended in a tie. Please specify a Golden Goal winner first.` });
+          }
+          winners.push(w);
+        }
+
+        drawTeams = winners.map(id => activeTeams.find(t => t.id === id));
+      }
     } else if (round === 'cup_final') {
       const sfRound = season.cupFixtures.find(f => f.stage === 'cup_sf');
-      if (!sfRound) return res.status(400).json({ error: 'Semi-finals have not been generated yet.' });
-      
-      const incomplete = sfRound.matches.some(m => m.status !== 'completed');
-      if (incomplete) return res.status(400).json({ error: 'Cannot draw Final. Semi-final matches are incomplete.' });
-
-      const winners = [];
-      for (const m of sfRound.matches) {
-        const w = getMatchWinner(m);
-        if (!w) {
-          return res.status(400).json({ error: `Match ${m.home.player} vs ${m.away.player} ended in a tie. Please specify a Golden Goal winner first.` });
+      if (!sfRound) {
+        if (activeTeams.length <= 2) {
+          drawTeams = activeTeams;
+        } else {
+          return res.status(400).json({ error: 'Semi-finals have not been generated yet.' });
         }
-        winners.push(w);
-      }
+      } else {
+        const incomplete = sfRound.matches.some(m => m.status !== 'completed');
+        if (incomplete) return res.status(400).json({ error: 'Cannot draw Final. Semi-final matches are incomplete.' });
 
-      drawTeams = winners.map(id => db.teams.find(t => t.id === id));
+        const winners = [];
+        for (const m of sfRound.matches) {
+          const w = getMatchWinner(m);
+          if (!w) {
+            return res.status(400).json({ error: `Match ${m.home.player} vs ${m.away.player} ended in a tie. Please specify a Golden Goal winner first.` });
+          }
+          winners.push(w);
+        }
+
+        drawTeams = winners.map(id => activeTeams.find(t => t.id === id));
+      }
     } else {
       return res.status(400).json({ error: 'Invalid cup round' });
     }

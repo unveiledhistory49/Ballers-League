@@ -87,10 +87,11 @@ async function handleCreateSeason(req, res) {
 
     if (insertSeasonErr) throw insertSeasonErr;
 
-    // 5. Get teams
+    // 5. Get teams (only active ones)
     const { data: teams, error: teamsErr } = await supabase
       .from('teams')
       .select('*')
+      .eq('is_active', true)
       .order('id');
 
     if (teamsErr) throw teamsErr;

@@ -40,6 +40,14 @@ module.exports = async function handler(req, res) {
 
     if (teamsErr) throw teamsErr;
 
+    // Fetch clubs
+    const { data: clubs, error: clubsErr } = await supabase
+      .from('clubs')
+      .select('*')
+      .order('name');
+
+    if (clubsErr) throw clubsErr;
+
     // Fetch matches for the selected season
     const { data: matches, error: matchesErr } = await supabase
       .from('matches')
@@ -58,6 +66,7 @@ module.exports = async function handler(req, res) {
     for (const m of matches) {
       const matchObj = {
         id: m.id,
+        matchday: m.matchday,
         home: { id: m.home_id, player: m.home_player, club: m.home_club },
         away: { id: m.away_id, player: m.away_player, club: m.away_club },
         homeScore: m.home_score,
@@ -99,6 +108,7 @@ module.exports = async function handler(req, res) {
       seasonId: seasonId,
       seasons: seasons.map(s => ({ id: s.id, name: s.name, status: s.status, headline: s.headline })),
       teams,
+      clubs,
       fixtures,
       cupFixtures,
       playoffFixtures,

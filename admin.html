@@ -811,6 +811,130 @@
       transform: translateY(-1px);
     }
 
+    /* ── Roster & Club Management ──────────────────────── */
+    .admin-matches.management-mode {
+      display: flex !important;
+      flex-direction: column !important;
+      grid-template-columns: none !important;
+    }
+    .management-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-medium);
+      border-radius: 16px;
+      padding: 24px;
+      margin-bottom: 24px;
+      width: 100%;
+    }
+    .management-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+    .management-grid {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      width: 100%;
+    }
+    .roster-item, .club-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: rgba(255,255,255,0.02);
+      border: 1px solid var(--border-subtle);
+      border-radius: 12px;
+      padding: 16px 20px;
+    }
+    .roster-info, .club-info {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+    .roster-avatar {
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      object-fit: cover;
+      border: 1px solid var(--border-medium);
+      background: #111;
+    }
+    .club-logo-preview {
+      width: 40px;
+      height: 40px;
+      object-fit: contain;
+    }
+    .roster-details h3, .club-details h3 {
+      font-size: 0.95rem;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+    .roster-details p, .club-details p {
+      font-size: 0.8rem;
+      color: var(--text-secondary);
+      margin-top: 2px;
+    }
+    .status-badge {
+      display: inline-block;
+      padding: 3px 8px;
+      border-radius: 6px;
+      font-size: 0.7rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      margin-left: 8px;
+    }
+    .status-badge.active {
+      background: rgba(0,210,106,0.15);
+      color: var(--dot-win);
+    }
+    .status-badge.inactive {
+      background: rgba(255,255,255,0.08);
+      color: var(--text-muted);
+    }
+    .management-actions {
+      display: flex;
+      gap: 8px;
+    }
+    .btn-edit-action {
+      background: var(--accent-gold-dim);
+      border: 1px solid rgba(200,168,78,0.3);
+      color: var(--accent-gold);
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    .btn-edit-action:hover {
+      background: var(--accent-gold);
+      color: #000;
+    }
+    .btn-delete-action {
+      background: rgba(230,57,70,0.1);
+      border: 1px solid rgba(230,57,70,0.3);
+      color: #e63946;
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    .btn-delete-action:hover {
+      background: #e63946;
+      color: #fff;
+    }
+    .club-color-dot {
+      display: inline-block;
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      border: 1px solid rgba(255,255,255,0.2);
+      vertical-align: middle;
+      margin-left: 6px;
+    }
+
     /* ── Add Player Modal ──────────────────────────────── */
     .modal-overlay {
       position: fixed;
@@ -1006,6 +1130,8 @@
       <button id="admin-tab-league" class="admin-sec-tab active" onclick="switchAdminSection('league')">League Matches</button>
       <button id="admin-tab-cup" class="admin-sec-tab" onclick="switchAdminSection('cup')">Ballers Cup</button>
       <button id="admin-tab-playoffs" class="admin-sec-tab" onclick="switchAdminSection('playoffs')">Champions Cup</button>
+      <button id="admin-tab-roster" class="admin-sec-tab" onclick="switchAdminSection('roster')">Roster</button>
+      <button id="admin-tab-clubs" class="admin-sec-tab" onclick="switchAdminSection('clubs')">Clubs</button>
     </div>
 
     <div class="admin-matchday-nav" id="admin-matchday-nav-container">
@@ -1049,19 +1175,9 @@
       
       <div class="form-group">
         <label for="new-player-club-select">Club</label>
-        <select id="new-player-club-select" onchange="toggleCustomClubInput()">
+        <select id="new-player-club-select">
           <option value="" disabled selected>Select Club...</option>
-          <option value="Man U">Man U</option>
-          <option value="Tottenham">Tottenham</option>
-          <option value="Liverpool">Liverpool</option>
-          <option value="Barcelona">Barcelona</option>
-          <option value="Man City">Man City</option>
-          <option value="Arsenal FC">Arsenal FC</option>
-          <option value="Bayern">Bayern</option>
-          <option value="PSG">PSG</option>
-          <option value="custom">Other / Custom Club...</option>
         </select>
-        <input type="text" id="new-player-custom-club" placeholder="Enter custom club name" style="display:none; margin-top:8px;" autocomplete="off" />
       </div>
       
       <div class="form-group">
@@ -1071,6 +1187,78 @@
       
       <button id="btn-submit-player" onclick="submitNewPlayer()">Add Player to League</button>
       <p class="modal-error" id="modal-error"></p>
+    </div>
+  </div>
+
+  <!-- Edit Player Modal Overlay -->
+  <div id="edit-player-overlay" class="modal-overlay" style="display:none;" onclick="closeEditPlayerModal(event)">
+    <div class="modal-card" onclick="event.stopPropagation()">
+      <button class="modal-close" onclick="closeEditPlayerModal(null)">✕</button>
+      <h2>Edit Player Details</h2>
+      <p class="modal-subtitle">Update player information or archive them.</p>
+      <input type="hidden" id="edit-player-id" />
+      
+      <div class="form-group">
+        <label for="edit-player-username">Player Username</label>
+        <input type="text" id="edit-player-username" autocomplete="off" />
+      </div>
+      
+      <div class="form-group">
+        <label for="edit-player-club-select">Club</label>
+        <select id="edit-player-club-select">
+        </select>
+      </div>
+      
+      <div class="form-group">
+        <label for="edit-player-photo">Profile Photo URL</label>
+        <input type="url" id="edit-player-photo" autocomplete="off" />
+      </div>
+
+      <div class="form-group" style="display: flex; align-items: center; gap: 8px; margin-top: 12px;">
+        <input type="checkbox" id="edit-player-active" style="width: auto;" />
+        <label for="edit-player-active" style="margin: 0;">Active in upcoming seasons</label>
+      </div>
+      
+      <button id="btn-save-player" onclick="submitEditPlayer()">Save Changes</button>
+      <p class="modal-error" id="edit-player-error"></p>
+    </div>
+  </div>
+
+  <!-- Add/Edit Club Modal Overlay -->
+  <div id="add-club-overlay" class="modal-overlay" style="display:none;" onclick="closeAddClubModal(event)">
+    <div class="modal-card" onclick="event.stopPropagation()">
+      <button class="modal-close" onclick="closeAddClubModal(null)">✕</button>
+      <h2 id="club-modal-title">Add New Club</h2>
+      <p class="modal-subtitle">Configure the club's name, brand logo, colors, and abbreviations.</p>
+      <input type="hidden" id="club-modal-mode" value="add" />
+      
+      <div class="form-group">
+        <label for="club-name">Club Name</label>
+        <input type="text" id="club-name" placeholder="e.g. Chelsea" autocomplete="off" />
+      </div>
+      
+      <div class="form-group">
+        <label for="club-short">Short Name / Abbreviation</label>
+        <input type="text" id="club-short" placeholder="e.g. CHE (max 3 chars)" maxlength="3" autocomplete="off" />
+      </div>
+
+      <div class="form-group">
+        <label for="club-logo">Logo Image URL</label>
+        <input type="text" id="club-logo" placeholder="e.g. logos/chelsea.png" autocomplete="off" />
+      </div>
+
+      <div class="form-group">
+        <label for="club-primary-color">Primary Color (HEX)</label>
+        <input type="color" id="club-primary-color" value="#0000ff" style="height: 40px; padding: 4px;" />
+      </div>
+
+      <div class="form-group">
+        <label for="club-text-color">Text Color on Brand (HEX)</label>
+        <input type="color" id="club-text-color" value="#ffffff" style="height: 40px; padding: 4px;" />
+      </div>
+      
+      <button id="btn-submit-club" onclick="submitClub()">Save Club</button>
+      <p class="modal-error" id="club-modal-error"></p>
     </div>
   </div>
 
@@ -1131,6 +1319,7 @@
         const res = await fetch(url);
         leagueData = await res.json();
         adminSeasonId = leagueData.seasonId || null;
+        populateClubsDropdowns();
         renderAdminSeasonSelector();
         renderAdminActiveSection();
         checkSeasonComplete();
@@ -1276,6 +1465,12 @@
       const activeBtn = document.getElementById(`admin-tab-${activeAdminSection}`);
       if (activeBtn) activeBtn.classList.add('active');
 
+      if (activeAdminSection === 'roster' || activeAdminSection === 'clubs') {
+        matchesContainer.classList.add('management-mode');
+      } else {
+        matchesContainer.classList.remove('management-mode');
+      }
+
       if (activeAdminSection === 'league') {
         if (navContainer) navContainer.style.display = 'flex';
         if (actionsContainer) actionsContainer.style.display = 'flex';
@@ -1288,6 +1483,14 @@
         if (navContainer) navContainer.style.display = 'none';
         if (actionsContainer) actionsContainer.style.display = 'none';
         renderAdminPlayoffs();
+      } else if (activeAdminSection === 'roster') {
+        if (navContainer) navContainer.style.display = 'none';
+        if (actionsContainer) actionsContainer.style.display = 'none';
+        renderAdminRoster();
+      } else if (activeAdminSection === 'clubs') {
+        if (navContainer) navContainer.style.display = 'none';
+        if (actionsContainer) actionsContainer.style.display = 'none';
+        renderAdminClubs();
       }
     }
 
@@ -1939,8 +2142,6 @@
       // Form fields reset
       document.getElementById('new-player-username').value = '';
       document.getElementById('new-player-club-select').selectedIndex = 0;
-      document.getElementById('new-player-custom-club').value = '';
-      document.getElementById('new-player-custom-club').style.display = 'none';
       document.getElementById('new-player-photo').value = '';
       document.getElementById('modal-error').textContent = '';
       
@@ -1952,24 +2153,9 @@
       document.getElementById('add-player-overlay').style.display = 'none';
     }
 
-    function toggleCustomClubInput() {
-      const select = document.getElementById('new-player-club-select');
-      const customInput = document.getElementById('new-player-custom-club');
-      if (select.value === 'custom') {
-        customInput.style.display = 'block';
-        customInput.focus();
-      } else {
-        customInput.style.display = 'none';
-      }
-    }
-
     async function submitNewPlayer() {
       const player = document.getElementById('new-player-username').value.trim();
-      const select = document.getElementById('new-player-club-select');
-      let club = select.value;
-      if (club === 'custom') {
-        club = document.getElementById('new-player-custom-club').value.trim();
-      }
+      const club = document.getElementById('new-player-club-select').value;
       const photoUrl = document.getElementById('new-player-photo').value.trim();
       const errEl = document.getElementById('modal-error');
       
@@ -1980,7 +2166,7 @@
         return;
       }
       if (!club) {
-        errEl.textContent = 'Please select or enter a club.';
+        errEl.textContent = 'Please select a club.';
         return;
       }
 
@@ -2012,6 +2198,289 @@
       } finally {
         btn.disabled = false;
         btn.textContent = 'Add Player to League';
+    }
+
+    // ── Roster & Club Management ────────────────────────
+    function populateClubsDropdowns() {
+      const newSelect = document.getElementById('new-player-club-select');
+      const editSelect = document.getElementById('edit-player-club-select');
+      if (!newSelect || !editSelect || !leagueData.clubs) return;
+
+      const newVal = newSelect.value;
+      const editVal = editSelect.value;
+
+      newSelect.innerHTML = '<option value="" disabled selected>Select Club...</option>';
+      editSelect.innerHTML = '<option value="" disabled selected>Select Club...</option>';
+
+      leagueData.clubs.forEach(c => {
+        const opt1 = document.createElement('option');
+        opt1.value = c.name;
+        opt1.textContent = c.name;
+        newSelect.appendChild(opt1);
+
+        const opt2 = document.createElement('option');
+        opt2.value = c.name;
+        opt2.textContent = c.name;
+        editSelect.appendChild(opt2);
+      });
+
+      if (newVal) newSelect.value = newVal;
+      if (editVal) editSelect.value = editVal;
+    }
+
+    function renderAdminRoster() {
+      const container = document.getElementById('admin-matches');
+      container.innerHTML = `
+        <div class="management-card" style="width: 100%;">
+          <div class="management-header">
+            <h2>Player Roster &amp; Teams</h2>
+            <button class="btn-add-player" onclick="openAddPlayerModal()">Add Player</button>
+          </div>
+          <div class="management-grid">
+            ${leagueData.teams.map(t => {
+              const logoSrc = leagueData.clubs.find(c => c.name === t.club)?.logoUrl || leagueData.clubs.find(c => c.name === t.club)?.logo_url || '';
+              const isActive = t.isActive !== false && t.is_active !== false;
+              return `
+                <div class="roster-item">
+                  <div class="roster-info">
+                    <img class="roster-avatar" src="${t.photoUrl || t.photo_url || 'https://raw.githubusercontent.com/multiavatar/multiavatar/main/svg/' + encodeURIComponent(t.player) + '.svg'}" alt="${t.player}">
+                    <div class="roster-details">
+                      <h3>${t.player} <span class="status-badge ${isActive ? 'active' : 'inactive'}">${isActive ? 'active' : 'archived'}</span></h3>
+                      <p>
+                        Club: ${t.club}
+                        ${logoSrc ? `<img src="${logoSrc}" alt="${t.club}" style="height: 14px; vertical-align: middle; margin-left: 6px;">` : ''}
+                      </p>
+                    </div>
+                  </div>
+                  <div class="management-actions">
+                    <button class="btn-edit-action" onclick="openEditPlayerModal(${t.id}, '${t.player.replace(/'/g, "\\'")}', '${t.club.replace(/'/g, "\\'")}', '${(t.photoUrl || t.photo_url || '').replace(/'/g, "\\'")}', ${isActive})">Edit</button>
+                    <button class="btn-delete-action" onclick="deletePlayer(${t.id}, '${t.player.replace(/'/g, "\\'")}')">${isActive ? 'Archive' : 'Delete'}</button>
+                  </div>
+                </div>
+              `;
+            }).join('')}
+          </div>
+        </div>
+      `;
+    }
+
+    function openEditPlayerModal(id, player, club, photoUrl, isActive) {
+      document.getElementById('edit-player-id').value = id;
+      document.getElementById('edit-player-username').value = player;
+      document.getElementById('edit-player-club-select').value = club;
+      document.getElementById('edit-player-photo').value = photoUrl;
+      document.getElementById('edit-player-active').checked = !!isActive;
+      document.getElementById('edit-player-error').textContent = '';
+      document.getElementById('edit-player-overlay').style.display = 'flex';
+    }
+
+    function closeEditPlayerModal(event) {
+      if (event === null || event.target.id === 'edit-player-overlay') {
+        document.getElementById('edit-player-overlay').style.display = 'none';
+      }
+    }
+
+    async function submitEditPlayer() {
+      const id = parseInt(document.getElementById('edit-player-id').value, 10);
+      const player = document.getElementById('edit-player-username').value.trim();
+      const club = document.getElementById('edit-player-club-select').value;
+      const photoUrl = document.getElementById('edit-player-photo').value.trim();
+      const isActive = document.getElementById('edit-player-active').checked;
+      const errEl = document.getElementById('edit-player-error');
+
+      if (!player || !club) {
+        errEl.textContent = 'Username and club are required.';
+        return;
+      }
+
+      const btn = document.getElementById('btn-save-player');
+      btn.disabled = true;
+      btn.textContent = 'Saving...';
+
+      try {
+        const res = await fetch('/api/admin/player', {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Admin-Key': adminKey
+          },
+          body: JSON.stringify({ id, player, club, photoUrl, isActive })
+        });
+        const data = await res.json();
+        if (data.success) {
+          showToast(data.message, 'success');
+          document.getElementById('edit-player-overlay').style.display = 'none';
+          await loadLeagueData(adminSeasonId);
+        } else {
+          errEl.textContent = data.error || 'Failed to edit player';
+        }
+      } catch (err) {
+        errEl.textContent = 'Connection error.';
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Save Changes';
+      }
+    }
+
+    async function deletePlayer(id, name) {
+      if (!confirm(`Are you sure you want to archive or delete player ${name}?`)) return;
+
+      try {
+        const res = await fetch('/api/admin/player', {
+          method: 'DELETE',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Admin-Key': adminKey
+          },
+          body: JSON.stringify({ id })
+        });
+        const data = await res.json();
+        if (data.success) {
+          showToast(data.message, 'success');
+          await loadLeagueData(adminSeasonId);
+        } else {
+          showToast(data.error || 'Failed to delete player', 'error');
+        }
+      } catch (err) {
+        showToast('Server error', 'error');
+      }
+    }
+
+    function renderAdminClubs() {
+      const container = document.getElementById('admin-matches');
+      container.innerHTML = `
+        <div class="management-card" style="width: 100%;">
+          <div class="management-header">
+            <h2>Clubs Settings</h2>
+            <button class="btn-add-player" onclick="openAddClubModal()">Add New Club</button>
+          </div>
+          <div class="management-grid">
+            ${leagueData.clubs.map(c => {
+              const nameSafe = c.name.replace(/'/g, "\\'");
+              const logoSafe = (c.logoUrl || c.logo_url || '').replace(/'/g, "\\'");
+              const pColor = c.primaryColor || c.primary_color || '#333';
+              const tColor = c.textColor || c.text_color || '#fff';
+              const sName = c.shortName || c.short_name || '';
+              return `
+                <div class="club-item">
+                  <div class="club-info">
+                    ${c.logoUrl || c.logo_url ? `<img class="club-logo-preview" src="${c.logoUrl || c.logo_url}" alt="${c.name}">` : `<span class="club-logo-preview" style="display:flex;align-items:center;justify-content:center;background:#222;border-radius:6px;font-size:10px;font-weight:700;color:#aaa">${sName || 'CLUB'}</span>`}
+                    <div class="club-details">
+                      <h3>
+                        ${c.name} (${sName || '???'})
+                        <span class="club-color-dot" style="background: ${pColor}"></span>
+                      </h3>
+                      <p>Color: ${pColor} · Text: ${tColor}</p>
+                    </div>
+                  </div>
+                  <div class="management-actions">
+                    <button class="btn-edit-action" onclick="openEditClubModal('${nameSafe}', '${logoSafe}', '${pColor}', '${tColor}', '${sName}')">Edit</button>
+                    <button class="btn-delete-action" onclick="deleteClub('${nameSafe}')">Delete</button>
+                  </div>
+                </div>
+              `;
+            }).join('')}
+          </div>
+        </div>
+      `;
+    }
+
+    function openAddClubModal() {
+      document.getElementById('club-modal-mode').value = 'add';
+      document.getElementById('club-modal-title').textContent = 'Add New Club';
+      document.getElementById('club-name').value = '';
+      document.getElementById('club-name').disabled = false;
+      document.getElementById('club-short').value = '';
+      document.getElementById('club-logo').value = '';
+      document.getElementById('club-primary-color').value = '#0000ff';
+      document.getElementById('club-text-color').value = '#ffffff';
+      document.getElementById('club-modal-error').textContent = '';
+      document.getElementById('add-club-overlay').style.display = 'flex';
+    }
+
+    function openEditClubModal(name, logoUrl, primaryColor, textColor, shortName) {
+      document.getElementById('club-modal-mode').value = 'edit';
+      document.getElementById('club-modal-title').textContent = 'Edit Club Details';
+      document.getElementById('club-name').value = name;
+      document.getElementById('club-name').disabled = true;
+      document.getElementById('club-short').value = shortName;
+      document.getElementById('club-logo').value = logoUrl;
+      document.getElementById('club-primary-color').value = primaryColor;
+      document.getElementById('club-text-color').value = textColor;
+      document.getElementById('club-modal-error').textContent = '';
+      document.getElementById('add-club-overlay').style.display = 'flex';
+    }
+
+    function closeAddClubModal(event) {
+      if (event === null || event.target.id === 'add-club-overlay') {
+        document.getElementById('add-club-overlay').style.display = 'none';
+      }
+    }
+
+    async function submitClub() {
+      const mode = document.getElementById('club-modal-mode').value;
+      const name = document.getElementById('club-name').value.trim();
+      const shortName = document.getElementById('club-short').value.trim().toUpperCase();
+      const logoUrl = document.getElementById('club-logo').value.trim();
+      const primaryColor = document.getElementById('club-primary-color').value;
+      const textColor = document.getElementById('club-text-color').value;
+      const errEl = document.getElementById('club-modal-error');
+
+      if (!name || !shortName || !logoUrl) {
+        errEl.textContent = 'Name, abbreviation, and logo URL are required.';
+        return;
+      }
+
+      const btn = document.getElementById('btn-submit-club');
+      btn.disabled = true;
+      btn.textContent = 'Saving...';
+
+      try {
+        const res = await fetch('/api/admin/club', {
+          method: mode === 'add' ? 'POST' : 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Admin-Key': adminKey
+          },
+          body: JSON.stringify({ name, shortName, logoUrl, primaryColor, textColor })
+        });
+        const data = await res.json();
+        if (data.success) {
+          showToast(data.message, 'success');
+          document.getElementById('add-club-overlay').style.display = 'none';
+          await loadLeagueData(adminSeasonId);
+        } else {
+          errEl.textContent = data.error || 'Failed to save club';
+        }
+      } catch (err) {
+        errEl.textContent = 'Connection error.';
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Save Club';
+      }
+    }
+
+    async function deleteClub(name) {
+      if (!confirm(`Are you sure you want to delete club ${name}?`)) return;
+
+      try {
+        const res = await fetch('/api/admin/club', {
+          method: 'DELETE',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Admin-Key': adminKey
+          },
+          body: JSON.stringify({ name })
+        });
+        const data = await res.json();
+        if (data.success) {
+          showToast(data.message, 'success');
+          await loadLeagueData(adminSeasonId);
+        } else {
+          showToast(data.error || 'Failed to delete club', 'error');
+        }
+      } catch (err) {
+        showToast('Server error', 'error');
       }
     }
 

@@ -15,41 +15,23 @@ const SWIPE_THRESHOLD = 50;
 let cachedRecordsData = null;
 let recordsFetchPromise = null;
 
-// ── Club colors for logo placeholders ──────────────────────────
-const clubColors = {
-  "Man U":       { bg: "#da020e", text: "#fff" },
-  "Tottenham":   { bg: "#132257", text: "#fff" },
-  "Liverpool":   { bg: "#c8102e", text: "#fff" },
-  "Barcelona":   { bg: "#a50044", text: "#fff" },
-  "Man City":    { bg: "#6cabdd", text: "#1c2c5b" },
-  "Arsenal FC":  { bg: "#ef0107", text: "#fff" },
-  "Bayern":      { bg: "#dc052d", text: "#fff" },
-  "PSG":         { bg: "#004170", text: "#fff" },
-};
+// ── Dynamic Club configurations ────────────────────────────────
+let clubColors = {};
+let clubShort = {};
+let clubLogos = {};
 
-// ── Club short names for logos ─────────────────────────────────
-const clubShort = {
-  "Man U": "MU",
-  "Tottenham": "TOT",
-  "Liverpool": "LIV",
-  "Barcelona": "BAR",
-  "Man City": "MCI",
-  "Arsenal FC": "ARS",
-  "Bayern": "BAY",
-  "PSG": "PSG",
-};
-
-// ── Club logo file paths ───────────────────────────────────────
-const clubLogos = {
-  "Man U":       "logos/england_manchester-united_256x256.football-logos.cc.png",
-  "Tottenham":   "logos/england_tottenham_256x256.football-logos.cc.png",
-  "Liverpool":   "logos/england_liverpool_256x256.football-logos.cc.png",
-  "Barcelona":   "logos/spain_barcelona_256x256.football-logos.cc.png",
-  "Man City":    "logos/england_manchester-city_256x256.football-logos.cc.png",
-  "Arsenal FC":  "logos/england_arsenal_256x256.football-logos.cc.png",
-  "Bayern":      "logos/germany_bayern-munchen_256x256.football-logos.cc.png",
-  "PSG":         "logos/france_paris-saint-germain_256x256.football-logos.cc.png",
-};
+function initializeClubs(data) {
+  clubColors = {};
+  clubShort = {};
+  clubLogos = {};
+  if (data && data.clubs && Array.isArray(data.clubs)) {
+    data.clubs.forEach(c => {
+      clubColors[c.name] = { bg: c.primaryColor || c.primary_color || "#333", text: c.textColor || c.text_color || "#fff" };
+      clubShort[c.name] = c.shortName || c.short_name || c.name.substring(0, 3).toUpperCase();
+      clubLogos[c.name] = c.logoUrl || c.logo_url || "";
+    });
+  }
+}
 
 // ── Init ───────────────────────────────────────────────────────
 document.addEventListener("DOMContentLoaded", async () => {
@@ -64,6 +46,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       res = await fetch("/fixtures.json?_t=" + Date.now());
       leagueData = await res.json();
     }
+    initializeClubs(leagueData);
     currentSeasonId = leagueData.seasonId || null;
     renderSeasonSelector();
     renderStandings();
@@ -84,6 +67,7 @@ async function loadSeason(seasonId) {
     const res = await fetch(`/api/data?season=${seasonId}&_t=${Date.now()}`);
     if (!res.ok) throw new Error("Failed to load season data");
     leagueData = await res.json();
+    initializeClubs(leagueData);
     currentSeasonId = leagueData.seasonId || seasonId;
     currentMatchday = 0;
     renderSeasonSelector();
@@ -239,8 +223,14 @@ function computeStandings() {
     s.form = s.form.slice(-5);
   });
 
+  // Filter out inactive teams that haven't played in this season
+  const filtered = Object.values(standings).filter(s => {
+    const active = s.isActive !== false && s.is_active !== false;
+    return active || s.played > 0;
+  });
+
   // Sort: Points desc → GD desc → GF desc → Alphabetical
-  const sorted = Object.values(standings).sort((a, b) => {
+  const sorted = filtered.sort((a, b) => {
     if (b.points !== a.points) return b.points - a.points;
     const gdA = a.goalsFor - a.goalsAgainst;
     const gdB = b.goalsFor - b.goalsAgainst;
@@ -301,7 +291,12 @@ function computeStandingsUpToMatchday(limit) {
     });
   });
 
-  return Object.values(standings).sort((a, b) => {
+  const filtered = Object.values(standings).filter(s => {
+    const active = s.isActive !== false && s.is_active !== false;
+    return active || s.played > 0;
+  });
+
+  return filtered.sort((a, b) => {
     if (b.points !== a.points) return b.points - a.points;
     const gdA = a.goalsFor - a.goalsAgainst;
     const gdB = b.goalsFor - b.goalsAgainst;

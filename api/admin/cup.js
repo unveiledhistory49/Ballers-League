@@ -66,6 +66,7 @@ module.exports = async function handler(req, res) {
       }
     }
 
+    const activeTeams = teams.filter(t => t.is_active !== false);
     let drawTeams = [];
 
     // Helper to get winner from a match
@@ -77,85 +78,102 @@ module.exports = async function handler(req, res) {
     };
 
     if (round === 'cup_r16') {
-      // 12 teams. 4 random byes, 8 play.
-      const shuffledTeams = shuffleArray(teams);
-      const byeTeams = shuffledTeams.slice(0, 4);
-      const playingTeams = shuffledTeams.slice(4);
+      const N = activeTeams.length;
+      if (N <= 8) {
+        return res.status(400).json({ error: `League has ${N} active players. You should draw Quarter-finals directly.` });
+      }
+      // Calculate next power of 2 (which is 16 for N > 8 and N <= 16)
+      const nextPower = Math.pow(2, Math.ceil(Math.log2(N)));
+      const numByes = nextPower - N;
+      const numPlay = N - numByes;
+
+      const shuffledTeams = shuffleArray(activeTeams);
+      const byeTeams = shuffledTeams.slice(0, numByes);
+      const playingTeams = shuffledTeams.slice(numByes);
 
       drawTeams = playingTeams;
     } else if (round === 'cup_qf') {
-      // Winners of cup_r16 + bye teams of cup_r16
       const r16Matches = matches.filter(m => m.stage === 'cup_r16');
       if (r16Matches.length === 0) {
-        return res.status(400).json({ error: 'Round of 16 has not been generated yet.' });
-      }
-
-      // Check if all completed
-      const incomplete = r16Matches.filter(m => m.status !== 'completed');
-      if (incomplete.length > 0) {
-        return res.status(400).json({ error: 'Cannot draw Quarter-finals. Some Round of 16 matches are incomplete.' });
-      }
-
-      // Collect winners
-      const winners = [];
-      for (const m of r16Matches) {
-        const w = getMatchWinner(m);
-        if (!w) {
-          return res.status(400).json({ error: `Match ${m.home_player} vs ${m.away_player} ended in a tie. Please specify a Golden Goal winner first.` });
+        if (activeTeams.length <= 8) {
+          drawTeams = activeTeams;
+        } else {
+          return res.status(400).json({ error: 'Round of 16 has not been generated yet.' });
         }
-        winners.push(w);
+      } else {
+        // Check if all completed
+        const incomplete = r16Matches.filter(m => m.status !== 'completed');
+        if (incomplete.length > 0) {
+          return res.status(400).json({ error: 'Cannot draw Quarter-finals. Some Round of 16 matches are incomplete.' });
+        }
+
+        // Collect winners
+        const winners = [];
+        for (const m of r16Matches) {
+          const w = getMatchWinner(m);
+          if (!w) {
+            return res.status(400).json({ error: `Match ${m.home_player} vs ${m.away_player} ended in a tie. Please specify a Golden Goal winner first.` });
+          }
+          winners.push(w);
+        }
+
+        // Collect bye teams (active teams who didn't play in R16)
+        const playedIds = new Set(r16Matches.flatMap(m => [m.home_id, m.away_id]));
+        const byeTeams = activeTeams.filter(t => !playedIds.has(t.id));
+
+        // Combine
+        drawTeams = [...winners, ...byeTeams.map(t => t.id)].map(id => activeTeams.find(t => t.id === id));
       }
-
-      // Collect bye teams (teams in the league who didn't play in R16)
-      const playedIds = new Set(r16Matches.flatMap(m => [m.home_id, m.away_id]));
-      const byeTeams = teams.filter(t => !playedIds.has(t.id));
-
-      // Combine
-      drawTeams = [...winners, ...byeTeams.map(t => t.id)].map(id => teams.find(t => t.id === id));
     } else if (round === 'cup_sf') {
-      // Winners of cup_qf
       const qfMatches = matches.filter(m => m.stage === 'cup_qf');
       if (qfMatches.length === 0) {
-        return res.status(400).json({ error: 'Quarter-finals have not been generated yet.' });
-      }
-
-      const incomplete = qfMatches.filter(m => m.status !== 'completed');
-      if (incomplete.length > 0) {
-        return res.status(400).json({ error: 'Cannot draw Semi-finals. Some Quarter-final matches are incomplete.' });
-      }
-
-      const winners = [];
-      for (const m of qfMatches) {
-        const w = getMatchWinner(m);
-        if (!w) {
-          return res.status(400).json({ error: `Match ${m.home_player} vs ${m.away_player} ended in a tie. Please specify a Golden Goal winner first.` });
+        if (activeTeams.length <= 4) {
+          drawTeams = activeTeams;
+        } else {
+          return res.status(400).json({ error: 'Quarter-finals have not been generated yet.' });
         }
-        winners.push(w);
-      }
+      } else {
+        const incomplete = qfMatches.filter(m => m.status !== 'completed');
+        if (incomplete.length > 0) {
+          return res.status(400).json({ error: 'Cannot draw Semi-finals. Some Quarter-final matches are incomplete.' });
+        }
 
-      drawTeams = winners.map(id => teams.find(t => t.id === id));
+        const winners = [];
+        for (const m of qfMatches) {
+          const w = getMatchWinner(m);
+          if (!w) {
+            return res.status(400).json({ error: `Match ${m.home_player} vs ${m.away_player} ended in a tie. Please specify a Golden Goal winner first.` });
+          }
+          winners.push(w);
+        }
+
+        drawTeams = winners.map(id => activeTeams.find(t => t.id === id));
+      }
     } else if (round === 'cup_final') {
-      // Winners of cup_sf
       const sfMatches = matches.filter(m => m.stage === 'cup_sf');
       if (sfMatches.length === 0) {
-        return res.status(400).json({ error: 'Semi-finals have not been generated yet.' });
-      }
-
-      const incomplete = sfMatches.filter(m => m.status !== 'completed');
-      if (incomplete.length > 0) {
-        return res.status(400).json({ error: 'Cannot draw Final. Semi-final matches are incomplete.' });
-      }
-
-      const winners = [];
-      for (const m of sfMatches) {
-        const w = getMatchWinner(m);
-        if (!w) {
-          return res.status(400).json({ error: `Match ${m.home_player} vs ${m.away_player} ended in a tie. Please specify a Golden Goal winner first.` });
+        if (activeTeams.length <= 2) {
+          drawTeams = activeTeams;
+        } else {
+          return res.status(400).json({ error: 'Semi-finals have not been generated yet.' });
         }
-        winners.push(w);
-      }
+      } else {
+        const incomplete = sfMatches.filter(m => m.status !== 'completed');
+        if (incomplete.length > 0) {
+          return res.status(400).json({ error: 'Cannot draw Final. Semi-final matches are incomplete.' });
+        }
 
-      drawTeams = winners.map(id => teams.find(t => t.id === id));
+        const winners = [];
+        for (const m of sfMatches) {
+          const w = getMatchWinner(m);
+          if (!w) {
+            return res.status(400).json({ error: `Match ${m.home_player} vs ${m.away_player} ended in a tie. Please specify a Golden Goal winner first.` });
+          }
+          winners.push(w);
+        }
+
+        drawTeams = winners.map(id => activeTeams.find(t => t.id === id));
+      }
     } else {
       return res.status(400).json({ error: 'Invalid cup round' });
     }
