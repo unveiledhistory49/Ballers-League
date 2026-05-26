@@ -15,7 +15,7 @@ module.exports = async function handler(req, res) {
     // Fetch ALL completed matches across all seasons
     const { data: matches, error: matchesErr } = await supabase
       .from('matches')
-      .select('home_id, away_id, home_score, away_score, home_player, away_player, home_club, away_club, season_id, matchday, status')
+      .select('home_id, away_id, home_score, away_score, home_player, away_player, home_club, away_club, season_id, matchday, status, stage, golden_goal_winner_id')
       .eq('status', 'completed')
       .order('season_id')
       .order('matchday');
@@ -25,7 +25,7 @@ module.exports = async function handler(req, res) {
     // Fetch all seasons for labeling
     const { data: seasons, error: seasonsErr } = await supabase
       .from('seasons')
-      .select('id, name, status')
+      .select('id, name, status, headline')
       .order('id');
 
     if (seasonsErr) throw seasonsErr;
@@ -50,8 +50,10 @@ module.exports = async function handler(req, res) {
         awayClub: m.away_club,
         seasonId: m.season_id,
         matchday: m.matchday,
+        stage: m.stage || 'league',
+        goldenGoalWinnerId: m.golden_goal_winner_id || null,
       })),
-      seasons,
+      seasons: seasons.map(s => ({ id: s.id, name: s.name, status: s.status, headline: s.headline || null })),
       teams,
     });
   } catch (err) {

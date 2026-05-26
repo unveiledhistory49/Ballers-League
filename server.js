@@ -1124,16 +1124,57 @@ app.get('/api/records', (req, res) => {
     const allMatches = [];
 
     for (const season of db.seasons) {
-      for (const md of season.fixtures) {
-        for (const m of md.matches) {
-          if (m.status === 'completed' && m.homeScore !== null) {
-            allMatches.push({
-              homeId: m.home.id, awayId: m.away.id,
-              homeScore: m.homeScore, awayScore: m.awayScore,
-              homePlayer: m.home.player, awayPlayer: m.away.player,
-              homeClub: m.home.club, awayClub: m.away.club,
-              seasonId: season.id, matchday: md.matchday,
-            });
+      // League matches
+      if (season.fixtures) {
+        for (const md of season.fixtures) {
+          for (const m of md.matches) {
+            if (m.status === 'completed' && m.homeScore !== null) {
+              allMatches.push({
+                homeId: m.home.id, awayId: m.away.id,
+                homeScore: m.homeScore, awayScore: m.awayScore,
+                homePlayer: m.home.player, awayPlayer: m.away.player,
+                homeClub: m.home.club, awayClub: m.away.club,
+                seasonId: season.id, matchday: md.matchday,
+                stage: m.stage || 'league',
+                goldenGoalWinnerId: m.goldenGoalWinnerId || null,
+              });
+            }
+          }
+        }
+      }
+      // Cup matches
+      if (season.cupFixtures) {
+        for (const md of season.cupFixtures) {
+          for (const m of md.matches) {
+            if (m.status === 'completed' && m.homeScore !== null) {
+              allMatches.push({
+                homeId: m.home.id, awayId: m.away.id,
+                homeScore: m.homeScore, awayScore: m.awayScore,
+                homePlayer: m.home.player, awayPlayer: m.away.player,
+                homeClub: m.home.club, awayClub: m.away.club,
+                seasonId: season.id, matchday: md.matchday,
+                stage: m.stage || md.stage || 'cup',
+                goldenGoalWinnerId: m.goldenGoalWinnerId || null,
+              });
+            }
+          }
+        }
+      }
+      // Playoff matches
+      if (season.playoffFixtures) {
+        for (const md of season.playoffFixtures) {
+          for (const m of md.matches) {
+            if (m.status === 'completed' && m.homeScore !== null) {
+              allMatches.push({
+                homeId: m.home.id, awayId: m.away.id,
+                homeScore: m.homeScore, awayScore: m.awayScore,
+                homePlayer: m.home.player, awayPlayer: m.away.player,
+                homeClub: m.home.club, awayClub: m.away.club,
+                seasonId: season.id, matchday: md.matchday,
+                stage: m.stage || md.stage || 'playoffs',
+                goldenGoalWinnerId: m.goldenGoalWinnerId || null,
+              });
+            }
           }
         }
       }
@@ -1141,7 +1182,7 @@ app.get('/api/records', (req, res) => {
 
     res.json({
       matches: allMatches,
-      seasons: db.seasons.map(s => ({ id: s.id, name: s.name, status: s.status })),
+      seasons: db.seasons.map(s => ({ id: s.id, name: s.name, status: s.status, headline: s.headline || null })),
       teams: db.teams,
     });
   } catch (err) {

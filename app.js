@@ -2229,6 +2229,7 @@ async function renderRecords() {
         standings[t.id] = { id: t.id, player: t.player, club: t.club, points: 0, goalsFor: 0, goalsAgainst: 0 };
       });
       seasonMatches.forEach(m => {
+        if (m.stage && m.stage !== 'league') return;
         const home = standings[m.homeId];
         const away = standings[m.awayId];
         if (!home || !away) return;
@@ -2310,6 +2311,7 @@ async function renderRecords() {
 
     const sortedMatches = [...matches].sort((a, b) => a.seasonId - b.seasonId || a.matchday - b.matchday);
     sortedMatches.forEach(m => {
+      if (m.stage && m.stage !== 'league') return;
       const home = playerStreaks[m.homeId];
       const away = playerStreaks[m.awayId];
       if (!home || !away) return;
@@ -2386,6 +2388,7 @@ async function renderRecords() {
     // 6. Most Goals in a Season
     const seasonGoals = {};
     matches.forEach(m => {
+      if (m.stage && m.stage !== 'league') return;
       const keyHome = `${m.homeId}-${m.seasonId}`;
       const keyAway = `${m.awayId}-${m.seasonId}`;
       seasonGoals[keyHome] = (seasonGoals[keyHome] || 0) + m.homeScore;
@@ -2469,10 +2472,15 @@ async function renderRecords() {
       </div>
     `;
 
+    // Populate Roll of Honor and H2H Matrix sections
+    populateRecordsSubsections(matches, seasons, teams);
+
   } catch (err) {
     console.error("Records page error, calculating from current season:", err);
     if (leagueData && leagueData.fixtures && leagueData.teams) {
       const matches = [];
+      
+      // League matches
       leagueData.fixtures.forEach(md => {
         md.matches.forEach(m => {
           if (m.status === 'completed' && m.homeScore !== null) {
@@ -2481,11 +2489,48 @@ async function renderRecords() {
               homeScore: m.homeScore, awayScore: m.awayScore,
               homePlayer: m.home.player, awayPlayer: m.away.player,
               homeClub: m.home.club, awayClub: m.away.club,
-              seasonId: currentSeasonId || 1, matchday: md.matchday
+              seasonId: currentSeasonId || 1, matchday: md.matchday,
+              stage: 'league'
             });
           }
         });
       });
+
+      // Cup matches fallback
+      if (leagueData.cupFixtures) {
+        leagueData.cupFixtures.forEach(md => {
+          md.matches.forEach(m => {
+            if (m.status === 'completed' && m.homeScore !== null) {
+              matches.push({
+                homeId: m.home.id, awayId: m.away.id,
+                homeScore: m.homeScore, awayScore: m.awayScore,
+                homePlayer: m.home.player, awayPlayer: m.away.player,
+                homeClub: m.home.club, awayClub: m.away.club,
+                seasonId: currentSeasonId || 1, matchday: md.matchday,
+                stage: m.stage || md.stage
+              });
+            }
+          });
+        });
+      }
+
+      // Playoff matches fallback
+      if (leagueData.playoffFixtures) {
+        leagueData.playoffFixtures.forEach(md => {
+          md.matches.forEach(m => {
+            if (m.status === 'completed' && m.homeScore !== null) {
+              matches.push({
+                homeId: m.home.id, awayId: m.away.id,
+                homeScore: m.homeScore, awayScore: m.awayScore,
+                homePlayer: m.home.player, awayPlayer: m.away.player,
+                homeClub: m.home.club, awayClub: m.away.club,
+                seasonId: currentSeasonId || 1, matchday: md.matchday,
+                stage: m.stage || md.stage
+              });
+            }
+          });
+        });
+      }
 
       const teams = leagueData.teams;
       
@@ -2513,6 +2558,7 @@ async function renderRecords() {
         playerStreaks[t.id] = { player: t.player, currentWin: 0, maxWin: 0, currentUnbeaten: 0, maxUnbeaten: 0 };
       });
       matches.forEach(m => {
+        if (m.stage && m.stage !== 'league') return;
         const home = playerStreaks[m.homeId];
         const away = playerStreaks[m.awayId];
         if (!home || !away) return;
@@ -2546,6 +2592,7 @@ async function renderRecords() {
 
       const seasonGoals = {};
       matches.forEach(m => {
+        if (m.stage && m.stage !== 'league') return;
         seasonGoals[m.homePlayer] = (seasonGoals[m.homePlayer] || 0) + m.homeScore;
         seasonGoals[m.awayPlayer] = (seasonGoals[m.awayPlayer] || 0) + m.awayScore;
       });
@@ -2592,10 +2639,330 @@ async function renderRecords() {
           <div class="record-meta">Current Season</div>
         </div>
       `;
+
+      const seasonsMock = [{ id: currentSeasonId || 1, name: leagueData.season || 'Season 1', status: 'active' }];
+      populateRecordsSubsections(matches, seasonsMock, teams);
     } else {
       container.innerHTML = `<div class="records-loading text-red-500">Could not load records.</div>`;
     }
   }
+}
+
+// ── Records Subsections & H2H Matrix calculation helpers ─────
+function populateRecordsSubsections(matches, seasons, teams) {
+  // Timeline Roll of Honor
+  const timelineContainer = document.getElementById("roll-of-honor-container");
+  if (timelineContainer) {
+    const completedSeasons = seasons.filter(s => s.status === 'completed');
+    if (completedSeasons.length === 0) {
+      timelineContainer.innerHTML = `<div class="records-loading">No completed seasons yet. Timeline will activate once a season is completed.</div>`;
+    } else {
+      let timelineHTML = '';
+      completedSeasons.forEach(s => {
+        const seasonMatches = matches.filter(m => m.seasonId === s.id);
+        const standingsMap = {};
+        teams.forEach(t => {
+          standingsMap[t.id] = { id: t.id, player: t.player, club: t.club, points: 0, goalsFor: 0, goalsAgainst: 0, wins: 0, draws: 0, losses: 0, played: 0 };
+        });
+
+        seasonMatches.forEach(m => {
+          if (m.stage && m.stage !== 'league') return;
+          const home = standingsMap[m.homeId];
+          const away = standingsMap[m.awayId];
+          if (!home || !away) return;
+          home.played++; away.played++;
+          home.goalsFor += m.homeScore; home.goalsAgainst += m.awayScore;
+          away.goalsFor += m.awayScore; away.goalsAgainst += m.homeScore;
+          if (m.homeScore > m.awayScore) {
+            home.wins++; home.points += 3; away.losses++;
+          } else if (m.homeScore < m.awayScore) {
+            away.wins++; away.points += 3; home.losses++;
+          } else {
+            home.draws++; away.draws++; home.points += 1; away.points += 1;
+          }
+        });
+
+        const sortedStandings = Object.values(standingsMap).sort((a, b) => {
+          if (b.points !== a.points) return b.points - a.points;
+          const gdA = a.goalsFor - a.goalsAgainst;
+          const gdB = b.goalsFor - b.goalsAgainst;
+          if (gdB !== gdA) return gdB - gdA;
+          if (b.goalsFor !== a.goalsFor) return b.goalsFor - a.goalsFor;
+          return a.player.localeCompare(b.player);
+        });
+
+        const champion = sortedStandings[0] || { player: 'TBD', club: '—', points: 0 };
+
+        // Cup Winner
+        let cupWinnerName = 'N/A';
+        let cupWinnerClub = '';
+        const cupFinalMatch = seasonMatches.find(m => m.stage === 'cup_final');
+        if (cupFinalMatch) {
+          const homeWon = cupFinalMatch.homeScore > cupFinalMatch.awayScore || cupFinalMatch.goldenGoalWinnerId === cupFinalMatch.homeId;
+          cupWinnerName = homeWon ? cupFinalMatch.homePlayer : cupFinalMatch.awayPlayer;
+          cupWinnerClub = homeWon ? cupFinalMatch.homeClub : cupFinalMatch.awayClub;
+        }
+
+        // MVP (Playoffs Winner, fallback to Champion)
+        let mvpName = champion.player;
+        let mvpClub = champion.club;
+        const playoffsFinalMatch = seasonMatches.find(m => m.stage === 'champions_final');
+        if (playoffsFinalMatch) {
+          const homeWon = playoffsFinalMatch.homeScore > playoffsFinalMatch.awayScore || playoffsFinalMatch.goldenGoalWinnerId === playoffsFinalMatch.homeId;
+          mvpName = homeWon ? playoffsFinalMatch.homePlayer : playoffsFinalMatch.awayPlayer;
+          mvpClub = homeWon ? playoffsFinalMatch.homeClub : playoffsFinalMatch.awayClub;
+        }
+
+        // Golden Boot
+        let maxGoals = 0;
+        let goldenBootWinners = [];
+        Object.values(standingsMap).forEach(t => {
+          if (t.goalsFor > maxGoals) {
+            maxGoals = t.goalsFor;
+            goldenBootWinners = [t];
+          } else if (t.goalsFor === maxGoals && maxGoals > 0) {
+            goldenBootWinners.push(t);
+          }
+        });
+        const goldenBootName = goldenBootWinners.map(t => t.player).join(' & ') || 'N/A';
+        const goldenBootClub = goldenBootWinners.map(t => t.club).join('/') || '';
+
+        timelineHTML += `
+          <div class="timeline-item">
+            <div class="timeline-marker"></div>
+            <div class="timeline-card">
+              <div class="timeline-title-row">
+                <span class="timeline-season-name">${s.name}</span>
+                <span class="timeline-season-status completed">Season Complete</span>
+              </div>
+              <div class="timeline-laurels-grid">
+                <div class="laurel-winner-box">
+                  <span class="laurel-trophy">🏆</span>
+                  <span class="laurel-role">Champion</span>
+                  <span class="laurel-name">${champion.player}</span>
+                  <span class="laurel-meta">${champion.club} · ${champion.points} pts</span>
+                </div>
+                <div class="laurel-winner-box">
+                  <span class="laurel-trophy">👑</span>
+                  <span class="laurel-role">Cup Winner</span>
+                  <span class="laurel-name">${cupWinnerName}</span>
+                  <span class="laurel-meta">${cupWinnerClub || 'Ballers Cup'}</span>
+                </div>
+                <div class="laurel-winner-box">
+                  <span class="laurel-trophy">🛡️</span>
+                  <span class="laurel-role">MVP (Playoffs)</span>
+                  <span class="laurel-name">${mvpName}</span>
+                  <span class="laurel-meta">${mvpClub}</span>
+                </div>
+                <div class="laurel-winner-box">
+                  <span class="laurel-trophy">⚽</span>
+                  <span class="laurel-role">Golden Boot</span>
+                  <span class="laurel-name">${goldenBootName}</span>
+                  <span class="laurel-meta">${maxGoals} Goals</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        `;
+      });
+      timelineContainer.innerHTML = timelineHTML;
+    }
+  }
+
+  // H2H Matrix Selectors setup
+  const matrixContainer = document.getElementById("h2h-matrix-container");
+  if (matrixContainer) {
+    const sortedTeams = [...teams].sort((a,b) => a.player.localeCompare(b.player));
+    let optionsHTML = '<option value="" disabled selected>Select Player...</option>';
+    sortedTeams.forEach(t => {
+      optionsHTML += `<option value="${t.id}">${t.player} (${t.club})</option>`;
+    });
+
+    matrixContainer.innerHTML = `
+      <div class="h2h-matrix-selectors">
+        <div class="h2h-matrix-select-group">
+          <label for="h2h-player-a">Player A</label>
+          <select id="h2h-player-a" class="h2h-matrix-select">
+            ${optionsHTML}
+          </select>
+        </div>
+        <div class="h2h-matrix-vs-badge">VS</div>
+        <div class="h2h-matrix-select-group">
+          <label for="h2h-player-b">Player B</label>
+          <select id="h2h-player-b" class="h2h-matrix-select">
+            ${optionsHTML}
+          </select>
+        </div>
+      </div>
+      <div id="h2h-matrix-results">
+        <div class="h2h-empty">Select two players to compare their all-time records.</div>
+      </div>
+    `;
+
+    const selectA = document.getElementById("h2h-player-a");
+    const selectB = document.getElementById("h2h-player-b");
+
+    const handleMatrixChange = () => {
+      const valA = parseInt(selectA.value, 10);
+      const valB = parseInt(selectB.value, 10);
+      if (valA && valB) {
+        if (valA === valB) {
+          document.getElementById("h2h-matrix-results").innerHTML = `<div class="h2h-error">Select two different players to compare.</div>`;
+          return;
+        }
+        renderH2HMatrixResults(valA, valB, matches, teams);
+      }
+    };
+
+    selectA.addEventListener("change", handleMatrixChange);
+    selectB.addEventListener("change", handleMatrixChange);
+  }
+}
+
+function renderH2HMatrixResults(playerAId, playerBId, matches, teams) {
+  const resultsDiv = document.getElementById("h2h-matrix-results");
+  if (!resultsDiv) return;
+
+  const teamA = teams.find(t => t.id === playerAId);
+  const teamB = teams.find(t => t.id === playerBId);
+  if (!teamA || !teamB) return;
+
+  const logoA = clubLogos[teamA.club];
+  const logoB = clubLogos[teamB.club];
+  const colorsA = clubColors[teamA.club] || { bg: '#333', text: '#fff' };
+  const colorsB = clubColors[teamB.club] || { bg: '#333', text: '#fff' };
+
+  let winsA = 0;
+  let winsB = 0;
+  let draws = 0;
+  let goalsA = 0;
+  let goalsB = 0;
+  const historyLog = [];
+
+  matches.forEach(m => {
+    const isMatch = (m.homeId === playerAId && m.awayId === playerBId) ||
+                    (m.homeId === playerBId && m.awayId === playerAId);
+    if (!isMatch) return;
+
+    const selfHome = m.homeId === playerAId;
+    const scoreA = selfHome ? m.homeScore : m.awayScore;
+    const scoreB = selfHome ? m.awayScore : m.homeScore;
+
+    goalsA += scoreA;
+    goalsB += scoreB;
+
+    let outcome = 'D';
+    if (scoreA > scoreB) {
+      winsA++;
+      outcome = 'W';
+    } else if (scoreB > scoreA) {
+      winsB++;
+      outcome = 'L';
+    } else {
+      draws++;
+    }
+
+    historyLog.push({
+      seasonId: m.seasonId,
+      matchday: m.matchday,
+      stage: m.stage || 'league',
+      scoreA,
+      scoreB,
+      outcome
+    });
+  });
+
+  const totalPlayed = historyLog.length;
+  if (totalPlayed === 0) {
+    resultsDiv.innerHTML = `<div class="h2h-empty">No matches played between ${teamA.player} and ${teamB.player} yet.</div>`;
+    return;
+  }
+
+  const pctA = ((winsA / totalPlayed) * 100).toFixed(0);
+  const pctB = ((winsB / totalPlayed) * 100).toFixed(0);
+  const pctD = ((draws / totalPlayed) * 100).toFixed(0);
+
+  const splitBar = `
+    <div class="h2h-bar-container" style="margin-top: 14px;">
+      ${winsA > 0 ? `<div class="h2h-bar home" style="width: ${pctA}%; background: ${colorsA.bg};" title="${teamA.player} wins: ${winsA} (${pctA}%)"></div>` : ''}
+      ${draws > 0 ? `<div class="h2h-bar draw" style="width: ${pctD}%" title="Draws: ${draws} (${pctD}%)"></div>` : ''}
+      ${winsB > 0 ? `<div class="h2h-bar away" style="width: ${pctB}%; background: ${colorsB.bg};" title="${teamB.player} wins: ${winsB} (${pctB}%)"></div>` : ''}
+    </div>
+  `;
+
+  // Log rows HTML
+  const stageLabels = {
+    'league': 'League',
+    'cup_r16': 'Cup R16',
+    'cup_qf': 'Cup QF',
+    'cup_sf': 'Cup SF',
+    'cup_final': 'Cup Final',
+    'champions_semi_1': 'Playoffs SF Leg 1',
+    'champions_semi_2': 'Playoffs SF Leg 2',
+    'champions_final': 'Playoffs Final'
+  };
+
+  const logRowsHTML = historyLog.map(log => {
+    const stageText = stageLabels[log.stage] || log.stage.toUpperCase();
+    return `
+      <div class="h2h-matrix-log-row">
+        <div class="h2h-log-meta">
+          <span class="h2h-log-season">Season ${log.seasonId}</span>
+          <span class="h2h-log-stage">${stageText} (MD ${log.matchday})</span>
+        </div>
+        <div class="h2h-log-matchup">
+          <span>${teamA.player}</span>
+          <span class="h2h-log-score">${log.scoreA} - ${log.scoreB}</span>
+          <span>${teamB.player}</span>
+        </div>
+        <div class="h2h-log-outcome">
+          <span class="h2h-outcome-badge ${log.outcome}">${log.outcome}</span>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  resultsDiv.innerHTML = `
+    <div class="h2h-matrix-panel">
+      <div class="h2h-matrix-scorecard">
+        <div class="h2h-scorecard-player">
+          <div class="h2h-scorecard-logo" style="background: ${colorsA.bg}; color: ${colorsA.text};">
+            ${logoA ? `<img src="${logoA}" alt="${teamA.club}">` : teamA.club.substring(0,3).toUpperCase()}
+          </div>
+          <span class="h2h-scorecard-name">${teamA.player}</span>
+          <span class="h2h-scorecard-club">${teamA.club}</span>
+          <span class="h2h-scorecard-wins">${winsA}</span>
+          <span class="h2h-scorecard-pct">Win Ratio: ${pctA}%</span>
+        </div>
+        
+        <div class="h2h-scorecard-center">
+          <span class="h2h-center-vs">VS</span>
+          <span class="h2h-center-agg">${goalsA} - ${goalsB}</span>
+          <span class="h2h-center-draws">Draws: <span>${draws}</span></span>
+          <span style="font-size:0.6rem; color:var(--text-muted); margin-top:4px;">${totalPlayed} match${totalPlayed === 1 ? '' : 'es'}</span>
+        </div>
+
+        <div class="h2h-scorecard-player">
+          <div class="h2h-scorecard-logo" style="background: ${colorsB.bg}; color: ${colorsB.text};">
+            ${logoB ? `<img src="${logoB}" alt="${teamB.club}">` : teamB.club.substring(0,3).toUpperCase()}
+          </div>
+          <span class="h2h-scorecard-name">${teamB.player}</span>
+          <span class="h2h-scorecard-club">${teamB.club}</span>
+          <span class="h2h-scorecard-wins">${winsB}</span>
+          <span class="h2h-scorecard-pct">Win Ratio: ${pctB}%</span>
+        </div>
+      </div>
+
+      ${splitBar}
+
+      <div class="h2h-matrix-log-container">
+        <div class="h2h-matrix-log-title">Match History</div>
+        <div class="h2h-matrix-log-scroll">
+          ${logRowsHTML}
+        </div>
+      </div>
+    </div>
+  `;
 }
 
 // ── BALLERS CUP RENDERING ─────────────────────────────────────
@@ -3049,7 +3416,7 @@ async function openPlayerProfile(playerId) {
   document.getElementById("player-profile-overlay").style.display = "flex";
 
   // Calculate local/current season data
-  const { standings } = computeStandings();
+  const { standings, lastCompletedMatchday } = computeStandings();
   const currentTeam = standings.find(t => t.id === playerId) || (leagueData && leagueData.teams && leagueData.teams.find(t => t.id === playerId));
   if (!currentTeam) {
     profileContent.innerHTML = `<div class="h2h-error">Player details not found</div>`;
@@ -3064,34 +3431,103 @@ async function openPlayerProfile(playerId) {
     ? ((currentSeasonStats.wins / currentSeasonStats.played) * 100).toFixed(0) 
     : 0;
 
-  // Local calculation of last 10 form
+  // Local calculation of last 10 form, home/away record, and streaks
   const playerMatches = [];
+  let homeWins = 0, homeDraws = 0, homeLosses = 0;
+  let awayWins = 0, awayDraws = 0, awayLosses = 0;
+  let homeGoalsFor = 0, homeGoalsAgainst = 0;
+  let awayGoalsFor = 0, awayGoalsAgainst = 0;
+  let homePlayed = 0, awayPlayed = 0;
+  let cleanSheets = 0;
+
   if (leagueData && leagueData.fixtures) {
     leagueData.fixtures.forEach(md => {
       md.matches.forEach(m => {
         if (m.status !== 'completed' || m.homeScore === null) return;
-        if (m.home.id === playerId || m.away.id === playerId) {
+        
+        // Track home vs away records
+        if (m.home.id === playerId) {
+          homePlayed++;
+          homeGoalsFor += m.homeScore;
+          homeGoalsAgainst += m.awayScore;
+          if (m.awayScore === 0) cleanSheets++;
+          if (m.homeScore > m.awayScore) homeWins++;
+          else if (m.homeScore < m.awayScore) homeLosses++;
+          else homeDraws++;
+
           playerMatches.push({
             matchday: md.matchday,
             home: m.home,
             away: m.away,
             homeScore: m.homeScore,
             awayScore: m.awayScore,
+            outcome: m.homeScore > m.awayScore ? 'W' : (m.homeScore < m.awayScore ? 'L' : 'D')
+          });
+        } else if (m.away.id === playerId) {
+          awayPlayed++;
+          awayGoalsFor += m.awayScore;
+          awayGoalsAgainst += m.homeScore;
+          if (m.homeScore === 0) cleanSheets++;
+          if (m.awayScore > m.homeScore) awayWins++;
+          else if (m.awayScore < m.homeScore) awayLosses++;
+          else awayDraws++;
+
+          playerMatches.push({
+            matchday: md.matchday,
+            home: m.home,
+            away: m.away,
+            homeScore: m.homeScore,
+            awayScore: m.awayScore,
+            outcome: m.awayScore > m.homeScore ? 'W' : (m.awayScore < m.homeScore ? 'L' : 'D')
           });
         }
       });
     });
   }
+
   playerMatches.sort((a, b) => a.matchday - b.matchday);
-  const last10Matches = playerMatches.slice(-10);
-  const last10Form = last10Matches.map(m => {
-    const isHome = m.home.id === playerId;
-    const scoreSelf = isHome ? m.homeScore : m.awayScore;
-    const scoreOpp = isHome ? m.awayScore : m.homeScore;
-    if (scoreSelf > scoreOpp) return 'W';
-    if (scoreSelf < scoreOpp) return 'L';
-    return 'D';
+  
+  // Calculate streaks
+  let maxWinStreak = 0;
+  let currentWinStreak = 0;
+  let maxUnbeatenStreak = 0;
+  let currentUnbeatenStreak = 0;
+  let currentStreakType = '';
+  let currentStreakLen = 0;
+
+  playerMatches.forEach(pm => {
+    const outcome = pm.outcome;
+    if (outcome === 'W') {
+      currentWinStreak++;
+      maxWinStreak = Math.max(maxWinStreak, currentWinStreak);
+    } else {
+      currentWinStreak = 0;
+    }
+
+    if (outcome === 'W' || outcome === 'D') {
+      currentUnbeatenStreak++;
+      maxUnbeatenStreak = Math.max(maxUnbeatenStreak, currentUnbeatenStreak);
+    } else {
+      currentUnbeatenStreak = 0;
+    }
+
+    if (currentStreakType === '') {
+      currentStreakType = outcome;
+      currentStreakLen = 1;
+    } else if (currentStreakType === outcome) {
+      currentStreakLen++;
+    } else {
+      currentStreakType = outcome;
+      currentStreakLen = 1;
+    }
   });
+
+  const last10Matches = playerMatches.slice(-10);
+  const last10Dots = last10Matches.map(m => {
+    const res = m.outcome;
+    const cls = res === 'W' ? 'win' : (res === 'L' ? 'loss' : 'draw');
+    return `<span class="form-dot ${cls}" title="${res}"></span>`;
+  }).join("");
 
   const photoUrl = currentTeam.photoUrl || currentTeam.photo_url;
   const logoSrc = clubLogos[currentTeam.club];
@@ -3100,11 +3536,6 @@ async function openPlayerProfile(playerId) {
     : (logoSrc
       ? `<img src="${logoSrc}" alt="${currentTeam.club}" class="profile-logo-img">`
       : `<span class="profile-logo-fallback">${clubShort[currentTeam.club] || currentTeam.club.substring(0,3).toUpperCase()}</span>`);
-
-  const last10Dots = last10Form.map(res => {
-    const cls = res === 'W' ? 'win' : (res === 'L' ? 'loss' : 'draw');
-    return `<span class="form-dot ${cls}" title="${res}"></span>`;
-  }).join("");
 
   // Fetch cross-season records data if available
   let recordsData = null;
@@ -3117,7 +3548,269 @@ async function openPlayerProfile(playerId) {
     console.error("Failed to fetch player profile cross-season history", e);
   }
 
-  // 1. Season-by-season rows
+  // 1. Standings Progression Chart SVG
+  const ranksList = [];
+  const labelsList = [];
+  if (lastCompletedMatchday > 0) {
+    for (let m = 1; m <= lastCompletedMatchday; m++) {
+      const standingsAtM = computeStandingsUpToMatchday(m);
+      const rIdx = standingsAtM.findIndex(t => t.id === playerId);
+      if (rIdx >= 0) {
+        ranksList.push(rIdx + 1);
+        labelsList.push(`MD${m}`);
+      }
+    }
+  }
+
+  let chartHTML = '';
+  if (ranksList.length > 0) {
+    const width = 420;
+    const height = 150;
+    const paddingLeft = 30;
+    const paddingRight = 15;
+    const paddingTop = 15;
+    const paddingBottom = 20;
+    const totalTeams = (leagueData && leagueData.teams && leagueData.teams.length) || 12;
+
+    let drawRanks = [...ranksList];
+    let drawLabels = [...labelsList];
+    if (drawRanks.length === 1) {
+      drawRanks.push(drawRanks[0]);
+      drawLabels.push(drawLabels[0]);
+    }
+
+    const M = drawRanks.length;
+    const points = [];
+    for (let i = 0; i < M; i++) {
+      const x = paddingLeft + (i / (M - 1)) * (width - paddingLeft - paddingRight);
+      const y = paddingTop + ((drawRanks[i] - 1) / (totalTeams - 1)) * (height - paddingTop - paddingBottom);
+      points.push({ x, y, rank: drawRanks[i] });
+    }
+
+    const midRank = Math.round((totalTeams + 1) / 2);
+    const gridRanks = [1, midRank, totalTeams];
+    let gridHTML = '';
+    gridRanks.forEach(r => {
+      const y = paddingTop + ((r - 1) / (totalTeams - 1)) * (height - paddingTop - paddingBottom);
+      gridHTML += `
+        <line x1="${paddingLeft}" y1="${y}" x2="${width - paddingRight}" y2="${y}" class="chart-grid-line ${r === 1 ? 'chart-grid-line-highlight' : ''}" />
+        <text x="${paddingLeft - 6}" y="${y}" class="chart-axis-text ${r === 1 ? 'chart-axis-text-highlight' : ''}" text-anchor="end" dominant-baseline="central">#${r}</text>
+      `;
+    });
+
+    let pathD = `M ${points[0].x} ${points[0].y}`;
+    for (let i = 1; i < points.length; i++) {
+      pathD += ` L ${points[i].x} ${points[i].y}`;
+    }
+
+    let dotsHTML = '';
+    const pointsToShow = ranksList.length === 1 ? [points[0]] : points;
+    pointsToShow.forEach((p, idx) => {
+      const isLast = idx === pointsToShow.length - 1;
+      dotsHTML += `
+        <g class="chart-dot-group" transform="translate(${p.x}, ${p.y})">
+          <circle r="${isLast ? 6 : 5}" class="chart-dot-bg ${isLast ? 'chart-dot-bg-active' : ''}" />
+          <text class="chart-dot-text ${isLast ? '' : 'chart-dot-text-dark'}" style="font-size: ${isLast ? '7.5px' : '6.5px'}">${p.rank}</text>
+          <title>Matchday ${idx + 1}: Rank #${p.rank}</title>
+        </g>
+      `;
+    });
+
+    let xLabelsHTML = '';
+    const labelIndices = [0];
+    if (ranksList.length > 2) labelIndices.push(Math.floor((ranksList.length - 1) / 2));
+    if (ranksList.length > 1) labelIndices.push(ranksList.length - 1);
+    const uniqueIndices = [...new Set(labelIndices)];
+    uniqueIndices.forEach(idx => {
+      if (idx < pointsToShow.length) {
+        xLabelsHTML += `<text x="${pointsToShow[idx].x}" y="${height - 4}" class="chart-axis-text" text-anchor="middle">MD ${idx + 1}</text>`;
+      }
+    });
+
+    chartHTML = `
+      <div class="progression-chart-wrapper">
+        <div style="font-family: var(--font-display); font-size: 0.65rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px;">Standings Progression</div>
+        <svg viewBox="0 0 ${width} ${height}" width="100%" height="auto">
+          ${gridHTML}
+          <path d="${pathD}" class="chart-line-path" />
+          ${dotsHTML}
+          ${xLabelsHTML}
+        </svg>
+      </div>
+    `;
+  }
+
+  // 2. Trophy Cabinet Shelf
+  const trophies = [];
+  if (recordsData && recordsData.seasons) {
+    recordsData.seasons.forEach(s => {
+      if (s.status !== 'completed') return;
+
+      const seasonMatches = recordsData.matches.filter(m => m.seasonId === s.id);
+      const standingsMap = {};
+      recordsData.teams.forEach(t => {
+        standingsMap[t.id] = { id: t.id, player: t.player, club: t.club, points: 0, goalsFor: 0, goalsAgainst: 0, wins: 0, draws: 0, losses: 0, played: 0 };
+      });
+
+      seasonMatches.forEach(m => {
+        if (m.stage && m.stage !== 'league') return;
+        const home = standingsMap[m.homeId];
+        const away = standingsMap[m.awayId];
+        if (!home || !away) return;
+        home.played++; away.played++;
+        home.goalsFor += m.homeScore; home.goalsAgainst += m.awayScore;
+        away.goalsFor += m.awayScore; away.goalsAgainst += m.homeScore;
+        if (m.homeScore > m.awayScore) {
+          home.wins++; home.points += 3; away.losses++;
+        } else if (m.homeScore < m.awayScore) {
+          away.wins++; away.points += 3; home.losses++;
+        } else {
+          home.draws++; away.draws++; home.points += 1; away.points += 1;
+        }
+      });
+
+      const sorted = Object.values(standingsMap).sort((a, b) => {
+        if (b.points !== a.points) return b.points - a.points;
+        const gdA = a.goalsFor - a.goalsAgainst;
+        const gdB = b.goalsFor - b.goalsAgainst;
+        if (gdB !== gdA) return gdB - gdA;
+        if (b.goalsFor !== a.goalsFor) return b.goalsFor - a.goalsFor;
+        return a.player.localeCompare(b.player);
+      });
+
+      if (sorted.length > 0 && sorted[0].id === playerId) {
+        trophies.push({ icon: '🏆', label: 'Champion', season: s.name, details: `Finished 1st (${sorted[0].points} pts)` });
+      } else if (sorted.length > 1 && sorted[1].id === playerId) {
+        trophies.push({ icon: '🥈', label: 'Silver Medal', season: s.name, details: `Finished 2nd (${sorted[1].points} pts)` });
+      }
+
+      const cupFinalMatch = seasonMatches.find(m => m.stage === 'cup_final');
+      if (cupFinalMatch) {
+        const homeWon = cupFinalMatch.homeScore > cupFinalMatch.awayScore || cupFinalMatch.goldenGoalWinnerId === cupFinalMatch.homeId;
+        const awayWon = cupFinalMatch.awayScore > cupFinalMatch.homeScore || cupFinalMatch.goldenGoalWinnerId === cupFinalMatch.awayId;
+        const selfHome = cupFinalMatch.homeId === playerId;
+        const selfAway = cupFinalMatch.awayId === playerId;
+        if ((selfHome && homeWon) || (selfAway && awayWon)) {
+          trophies.push({ icon: '👑', label: 'Cup Winner', season: s.name, details: `Won Cup Final vs ${selfHome ? cupFinalMatch.awayPlayer : cupFinalMatch.homePlayer}` });
+        } else if (selfHome || selfAway) {
+          trophies.push({ icon: '🥈', label: 'Cup Silver', season: s.name, details: `Reached Cup Final` });
+        }
+      }
+
+      const championsFinalMatch = seasonMatches.find(m => m.stage === 'champions_final');
+      if (championsFinalMatch) {
+        const homeWon = championsFinalMatch.homeScore > championsFinalMatch.awayScore || championsFinalMatch.goldenGoalWinnerId === championsFinalMatch.homeId;
+        const awayWon = championsFinalMatch.awayScore > championsFinalMatch.homeScore || championsFinalMatch.goldenGoalWinnerId === championsFinalMatch.awayId;
+        const selfHome = championsFinalMatch.homeId === playerId;
+        const selfAway = championsFinalMatch.awayId === playerId;
+        if ((selfHome && homeWon) || (selfAway && awayWon)) {
+          trophies.push({ icon: '🛡️', label: 'Champions Cup', season: s.name, details: `Won Playoffs Final vs ${selfHome ? championsFinalMatch.awayPlayer : championsFinalMatch.homePlayer}` });
+        } else if (selfHome || selfAway) {
+          trophies.push({ icon: '🥈', label: 'Playoffs Silver', season: s.name, details: `Reached Playoffs Final` });
+        }
+      }
+    });
+  }
+
+  let trophiesHTML = '';
+  if (trophies.length > 0) {
+    trophiesHTML = trophies.map(t => `
+      <div class="trophy-item">
+        <span class="trophy-icon-badge">${t.icon}</span>
+        <span class="trophy-label">${t.label}</span>
+        <div class="trophy-tooltip">
+          <strong>${t.label}</strong><br>
+          ${t.season} &middot; ${t.details}
+        </div>
+      </div>
+    `).join('');
+  } else {
+    trophiesHTML = `<div class="trophy-empty-msg">No trophies won yet. Keep playing to earn trophies!</div>`;
+  }
+
+  const trophyCabinetSection = `
+    <div class="trophy-shelf-wrapper">
+      <div style="font-family: var(--font-display); font-size: 0.65rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px;">🏆 Trophy Cabinet</div>
+      <div class="trophy-shelf">
+        ${trophiesHTML}
+      </div>
+    </div>
+  `;
+
+  // 3. Home vs Away Records & Clean Sheets
+  const totalPlayed = homePlayed + awayPlayed;
+  const avgGoalsScored = totalPlayed > 0 ? ((homeGoalsFor + awayGoalsFor) / totalPlayed).toFixed(2) : '0.00';
+  const avgGoalsConceded = totalPlayed > 0 ? ((homeGoalsAgainst + awayGoalsAgainst) / totalPlayed).toFixed(2) : '0.00';
+
+  const buildRatioBar = (w, d, l) => {
+    const total = w + d + l;
+    if (total === 0) {
+      return `<div class="record-ratio-bar"><div style="width: 100%; text-align: center; font-size: 0.6rem; color: var(--text-muted); line-height: 6px;">No games played</div></div>`;
+    }
+    const wp = (w / total) * 100;
+    const dp = (d / total) * 100;
+    const lp = (l / total) * 100;
+    return `
+      <div class="record-ratio-bar">
+        ${w > 0 ? `<div class="ratio-win" style="width: ${wp}%" title="Wins: ${w}"></div>` : ''}
+        ${d > 0 ? `<div class="ratio-draw" style="width: ${dp}%" title="Draws: ${d}"></div>` : ''}
+        ${l > 0 ? `<div class="ratio-loss" style="width: ${lp}%" title="Losses: ${l}"></div>` : ''}
+      </div>
+    `;
+  };
+
+  const homeAwaySection = `
+    <div class="home-away-records">
+      <div style="font-family: var(--font-display); font-size: 0.65rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em;">Home vs Away Record</div>
+      <div class="record-split-row">
+        <div class="record-split-header">
+          <span class="record-split-title">🏠 Home Record</span>
+          <span class="record-split-numbers">${homeWins}W - ${homeDraws}D - ${homeLosses}L</span>
+        </div>
+        ${buildRatioBar(homeWins, homeDraws, homeLosses)}
+      </div>
+      <div class="record-split-row">
+        <div class="record-split-header">
+          <span class="record-split-title">✈️ Away Record</span>
+          <span class="record-split-numbers">${awayWins}W - ${awayDraws}D - ${awayLosses}L</span>
+        </div>
+        ${buildRatioBar(awayWins, awayDraws, awayLosses)}
+      </div>
+    </div>
+  `;
+
+  // Streaks grid
+  let streakValue = 'None';
+  if (currentStreakLen > 0) {
+    streakValue = `${currentStreakLen} ${currentStreakType === 'W' ? 'Win' : (currentStreakType === 'L' ? 'Loss' : 'Draw')}${currentStreakLen > 1 ? 's' : ''}`;
+  }
+
+  const streaksSection = `
+    <div class="form-streaks-grid">
+      <div class="streak-card">
+        <span class="streak-card-label">🔥 Current Streak</span>
+        <span class="streak-card-value">${streakValue}</span>
+        <span class="streak-card-sub">Active continuous streak</span>
+      </div>
+      <div class="streak-card">
+        <span class="streak-card-label">🛡️ Clean Sheets</span>
+        <span class="streak-card-value">${cleanSheets}</span>
+        <span class="streak-card-sub">${totalPlayed > 0 ? ((cleanSheets / totalPlayed) * 100).toFixed(0) : 0}% clean sheet ratio</span>
+      </div>
+      <div class="streak-card">
+        <span class="streak-card-label">⚡ Longest Win Streak</span>
+        <span class="streak-card-value">${maxWinStreak} Match${maxWinStreak === 1 ? '' : 'es'}</span>
+        <span class="streak-card-sub">All-time consecutive wins</span>
+      </div>
+      <div class="streak-card">
+        <span class="streak-card-label">🏆 Longest Unbeaten</span>
+        <span class="streak-card-value">${maxUnbeatenStreak} Match${maxUnbeatenStreak === 1 ? '' : 'es'}</span>
+        <span class="streak-card-sub">All-time consecutive W/D</span>
+      </div>
+    </div>
+  `;
+
+  // 4. Season-by-season rows
   let historyRowsHTML = "";
   if (recordsData && recordsData.seasons) {
     recordsData.seasons.forEach(s => {
@@ -3127,15 +3820,13 @@ async function openPlayerProfile(playerId) {
         standingsMap[t.id] = { id: t.id, player: t.player, club: t.club, points: 0, goalsFor: 0, goalsAgainst: 0, wins: 0, draws: 0, losses: 0, played: 0 };
       });
       seasonMatches.forEach(m => {
+        if (m.stage && m.stage !== 'league') return;
         const home = standingsMap[m.homeId];
         const away = standingsMap[m.awayId];
         if (!home || !away) return;
-        home.played++;
-        away.played++;
-        home.goalsFor += m.homeScore;
-        home.goalsAgainst += m.awayScore;
-        away.goalsFor += m.awayScore;
-        away.goalsAgainst += m.homeScore;
+        home.played++; away.played++;
+        home.goalsFor += m.homeScore; home.goalsAgainst += m.awayScore;
+        away.goalsFor += m.awayScore; away.goalsAgainst += m.homeScore;
         if (m.homeScore > m.awayScore) {
           home.wins++; home.points += 3; away.losses++;
         } else if (m.homeScore < m.awayScore) {
@@ -3194,7 +3885,7 @@ async function openPlayerProfile(playerId) {
     </div>
   ` : "";
 
-  // 2. Rivals
+  // 5. Rivals cross-season
   let rivalsHTML = "";
   if (recordsData && recordsData.matches) {
     const opponentStats = {};
@@ -3247,63 +3938,22 @@ async function openPlayerProfile(playerId) {
     </div>
   ` : "";
 
-  // Calculate gaming card ratings (0-99 scale with a baseline of 60)
-  const ppg = currentSeasonStats && currentSeasonStats.played > 0 
-    ? (currentSeasonStats.points / currentSeasonStats.played) 
-    : 0;
-  const ovr = currentSeasonStats && currentSeasonStats.played > 0
-    ? Math.max(60, Math.min(99, Math.round(60 + (ppg / 3.0) * 39)))
-    : 60;
-
-  const gfg = currentSeasonStats && currentSeasonStats.played > 0 
-    ? (currentSeasonStats.goalsFor / currentSeasonStats.played) 
-    : 0;
-  const att = currentSeasonStats && currentSeasonStats.played > 0
-    ? Math.max(60, Math.min(99, Math.round(60 + (gfg / 3.5) * 39)))
-    : 60;
-
-  const gag = currentSeasonStats && currentSeasonStats.played > 0 
-    ? (currentSeasonStats.goalsAgainst / currentSeasonStats.played) 
-    : 0;
-  const def = currentSeasonStats && currentSeasonStats.played > 0
-    ? Math.max(50, Math.min(99, Math.round(99 - (gag / 3.5) * 39)))
-    : 60;
-
-  // Streak/form-based strength rating projected on a 5-game scale
-  const recentFormArray = currentSeasonStats ? currentSeasonStats.form : [];
-  let formScore = 0;
-  if (recentFormArray.length > 0) {
-    let sum = 0;
-    recentFormArray.forEach(r => {
-      if (r === 'W') sum += 20;
-      else if (r === 'D') sum += 10;
-      else if (r === 'L') sum += 5;
-    });
-    formScore = (sum / recentFormArray.length) * 5;
-  } else {
-    formScore = 25; // default minimum
-  }
+  // Calculate gaming card ratings
+  const ppg = currentSeasonStats && currentSeasonStats.played > 0 ? (currentSeasonStats.points / currentSeasonStats.played) : 0;
+  const ovr = currentSeasonStats && currentSeasonStats.played > 0 ? Math.max(60, Math.min(99, Math.round(60 + (ppg / 3.0) * 39))) : 60;
+  const gfg = currentSeasonStats && currentSeasonStats.played > 0 ? (currentSeasonStats.goalsFor / currentSeasonStats.played) : 0;
+  const att = currentSeasonStats && currentSeasonStats.played > 0 ? Math.max(60, Math.min(99, Math.round(60 + (gfg / 3.5) * 39))) : 60;
+  const gag = currentSeasonStats && currentSeasonStats.played > 0 ? (currentSeasonStats.goalsAgainst / currentSeasonStats.played) : 0;
+  const def = currentSeasonStats && currentSeasonStats.played > 0 ? Math.max(50, Math.min(99, Math.round(99 - (gag / 3.5) * 39))) : 60;
   const str = Math.max(60, Math.min(99, Math.round(60 + ((formScore - 25) / 75) * 39)));
 
-  // HTML content for manager card avatars
-  let cardAvatarHTML;
-  if (photoUrl) {
-    cardAvatarHTML = `<img src="${photoUrl}" alt="${currentTeam.player}" class="card-avatar-img">`;
-  } else {
-    cardAvatarHTML = `
-      <svg class="card-avatar-svg" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.4)" stroke-width="1.5">
-        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" stroke-linecap="round" stroke-linejoin="round"/>
-        <circle cx="12" cy="7" r="4" stroke-linecap="round" stroke-linejoin="round"/>
-      </svg>
-    `;
-  }
+  let cardAvatarHTML = photoUrl
+    ? `<img src="${photoUrl}" alt="${currentTeam.player}" class="card-avatar-img">`
+    : `<svg class="card-avatar-svg" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.4)" stroke-width="1.5"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="12" cy="7" r="4" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 
-  let cardClubLogoHTML;
-  if (logoSrc) {
-    cardClubLogoHTML = `<img src="${logoSrc}" alt="${currentTeam.club}" class="card-club-img">`;
-  } else {
-    cardClubLogoHTML = `<span class="card-club-fallback">${clubShort[currentTeam.club] || currentTeam.club.substring(0,3).toUpperCase()}</span>`;
-  }
+  let cardClubLogoHTML = logoSrc
+    ? `<img src="${logoSrc}" alt="${currentTeam.club}" class="card-club-img">`
+    : `<span class="card-club-fallback">${clubShort[currentTeam.club] || currentTeam.club.substring(0,3).toUpperCase()}</span>`;
 
   profileContent.innerHTML = `
     <div class="manager-card-wrapper">
@@ -3349,6 +3999,18 @@ async function openPlayerProfile(playerId) {
         </div>
       </div>
     </div>
+
+    <!-- Trophy Cabinet shelf -->
+    ${trophyCabinetSection}
+
+    <!-- SVG Progression Chart -->
+    ${chartHTML}
+
+    <!-- Home/Away Split Records -->
+    ${homeAwaySection}
+
+    <!-- Streaks Grid -->
+    ${streaksSection}
 
     <div class="profile-section">
       <div class="profile-section-title">📈 Recent Form (Last 10)</div>
