@@ -3945,6 +3945,21 @@ async function openPlayerProfile(playerId) {
   const att = currentSeasonStats && currentSeasonStats.played > 0 ? Math.max(60, Math.min(99, Math.round(60 + (gfg / 3.5) * 39))) : 60;
   const gag = currentSeasonStats && currentSeasonStats.played > 0 ? (currentSeasonStats.goalsAgainst / currentSeasonStats.played) : 0;
   const def = currentSeasonStats && currentSeasonStats.played > 0 ? Math.max(50, Math.min(99, Math.round(99 - (gag / 3.5) * 39))) : 60;
+
+  const recentFormArray = currentSeasonStats ? currentSeasonStats.form : [];
+  let formScore = 0;
+  if (recentFormArray.length > 0) {
+    let sum = 0;
+    recentFormArray.forEach(r => {
+      if (r === 'W') sum += 20;
+      else if (r === 'D') sum += 10;
+      else if (r === 'L') sum += 5;
+    });
+    formScore = (sum / recentFormArray.length) * 5;
+  } else {
+    formScore = 25;
+  }
+
   const str = Math.max(60, Math.min(99, Math.round(60 + ((formScore - 25) / 75) * 39)));
 
   let cardAvatarHTML = photoUrl
