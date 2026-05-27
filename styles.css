@@ -1090,6 +1090,7 @@ body {
 .snapshot-render .snap-logo {
   width: 32px;
   height: 32px;
+  object-fit: contain;
 }
 
 .snapshot-render .snap-title-wrap h3 {

@@ -639,10 +639,7 @@ function hideSnapshotOverlay() {
 function buildSnapshotHeader(subtitleText) {
   return `
     <div class="snap-header">
-      <svg class="snap-logo" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <circle cx="20" cy="20" r="19" stroke="white" stroke-width="1.5"/>
-        <path d="M20 5 L25 15 L35 17 L28 25 L30 35 L20 30 L10 35 L12 25 L5 17 L15 15 Z" fill="white" opacity="0.9"/>
-      </svg>
+      <img class="snap-logo" src="logo.png" alt="Ballers League Logo">
       <div class="snap-title-wrap">
         <h3>Ballers League</h3>
         <div class="snap-subtitle">${subtitleText}</div>
