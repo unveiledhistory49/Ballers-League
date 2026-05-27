@@ -127,13 +127,16 @@ body {
   gap: 12px;
 }
 
-.league-logo svg {
-  width: 36px;
-  height: 36px;
+.league-logo svg,
+.league-logo img {
+  width: 42px;
+  height: 42px;
+  object-fit: contain;
   transition: transform 0.4s var(--ease-spring);
 }
 
-.league-logo:hover svg {
+.league-logo:hover svg,
+.league-logo:hover img {
   transform: rotate(15deg) scale(1.1);
 }
 
