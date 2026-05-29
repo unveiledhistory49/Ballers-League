@@ -1118,10 +1118,18 @@ app.post('/api/admin/season', requireAdmin, (req, res) => {
     // Mark current season as completed
     activeSeason.status = 'completed';
 
+    // Filter to only include active teams for scheduling
+    const activeTeams = db.teams.filter(t => t.isActive !== false);
+    if (activeTeams.length < 2) {
+      return res.status(400).json({
+        error: 'Cannot start a new season — there must be at least 2 active teams to generate fixtures.'
+      });
+    }
+
     // Create new season
     const newId = db.seasons.length + 1;
     const newSeasonName = `Season ${newId}`;
-    const newFixtures = generateFixtures(db.teams);
+    const newFixtures = generateFixtures(activeTeams);
 
     db.seasons.push({
       id: newId,
