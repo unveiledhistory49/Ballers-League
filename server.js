@@ -487,7 +487,7 @@ app.post('/api/admin/login', (req, res) => {
 // ── POST /api/prediction — Cast a prediction vote ──────────────
 app.post('/api/prediction', (req, res) => {
   try {
-    const { matchday, homeId, awayId, option, seasonId, voterName } = req.body;
+    const { matchday, homeId, awayId, option, seasonId, voterName, stage } = req.body;
 
     if (matchday === undefined || homeId === undefined || awayId === undefined || !option || !voterName) {
       return res.status(400).json({ error: 'Missing matchday, homeId, awayId, option, or voterName' });
@@ -511,12 +511,36 @@ app.post('/api/prediction', (req, res) => {
       season = getActiveSeason(db);
     }
 
-    const md = season.fixtures.find(f => f.matchday === parseInt(matchday, 10));
-    if (!md) return res.status(404).json({ error: `Matchday ${matchday} not found` });
+    const stageStr = stage || 'league';
+    let match = null;
 
-    const match = md.matches.find(
-      m => m.home.id === parseInt(homeId, 10) && m.away.id === parseInt(awayId, 10)
-    );
+    if (stageStr === 'league') {
+      const md = season.fixtures.find(f => f.matchday === parseInt(matchday, 10));
+      if (md) {
+        match = md.matches.find(
+          m => m.home.id === parseInt(homeId, 10) && m.away.id === parseInt(awayId, 10)
+        );
+      }
+    } else if (stageStr.startsWith('cup_')) {
+      if (season.cupFixtures) {
+        const md = season.cupFixtures.find(f => f.stage === stageStr);
+        if (md) {
+          match = md.matches.find(
+            m => m.home.id === parseInt(homeId, 10) && m.away.id === parseInt(awayId, 10)
+          );
+        }
+      }
+    } else if (stageStr.startsWith('champions_')) {
+      if (season.playoffFixtures) {
+        const md = season.playoffFixtures.find(f => f.stage === stageStr);
+        if (md) {
+          match = md.matches.find(
+            m => m.home.id === parseInt(homeId, 10) && m.away.id === parseInt(awayId, 10)
+          );
+        }
+      }
+    }
+
     if (!match) return res.status(404).json({ error: 'Match not found' });
 
     if (!match.predictions) {

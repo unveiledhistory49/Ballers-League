@@ -1682,7 +1682,9 @@ body {
   transition: max-height 0.3s var(--ease-out), margin-top 0.3s ease, opacity 0.3s ease, padding-top 0.3s ease;
 }
 
-.fixture-card.expanded .fixture-prediction {
+.fixture-card.expanded .fixture-prediction,
+.bracket-match.expanded .fixture-prediction,
+.champions-tie-card.expanded .fixture-prediction {
   max-height: 800px;
   opacity: 1;
   margin-top: 16px;
@@ -5144,4 +5146,53 @@ body {
 .h2h-outcome-badge.W { background: var(--dot-win); }
 .h2h-outcome-badge.D { background: var(--dot-draw); color: #fff; }
 .h2h-outcome-badge.L { background: var(--dot-loss); color: #fff; }
+
+/* ── Cup & Playoff Prediction overrides ── */
+.bracket-match:not(.bracket-match-tbd),
+.champions-tie-card {
+  cursor: pointer;
+}
+
+.bracket-match.expanded:hover,
+.bracket-match-final.expanded:hover,
+.champions-tie-card.expanded:hover {
+  transform: none !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4) !important;
+}
+
+.champions-tie-actions {
+  display: flex;
+  gap: 8px;
+  padding: 8px 14px;
+  border-top: 1px solid var(--border-subtle);
+  background: rgba(255, 255, 255, 0.01);
+}
+
+.tie-action-btn {
+  flex: 1;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-medium);
+  color: var(--text-secondary);
+  font-size: 0.72rem;
+  font-family: var(--font-body);
+  font-weight: 600;
+  padding: 8px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.25s var(--ease-out);
+  text-align: center;
+}
+
+.tie-action-btn:hover {
+  background: var(--bg-card);
+  border-color: var(--border-accent);
+  color: var(--text-primary);
+}
+
+.tie-action-btn.active {
+  background: var(--accent-gold);
+  border-color: var(--accent-gold);
+  color: #000;
+  font-weight: 700;
+}
 

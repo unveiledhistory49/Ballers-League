@@ -1130,13 +1130,34 @@ function buildHistorySnapshot() {
 // MATCH PREDICTIONS & SAFEGUARDS
 // ═══════════════════════════════════════════════════════════════
 
-function togglePredictionCard(card, matchday, homeId, awayId) {
+function findMatchInLeagueData(matchday, homeId, awayId, stage = 'league') {
+  if (!leagueData) return null;
+  const stageStr = stage || 'league';
+  if (stageStr === 'league') {
+    const md = leagueData.fixtures.find(f => f.matchday === matchday);
+    if (md) return md.matches.find(m => m.home.id === homeId && m.away.id === awayId);
+  } else if (stageStr.startsWith('cup_')) {
+    if (leagueData.cupFixtures) {
+      const md = leagueData.cupFixtures.find(f => f.stage === stageStr);
+      if (md) return md.matches.find(m => m.home.id === homeId && m.away.id === awayId);
+    }
+  } else if (stageStr.startsWith('champions_')) {
+    if (leagueData.playoffFixtures) {
+      const md = leagueData.playoffFixtures.find(f => f.stage === stageStr);
+      if (md) return md.matches.find(m => m.home.id === homeId && m.away.id === awayId);
+    }
+  }
+  return null;
+}
+
+function togglePredictionCard(card, matchday, homeId, awayId, stage = 'league') {
   const isExpanded = card.classList.contains("expanded");
 
   // Collapse all other expanded cards
-  document.querySelectorAll(".fixture-card.expanded").forEach(c => {
+  document.querySelectorAll(".fixture-card.expanded, .bracket-match.expanded, .champions-tie-card.expanded").forEach(c => {
     if (c !== card) {
       c.classList.remove("expanded");
+      c.querySelectorAll(".tie-action-btn").forEach(b => b.classList.remove("active"));
       // Stop and pause video players in collapsed cards
       const video = c.querySelector("video");
       if (video) video.pause();
@@ -1150,65 +1171,105 @@ function togglePredictionCard(card, matchday, homeId, awayId) {
     if (video) video.pause();
   } else {
     card.classList.add("expanded");
-    const predContainer = card.querySelector(".fixture-prediction");
-    if (predContainer) {
-      const md = leagueData.fixtures.find(f => f.matchday === matchday);
-      const match = md.matches.find(m => m.home.id === homeId && m.away.id === awayId);
+    renderPlayoffPredictionContent(card, matchday, homeId, awayId, stage);
+  }
+}
 
-      const hasStream = !!(match.homeStreamUrl || match.awayStreamUrl);
-      const isLive = match.status === "live";
+function togglePlayoffMatchPrediction(btn, stage, matchday, homeId, awayId) {
+  const card = btn.closest(".champions-tie-card");
+  if (!card) return;
 
-      let tabsHTML = "";
-      if (hasStream) {
-        tabsHTML = `
-          <div class="fixture-expanded-tabs" onclick="event.stopPropagation()">
-            <button class="fixture-expanded-tab ${!isLive ? 'active' : ''}" id="tab-pred-${matchday}-${homeId}-${awayId}" onclick="switchPanel(event, ${matchday}, ${homeId}, ${awayId}, 'pred')">Prediction</button>
-            <button class="fixture-expanded-tab ${isLive ? 'active' : ''}" id="tab-live-${matchday}-${homeId}-${awayId}" onclick="switchPanel(event, ${matchday}, ${homeId}, ${awayId}, 'live')">Watch Live</button>
-          </div>
-        `;
-      }
+  const isExpanded = card.classList.contains("expanded");
+  const currentLeg = card.dataset.activeLeg;
+  const targetLeg = `${stage}-${matchday}-${homeId}-${awayId}`;
 
-      predContainer.innerHTML = `
-        ${tabsHTML}
-        <div class="fixture-panel ${!isLive || !hasStream ? 'active' : ''}" id="panel-pred-${matchday}-${homeId}-${awayId}" onclick="event.stopPropagation()">
-          <div class="prediction-poll-wrapper"></div>
-        </div>
-        ${hasStream ? `
-          <div class="fixture-panel ${isLive ? 'active' : ''}" id="panel-live-${matchday}-${homeId}-${awayId}" onclick="event.stopPropagation()">
-            <div class="live-stream-wrapper"></div>
-          </div>
-        ` : ''}
-      `;
-
-      // Render prediction widget inside wrapper
-      const pollWrapper = predContainer.querySelector(".prediction-poll-wrapper");
-      renderPredictionWidget(
-        pollWrapper,
-        matchday,
-        homeId,
-        awayId,
-        match.home.club,
-        match.away.club,
-        match.status,
-        match.predictions
-      );
-
-      // Render stream player AFTER the panel expansion animation finishes.
-      // Twitch requires the iframe to be fully visible (opacity: 1, not overflow-hidden)
-      // before it will load. The .fixture-prediction panel transitions over 300ms,
-      // so we wait 350ms before injecting the iframe.
-      if (hasStream) {
-        setTimeout(() => {
-          const streamWrapper = predContainer.querySelector(".live-stream-wrapper");
-          if (streamWrapper && card.classList.contains("expanded")) {
-            renderStreamPlayer(streamWrapper, matchday, homeId, awayId, match.home.player, match.away.player, match.homeStreamUrl, match.awayStreamUrl);
-          }
-        }, 350);
-      }
-
-      // Fetch and render H2H data
-      loadH2HBar(predContainer, homeId, awayId, match.home.player, match.away.player);
+  // Collapse all other expanded cards
+  document.querySelectorAll(".fixture-card.expanded, .bracket-match.expanded, .champions-tie-card.expanded").forEach(c => {
+    if (c !== card) {
+      c.classList.remove("expanded");
+      c.querySelectorAll(".tie-action-btn").forEach(b => b.classList.remove("active"));
+      const video = c.querySelector("video");
+      if (video) video.pause();
     }
+  });
+
+  if (isExpanded && currentLeg === targetLeg) {
+    card.classList.remove("expanded");
+    btn.classList.remove("active");
+    const video = card.querySelector("video");
+    if (video) video.pause();
+  } else {
+    card.dataset.activeLeg = targetLeg;
+    card.classList.add("expanded");
+    
+    // Highlight the active button
+    card.querySelectorAll(".tie-action-btn").forEach(b => b.classList.remove("active"));
+    btn.classList.add("active");
+
+    renderPlayoffPredictionContent(card, matchday, homeId, awayId, stage);
+  }
+}
+
+function renderPlayoffPredictionContent(card, matchday, homeId, awayId, stage = 'league') {
+  const predContainer = card.querySelector(".fixture-prediction");
+  if (predContainer) {
+    const match = findMatchInLeagueData(matchday, homeId, awayId, stage);
+    if (!match) {
+      predContainer.innerHTML = `<div class="records-loading">Match details not found.</div>`;
+      return;
+    }
+
+    const hasStream = !!(match.homeStreamUrl || match.awayStreamUrl);
+    const isLive = match.status === "live";
+
+    let tabsHTML = "";
+    if (hasStream) {
+      tabsHTML = `
+        <div class="fixture-expanded-tabs" onclick="event.stopPropagation()">
+          <button class="fixture-expanded-tab ${!isLive ? 'active' : ''}" id="tab-pred-${matchday}-${homeId}-${awayId}" onclick="switchPanel(event, ${matchday}, ${homeId}, ${awayId}, 'pred')">Prediction</button>
+          <button class="fixture-expanded-tab ${isLive ? 'active' : ''}" id="tab-live-${matchday}-${homeId}-${awayId}" onclick="switchPanel(event, ${matchday}, ${homeId}, ${awayId}, 'live')">Watch Live</button>
+        </div>
+      `;
+    }
+
+    predContainer.innerHTML = `
+      ${tabsHTML}
+      <div class="fixture-panel ${!isLive || !hasStream ? 'active' : ''}" id="panel-pred-${matchday}-${homeId}-${awayId}" onclick="event.stopPropagation()">
+        <div class="prediction-poll-wrapper"></div>
+      </div>
+      ${hasStream ? `
+        <div class="fixture-panel ${isLive ? 'active' : ''}" id="panel-live-${matchday}-${homeId}-${awayId}" onclick="event.stopPropagation()">
+          <div class="live-stream-wrapper"></div>
+        </div>
+      ` : ''}
+    `;
+
+    // Render prediction widget inside wrapper
+    const pollWrapper = predContainer.querySelector(".prediction-poll-wrapper");
+    renderPredictionWidget(
+      pollWrapper,
+      matchday,
+      homeId,
+      awayId,
+      match.home.club,
+      match.away.club,
+      match.status,
+      match.predictions,
+      stage
+    );
+
+    // Render stream player AFTER the panel expansion animation finishes.
+    if (hasStream) {
+      setTimeout(() => {
+        const streamWrapper = predContainer.querySelector(".live-stream-wrapper");
+        if (streamWrapper && card.classList.contains("expanded")) {
+          renderStreamPlayer(streamWrapper, matchday, homeId, awayId, match.home.player, match.away.player, match.homeStreamUrl, match.awayStreamUrl);
+        }
+      }, 350);
+    }
+
+    // Fetch and render H2H data
+    loadH2HBar(predContainer, homeId, awayId, match.home.player, match.away.player);
   }
 }
 
@@ -1221,7 +1282,7 @@ function getMatchVotes(matchday, homeId, awayId, serverPredictions) {
   return { home, draw, away, total };
 }
 
-function renderPredictionWidget(container, matchday, homeId, awayId, homeClub, awayClub, matchStatus, serverPredictions) {
+function renderPredictionWidget(container, matchday, homeId, awayId, homeClub, awayClub, matchStatus, serverPredictions, stage = 'league') {
   const localStorageKey = `prediction-${matchday}-${homeId}-${awayId}`;
   const userVote = localStorage.getItem(localStorageKey);
   const isCompleted = matchStatus === "completed";
@@ -1312,7 +1373,7 @@ function renderPredictionWidget(container, matchday, homeId, awayId, homeClub, a
       ${voterDropdownHTML}
       <div class="prediction-options-grid active-voting">
         <div class="prediction-option-col">
-          <button class="prediction-btn ${userVote === 'home' ? 'selected' : ''}" onclick="castPredictionVote(event, ${matchday}, ${homeId}, ${awayId}, 'home', '${homeClub}', '${awayClub}', '${matchStatus}')">
+          <button class="prediction-btn ${userVote === 'home' ? 'selected' : ''}" onclick="castPredictionVote(event, ${matchday}, ${homeId}, ${awayId}, 'home', '${homeClub}', '${awayClub}', '${matchStatus}', '${stage}')">
             ${userVote ? `<div class="prediction-btn-fill" style="width: ${homePercent}%;"></div>` : ''}
             ${homeLogoSrc ? `<img src="${homeLogoSrc}" alt="${homeClub}">` : `<span>${homeShort}</span>`}
             ${userVote ? `<span class="prediction-percent">${homePercent}%</span>` : ''}
@@ -1320,7 +1381,7 @@ function renderPredictionWidget(container, matchday, homeId, awayId, homeClub, a
           ${getVotersHTMLForOption('home')}
         </div>
         <div class="prediction-option-col">
-          <button class="prediction-btn ${userVote === 'draw' ? 'selected' : ''}" onclick="castPredictionVote(event, ${matchday}, ${homeId}, ${awayId}, 'draw', '${homeClub}', '${awayClub}', '${matchStatus}')">
+          <button class="prediction-btn ${userVote === 'draw' ? 'selected' : ''}" onclick="castPredictionVote(event, ${matchday}, ${homeId}, ${awayId}, 'draw', '${homeClub}', '${awayClub}', '${matchStatus}', '${stage}')">
             ${userVote ? `<div class="prediction-btn-fill" style="width: ${drawPercent}%;"></div>` : ''}
             <span>X</span>
             ${userVote ? `<span class="prediction-percent">${drawPercent}%</span>` : ''}
@@ -1328,7 +1389,7 @@ function renderPredictionWidget(container, matchday, homeId, awayId, homeClub, a
           ${getVotersHTMLForOption('draw')}
         </div>
         <div class="prediction-option-col">
-          <button class="prediction-btn ${userVote === 'away' ? 'selected' : ''}" onclick="castPredictionVote(event, ${matchday}, ${homeId}, ${awayId}, 'away', '${homeClub}', '${awayClub}', '${matchStatus}')">
+          <button class="prediction-btn ${userVote === 'away' ? 'selected' : ''}" onclick="castPredictionVote(event, ${matchday}, ${homeId}, ${awayId}, 'away', '${homeClub}', '${awayClub}', '${matchStatus}', '${stage}')">
             ${userVote ? `<div class="prediction-btn-fill" style="width: ${awayPercent}%;"></div>` : ''}
             ${awayLogoSrc ? `<img src="${awayLogoSrc}" alt="${awayClub}">` : `<span>${awayShort}</span>`}
             ${userVote ? `<span class="prediction-percent">${awayPercent}%</span>` : ''}
@@ -1355,7 +1416,7 @@ function renderPredictionWidget(container, matchday, homeId, awayId, homeClub, a
   `;
 }
 
-async function castPredictionVote(event, matchday, homeId, awayId, selectedOption, homeClub, awayClub, matchStatus) {
+async function castPredictionVote(event, matchday, homeId, awayId, selectedOption, homeClub, awayClub, matchStatus, stage = 'league') {
   event.stopPropagation(); // Avoid collapsing parent card
   const localStorageKey = `prediction-${matchday}-${homeId}-${awayId}`;
 
@@ -1373,7 +1434,7 @@ async function castPredictionVote(event, matchday, homeId, awayId, selectedOptio
     const res = await fetch("/api/prediction", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ matchday, homeId, awayId, option: selectedOption, seasonId: currentSeasonId, voterName })
+      body: JSON.stringify({ matchday, homeId, awayId, option: selectedOption, seasonId: currentSeasonId, voterName, stage })
     });
 
     const data = await res.json();
@@ -1391,67 +1452,64 @@ async function castPredictionVote(event, matchday, homeId, awayId, selectedOptio
     } else {
       // Vote successful
       localStorage.setItem(localStorageKey, selectedOption);
-      const md = leagueData.fixtures.find(f => f.matchday === matchday);
-      const match = md.matches.find(m => m.home.id === homeId && m.away.id === awayId);
-      match.predictions = data.predictions;
+      const match = findMatchInLeagueData(matchday, homeId, awayId, stage);
+      if (match) match.predictions = data.predictions;
     }
   } catch (err) {
     console.warn("Prediction API failed, using local fallback:", err);
     localStorage.setItem(localStorageKey, selectedOption);
     
     // Local fallback logic: increment/update locally!
-    const md = leagueData.fixtures.find(f => f.matchday === matchday);
-    if (md) {
-      const match = md.matches.find(m => m.home.id === homeId && m.away.id === awayId);
-      if (match) {
-        if (!match.predictions) {
-          match.predictions = { home: 0, draw: 0, away: 0, ips: [], voters: [] };
-        }
-        if (!match.predictions.voters) {
-          match.predictions.voters = [];
-        }
-        
-        let existingVoteIndex = -1;
-        if (voterName === 'Guest') {
-          // In local mock fallback, we can't easily isolate guest IPs, but let's assume one guest per session for simplicity
-          existingVoteIndex = match.predictions.voters.findIndex(v => v.name === 'Guest' && v.ip === '127.0.0.1');
-        } else {
-          existingVoteIndex = match.predictions.voters.findIndex(v => v.name === voterName);
-        }
+    const match = findMatchInLeagueData(matchday, homeId, awayId, stage);
+    if (match) {
+      if (!match.predictions) {
+        match.predictions = { home: 0, draw: 0, away: 0, ips: [], voters: [] };
+      }
+      if (!match.predictions.voters) {
+        match.predictions.voters = [];
+      }
+      
+      let existingVoteIndex = -1;
+      if (voterName === 'Guest') {
+        existingVoteIndex = match.predictions.voters.findIndex(v => v.name === 'Guest' && v.ip === '127.0.0.1');
+      } else {
+        existingVoteIndex = match.predictions.voters.findIndex(v => v.name === voterName);
+      }
 
-        if (existingVoteIndex > -1) {
-          const previousPick = match.predictions.voters[existingVoteIndex].pick;
-          if (previousPick !== selectedOption) {
-            if (match.predictions[previousPick] > 0) {
-              match.predictions[previousPick]--;
-            }
-            match.predictions[selectedOption] = (match.predictions[selectedOption] || 0) + 1;
-            match.predictions.voters[existingVoteIndex].pick = selectedOption;
+      if (existingVoteIndex > -1) {
+        const previousPick = match.predictions.voters[existingVoteIndex].pick;
+        if (previousPick !== selectedOption) {
+          if (match.predictions[previousPick] > 0) {
+            match.predictions[previousPick]--;
           }
-        } else {
-          match.predictions.voters.push({ name: voterName, pick: selectedOption, ip: '127.0.0.1' });
           match.predictions[selectedOption] = (match.predictions[selectedOption] || 0) + 1;
+          match.predictions.voters[existingVoteIndex].pick = selectedOption;
         }
+      } else {
+        match.predictions.voters.push({ name: voterName, pick: selectedOption, ip: '127.0.0.1' });
+        match.predictions[selectedOption] = (match.predictions[selectedOption] || 0) + 1;
       }
     }
   }
 
-  const card = event.target.closest(".fixture-card");
+  const card = event.target.closest(".fixture-card") || event.target.closest(".bracket-match") || event.target.closest(".champions-tie-card");
   if (card) {
     const pollWrapper = card.querySelector(".prediction-poll-wrapper");
     const target = pollWrapper || card.querySelector(".fixture-prediction");
-    const md = leagueData.fixtures.find(f => f.matchday === matchday);
-    const match = md.matches.find(m => m.home.id === homeId && m.away.id === awayId);
-    renderPredictionWidget(
-      target,
-      matchday,
-      homeId,
-      awayId,
-      homeClub,
-      awayClub,
-      matchStatus,
-      match.predictions
-    );
+    const match = findMatchInLeagueData(matchday, homeId, awayId, stage);
+    if (match) {
+      renderPredictionWidget(
+        target,
+        matchday,
+        homeId,
+        awayId,
+        homeClub,
+        awayClub,
+        matchStatus,
+        match.predictions,
+        stage
+      );
+    }
   }
 }
 
@@ -1737,6 +1795,7 @@ window.castPredictionVote = castPredictionVote;
 window.switchStreamFeed = switchStreamFeed;
 window.toggleStreamFullscreen = toggleStreamFullscreen;
 window.togglePredictionCard = togglePredictionCard;
+window.togglePlayoffMatchPrediction = togglePlayoffMatchPrediction;
 
 // ═══════════════════════════════════════════════════════════════
 // STATS & LEADERBOARDS
@@ -2097,6 +2156,7 @@ async function loadH2HBar(container, homeId, awayId, homePlayer, awayPlayer) {
   if (!h2hSec) {
     h2hSec = document.createElement("div");
     h2hSec.className = "h2h-section";
+    h2hSec.onclick = (e) => e.stopPropagation();
     container.appendChild(h2hSec);
   }
   h2hSec.innerHTML = `<div class="h2h-loading">Loading Head-to-Head history...</div>`;
@@ -3096,7 +3156,7 @@ function renderBallersCup() {
   };
 
   // Helper: render a bracket match card
-  const renderBracketMatch = (m, isFinal) => {
+  const renderBracketMatch = (m, isFinal, stage) => {
     if (!m) {
       return `
         <div class="bracket-match bracket-match-tbd">
@@ -3132,7 +3192,7 @@ function renderBallersCup() {
     }
 
     return `
-      <div class="bracket-match ${completed ? 'completed' : ''} ${isFinal ? 'bracket-match-final' : ''}">
+      <div class="bracket-match ${completed ? 'completed' : ''} ${isFinal ? 'bracket-match-final' : ''}" onclick="togglePredictionCard(this, ${m.matchday}, ${m.home.id}, ${m.away.id}, '${stage}')">
         <div class="bracket-team ${completed ? (homeWon ? 'winner' : 'loser') : ''}">
           <div class="bracket-team-logo" style="${!homeLogoSrc ? `background: ${homeColors.bg}; color: ${homeColors.text};` : ''}">
             ${homeLogoSrc ? `<img src="${homeLogoSrc}" alt="${m.home.club}">` : m.home.club.substring(0,3).toUpperCase()}
@@ -3149,6 +3209,7 @@ function renderBallersCup() {
           <span class="bracket-team-score">${completed ? m.awayScore : '—'}</span>
         </div>
         ${ggBadge}
+        <div class="fixture-prediction"></div>
       </div>
     `;
   };
@@ -3190,36 +3251,36 @@ function renderBallersCup() {
         <!-- Left side: R16 → QF → SF -->
         <div class="bracket-column bracket-col-r16-left">
           <div class="bracket-col-label">R16</div>
-          ${r16LeftPadded.map(m => renderBracketMatch(m, false)).join('')}
+          ${r16LeftPadded.map(m => renderBracketMatch(m, false, 'cup_r16')).join('')}
         </div>
         <div class="bracket-column bracket-col-qf-left">
           <div class="bracket-col-label">QF</div>
-          ${qfLeftPadded.map(m => renderBracketMatch(m, false)).join('')}
+          ${qfLeftPadded.map(m => renderBracketMatch(m, false, 'cup_qf')).join('')}
         </div>
         <div class="bracket-column bracket-col-sf-left">
           <div class="bracket-col-label">SF</div>
-          ${renderBracketMatch(sfLeft, false)}
+          ${renderBracketMatch(sfLeft, false, 'cup_sf')}
         </div>
 
         <!-- Center: Final + Trophy -->
         <div class="bracket-column bracket-col-final">
           <div class="bracket-col-label">FINAL</div>
           <div class="bracket-trophy">🏆</div>
-          ${renderBracketMatch(finalMatch, true)}
+          ${renderBracketMatch(finalMatch, true, 'cup_final')}
         </div>
 
         <!-- Right side: SF → QF → R16 (mirrored) -->
         <div class="bracket-column bracket-col-sf-right">
           <div class="bracket-col-label">SF</div>
-          ${renderBracketMatch(sfRight, false)}
+          ${renderBracketMatch(sfRight, false, 'cup_sf')}
         </div>
         <div class="bracket-column bracket-col-qf-right">
           <div class="bracket-col-label">QF</div>
-          ${qfRightPadded.map(m => renderBracketMatch(m, false)).join('')}
+          ${qfRightPadded.map(m => renderBracketMatch(m, false, 'cup_qf')).join('')}
         </div>
         <div class="bracket-column bracket-col-r16-right">
           <div class="bracket-col-label">R16</div>
-          ${r16RightPadded.map(m => renderBracketMatch(m, false)).join('')}
+          ${r16RightPadded.map(m => renderBracketMatch(m, false, 'cup_r16')).join('')}
         </div>
       </div>
 
@@ -3289,11 +3350,20 @@ function renderChampionsCup() {
   const semi2Data = leagueData.playoffFixtures.find(f => f.stage === 'champions_semi_2');
   const finalData = leagueData.playoffFixtures.find(f => f.stage === 'champions_final');
 
-  // Build tie data for each semi-final
-  const buildTieData = (teamAId, teamBId, title) => {
-    if (!semi1Data || !semi2Data) return null;
-    const leg1 = semi1Data.matches.find(m => (m.home.id === teamAId && m.away.id === teamBId) || (m.home.id === teamBId && m.away.id === teamAId));
-    const leg2 = semi2Data.matches.find(m => (m.home.id === teamAId && m.away.id === teamBId) || (m.home.id === teamBId && m.away.id === teamAId));
+  // Build tie data for each semi-final or final
+  const buildTieData = (teamAId, teamBId, title, isFinal = false) => {
+    const data1 = isFinal ? finalData : semi1Data;
+    const data2 = isFinal ? finalData : semi2Data;
+    if (!data1 || !data2) return null;
+
+    let leg1, leg2;
+    if (isFinal) {
+      leg1 = finalData.matches[0];
+      leg2 = finalData.matches[1];
+    } else {
+      leg1 = data1.matches.find(m => (m.home.id === teamAId && m.away.id === teamBId) || (m.home.id === teamBId && m.away.id === teamAId));
+      leg2 = data2.matches.find(m => (m.home.id === teamAId && m.away.id === teamBId) || (m.home.id === teamBId && m.away.id === teamAId));
+    }
     if (!leg1 || !leg2) return null;
 
     const teamA = leg2.home.id === teamAId ? leg2.home : leg2.away;
@@ -3320,7 +3390,7 @@ function renderChampionsCup() {
       }
     }
 
-    return { teamA, teamB, scoreA1, scoreB1, scoreA2, scoreB2, played1, played2, totalA, totalB, winnerId, ggWinnerName, title };
+    return { teamA, teamB, scoreA1, scoreB1, scoreA2, scoreB2, played1, played2, totalA, totalB, winnerId, ggWinnerName, title, leg1, leg2, isFinal };
   };
 
   // Render a champions tie card (semi-final with 2 legs)
@@ -3343,7 +3413,7 @@ function renderChampionsCup() {
       `;
     }
 
-    const { teamA, teamB, scoreA1, scoreB1, scoreA2, scoreB2, played1, played2, totalA, totalB, winnerId, ggWinnerName, title } = tie;
+    const { teamA, teamB, scoreA1, scoreB1, scoreA2, scoreB2, played1, played2, totalA, totalB, winnerId, ggWinnerName, title, leg1, leg2, isFinal } = tie;
     const completed = played1 && played2;
 
     const logoA = clubLogos[teamA.club];
@@ -3391,6 +3461,13 @@ function renderChampionsCup() {
         <div class="champions-tie-footer">
           <span>L1</span><span>L2</span><span>AGG</span>
         </div>
+        ${leg1 && leg2 ? `
+        <div class="champions-tie-actions" onclick="event.stopPropagation()">
+          <button class="tie-action-btn" onclick="togglePlayoffMatchPrediction(this, '${isFinal ? 'champions_final' : 'champions_semi_1'}', ${leg1.matchday || 0}, ${leg1.home.id}, ${leg1.away.id})">Leg 1 Details</button>
+          <button class="tie-action-btn" onclick="togglePlayoffMatchPrediction(this, '${isFinal ? 'champions_final' : 'champions_semi_2'}', ${leg2.matchday || 0}, ${leg2.home.id}, ${leg2.away.id})">Leg 2 Details</button>
+        </div>
+        ` : ''}
+        <div class="fixture-prediction"></div>
       </div>
     `;
   };
@@ -3422,7 +3499,7 @@ function renderChampionsCup() {
       const leg2 = finalMatches[1];
       const teamAId = leg2.home.id;
       const teamBId = leg2.away.id;
-      const tie = buildTieData(teamAId, teamBId, '🏆 Champions Cup Final');
+      const tie = buildTieData(teamAId, teamBId, '🏆 Champions Cup Final', true);
       if (tie) {
         return renderChampionsTie(tie);
       }
@@ -3445,7 +3522,7 @@ function renderChampionsCup() {
     }
 
     return `
-      <div class="bracket-match bracket-match-final ${completed ? 'completed' : ''}">
+      <div class="bracket-match bracket-match-final ${completed ? 'completed' : ''}" onclick="togglePredictionCard(this, ${fm.matchday}, ${fm.home.id}, ${fm.away.id}, 'champions_final')">
         <div class="bracket-team ${completed ? (homeWon ? 'winner' : 'loser') : ''}">
           <div class="bracket-team-logo" style="${!homeLogoSrc ? `background: ${homeColors.bg}; color: ${homeColors.text};` : ''}">
             ${homeLogoSrc ? `<img src="${homeLogoSrc}" alt="${fm.home.club}">` : fm.home.club.substring(0,3).toUpperCase()}
@@ -3462,6 +3539,7 @@ function renderChampionsCup() {
           <span class="bracket-team-score">${completed ? fm.awayScore : '—'}</span>
         </div>
         ${ggBadge}
+        <div class="fixture-prediction"></div>
       </div>
     `;
   };

@@ -6,7 +6,7 @@ module.exports = async function handler(req, res) {
   }
 
   try {
-    const { matchday, homeId, awayId, option, seasonId, voterName } = req.body;
+    const { matchday, homeId, awayId, option, seasonId, voterName, stage } = req.body;
 
     if (matchday === undefined || homeId === undefined || awayId === undefined || !option || !voterName) {
       return res.status(400).json({ error: 'Missing matchday, homeId, awayId, option, or voterName' });
@@ -21,6 +21,7 @@ module.exports = async function handler(req, res) {
     const ip = rawIp.split(',')[0].trim();
 
     const supabase = getSupabase();
+    const stageStr = stage || 'league';
 
     // Build query — scope by season if provided
     let fetchQuery = supabase
@@ -28,7 +29,8 @@ module.exports = async function handler(req, res) {
       .select('predictions')
       .eq('matchday', parseInt(matchday, 10))
       .eq('home_id', parseInt(homeId, 10))
-      .eq('away_id', parseInt(awayId, 10));
+      .eq('away_id', parseInt(awayId, 10))
+      .eq('stage', stageStr);
 
     if (seasonId) {
       fetchQuery = fetchQuery.eq('season_id', parseInt(seasonId, 10));
@@ -84,7 +86,8 @@ module.exports = async function handler(req, res) {
       .update({ predictions })
       .eq('matchday', parseInt(matchday, 10))
       .eq('home_id', parseInt(homeId, 10))
-      .eq('away_id', parseInt(awayId, 10));
+      .eq('away_id', parseInt(awayId, 10))
+      .eq('stage', stageStr);
 
     if (seasonId) {
       updateQuery = updateQuery.eq('season_id', parseInt(seasonId, 10));
