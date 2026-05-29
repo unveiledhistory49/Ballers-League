@@ -106,13 +106,14 @@ module.exports = async function handler(req, res) {
       league: 'Ballers League',
       season: currentSeason ? currentSeason.name : 'Season 1',
       seasonId: seasonId,
-      seasons: seasons.map(s => ({ id: s.id, name: s.name, status: s.status, headline: s.headline })),
+      seasons: seasons.map(s => ({ id: s.id, name: s.name, status: s.status, headline: s.headline, deductions: s.deductions || null })),
       teams,
       clubs,
       fixtures,
       cupFixtures,
       playoffFixtures,
       headline: currentSeason ? currentSeason.headline : null,
+      deductions: currentSeason ? (currentSeason.deductions || {}) : {},
     });
   } catch (err) {
     console.error('API /data error:', err);

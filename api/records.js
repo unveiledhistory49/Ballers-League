@@ -25,7 +25,7 @@ module.exports = async function handler(req, res) {
     // Fetch all seasons for labeling
     const { data: seasons, error: seasonsErr } = await supabase
       .from('seasons')
-      .select('id, name, status, headline')
+      .select('id, name, status, headline, deductions')
       .order('id');
 
     if (seasonsErr) throw seasonsErr;
@@ -53,7 +53,7 @@ module.exports = async function handler(req, res) {
         stage: m.stage || 'league',
         goldenGoalWinnerId: m.golden_goal_winner_id || null,
       })),
-      seasons: seasons.map(s => ({ id: s.id, name: s.name, status: s.status, headline: s.headline || null })),
+      seasons: seasons.map(s => ({ id: s.id, name: s.name, status: s.status, headline: s.headline || null, deductions: s.deductions || null })),
       teams,
     });
   } catch (err) {

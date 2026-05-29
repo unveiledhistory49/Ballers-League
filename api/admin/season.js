@@ -96,6 +96,12 @@ async function handleCreateSeason(req, res) {
 
     if (teamsErr) throw teamsErr;
 
+    if (!teams || teams.length < 2) {
+      return res.status(400).json({
+        error: 'Cannot start a new season — there must be at least 2 active teams to generate fixtures.'
+      });
+    }
+
     // 6. Generate new fixtures using the shared algorithm
     const fixtures = generateFixtures(teams);
 
