@@ -231,6 +231,16 @@ function computeStandings() {
     return active || s.played > 0;
   });
 
+  // Apply points deductions
+  if (leagueData.deductions) {
+    Object.entries(leagueData.deductions).forEach(([teamId, pts]) => {
+      const tId = parseInt(teamId, 10);
+      if (standings[tId]) {
+        standings[tId].points -= parseInt(pts, 10);
+      }
+    });
+  }
+
   // Sort: Points desc → GD desc → GF desc → Alphabetical
   const sorted = filtered.sort((a, b) => {
     if (b.points !== a.points) return b.points - a.points;
@@ -294,6 +304,16 @@ function computeStandingsUpToMatchday(limit) {
       }
     });
   });
+
+  // Apply points deductions
+  if (leagueData.deductions) {
+    Object.entries(leagueData.deductions).forEach(([teamId, pts]) => {
+      const tId = parseInt(teamId, 10);
+      if (standings[tId]) {
+        standings[tId].points -= parseInt(pts, 10);
+      }
+    });
+  }
 
   const filtered = Object.values(standings).filter(s => {
     const active = s.isActive !== false && s.is_active !== false;
@@ -425,6 +445,11 @@ function renderStandings() {
       ? `<img src="${logoSrc}" alt="${team.club}" loading="lazy">`
       : short;
 
+    const deduction = leagueData.deductions && leagueData.deductions[team.id];
+    const ptsHTML = deduction && deduction > 0
+      ? `${team.points} <span class="pts-deduction" style="color: #ff4a4a; font-size: 0.75rem; font-weight: 600;" title="Deducted ${deduction} points for rules violation">(-${deduction})</span>`
+      : `${team.points}`;
+
     row.innerHTML = `
       <div class="col-pos">${posHTML} ${changeHTML}</div>
       <div class="col-club">
@@ -441,7 +466,7 @@ function renderStandings() {
       <div class="col-stat">${team.draws}</div>
       <div class="col-stat">${team.losses}</div>
       <div class="col-gls">${team.goalsFor}:${team.goalsAgainst}</div>
-      <div class="col-pts">${team.points}</div>
+      <div class="col-pts">${ptsHTML}</div>
       <div class="col-form">${formDots}</div>
     `;
 

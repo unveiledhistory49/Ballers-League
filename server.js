@@ -229,6 +229,7 @@ app.get('/api/data', (req, res) => {
       cupFixtures: season.cupFixtures || [],
       playoffFixtures: season.playoffFixtures || [],
       headline: season.headline || null,
+      deductions: season.deductions || {},
     });
   } catch (err) {
     res.status(500).json({ error: 'Failed to load data' });
@@ -866,7 +867,7 @@ app.post('/api/admin/playoffs/generate', requireAdmin, (req, res) => {
       if (incomplete) return res.status(400).json({ error: 'Regular season is not completed yet. Incomplete matches remain.' });
 
       // Calculate standings
-      const { standings } = computeStandings(db.teams, season.fixtures);
+      const { standings } = computeStandings(db.teams, season.fixtures, season.deductions);
       if (standings.length < 4) {
         return res.status(400).json({ error: 'Not enough teams to generate playoffs.' });
       }
@@ -1155,6 +1156,37 @@ app.post('/api/admin/season', requireAdmin, (req, res) => {
   }
 });
 
+// ── PUT /api/admin/season/deductions — Save season points deductions ──
+app.put('/api/admin/season/deductions', requireAdmin, (req, res) => {
+  try {
+    const { seasonId, deductions } = req.body;
+    if (!seasonId || !deductions) {
+      return res.status(400).json({ error: 'Missing seasonId or deductions.' });
+    }
+
+    const db = loadDB();
+    const season = getSeasonById(db, parseInt(seasonId, 10));
+    if (!season) return res.status(404).json({ error: 'Season not found.' });
+
+    // Validate team IDs and ensure they are parsed as integers
+    const cleanDeductions = {};
+    Object.entries(deductions).forEach(([teamId, pts]) => {
+      const parsedPts = parseInt(pts, 10);
+      if (!isNaN(parsedPts) && parsedPts > 0) {
+        cleanDeductions[teamId] = parsedPts;
+      }
+    });
+
+    season.deductions = cleanDeductions;
+    saveDB(db);
+
+    res.json({ success: true, message: 'Points deductions updated successfully.', deductions: cleanDeductions });
+  } catch (err) {
+    console.error('Local update deductions error:', err);
+    res.status(500).json({ error: 'Failed to update deductions: ' + err.message });
+  }
+});
+
 // ── GET /api/h2h — Head-to-Head record between two players ────
 app.get('/api/h2h', (req, res) => {
   try {
@@ -1278,7 +1310,7 @@ app.get('/api/records', (req, res) => {
 // ═══════════════════════════════════════════════════════════════
 // STANDINGS COMPUTATION
 // ═══════════════════════════════════════════════════════════════
-function computeStandings(teams, fixtures) {
+function computeStandings(teams, fixtures, deductions = null) {
   const standings = {};
 
   teams.forEach(t => {
@@ -1342,6 +1374,16 @@ function computeStandings(teams, fixtures) {
   Object.values(standings).forEach(s => {
     s.form = s.form.slice(-5);
   });
+
+  // Apply points deductions
+  if (deductions) {
+    Object.entries(deductions).forEach(([teamId, pts]) => {
+      const tId = parseInt(teamId, 10);
+      if (standings[tId]) {
+        standings[tId].points -= parseInt(pts, 10);
+      }
+    });
+  }
 
   const sorted = Object.values(standings).sort((a, b) => {
     if (b.points !== a.points) return b.points - a.points;

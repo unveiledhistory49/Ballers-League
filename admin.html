@@ -1162,6 +1162,7 @@
       <button id="admin-tab-playoffs" class="admin-sec-tab" onclick="switchAdminSection('playoffs')">Champions Cup</button>
       <button id="admin-tab-roster" class="admin-sec-tab" onclick="switchAdminSection('roster')">Roster</button>
       <button id="admin-tab-clubs" class="admin-sec-tab" onclick="switchAdminSection('clubs')">Clubs</button>
+      <button id="admin-tab-deductions" class="admin-sec-tab" onclick="switchAdminSection('deductions')">Deductions</button>
     </div>
 
     <div class="admin-matchday-nav" id="admin-matchday-nav-container">
@@ -1495,7 +1496,7 @@
       const activeBtn = document.getElementById(`admin-tab-${activeAdminSection}`);
       if (activeBtn) activeBtn.classList.add('active');
 
-      if (activeAdminSection === 'roster' || activeAdminSection === 'clubs') {
+      if (activeAdminSection === 'roster' || activeAdminSection === 'clubs' || activeAdminSection === 'deductions') {
         matchesContainer.classList.add('management-mode');
       } else {
         matchesContainer.classList.remove('management-mode');
@@ -1521,6 +1522,10 @@
         if (navContainer) navContainer.style.display = 'none';
         if (actionsContainer) actionsContainer.style.display = 'none';
         renderAdminClubs();
+      } else if (activeAdminSection === 'deductions') {
+        if (navContainer) navContainer.style.display = 'none';
+        if (actionsContainer) actionsContainer.style.display = 'none';
+        renderAdminDeductions();
       }
     }
 
@@ -2512,6 +2517,95 @@
         }
       } catch (err) {
         showToast('Server error', 'error');
+      }
+    }
+
+    // ── Points Deductions Management ────────────────────
+    function renderAdminDeductions() {
+      const container = document.getElementById('admin-matches');
+      container.innerHTML = `
+        <div class="management-card" style="width: 100%;">
+          <div class="management-header">
+            <h2>Points Deductions — ${leagueData.season || 'Active Season'}</h2>
+            <p style="color: var(--text-muted); font-size: 0.9rem; margin-top: 4px;">
+              Deduct points from players for forfeits, rules violations, or default losses in the current season.
+            </p>
+          </div>
+          
+          <div style="margin-top: 20px; display: flex; flex-direction: column; gap: 12px; max-width: 600px;">
+            ${leagueData.teams.map(t => {
+              const currentDeduction = (leagueData.deductions && leagueData.deductions[t.id]) || 0;
+              const isActive = t.isActive !== false && t.is_active !== false;
+              // Skip archived/inactive players that haven't played this season, to keep it clean
+              if (!isActive) return '';
+              
+              return `
+                <div style="display: flex; align-items: center; justify-content: space-between; padding: 12px; background: rgba(255,255,255,0.03); border-radius: 8px; border: 1px dashed rgba(255,255,255,0.1);">
+                  <div style="display: flex; align-items: center; gap: 12px;">
+                    <img class="roster-avatar" src="${t.photoUrl || t.photo_url || 'https://raw.githubusercontent.com/multiavatar/multiavatar/main/svg/' + encodeURIComponent(t.player) + '.svg'}" alt="${t.player}" style="width: 36px; height: 36px; border-radius: 50%;">
+                    <div>
+                      <h4 style="margin: 0; font-family: var(--font-display); font-size: 1rem;">${t.player}</h4>
+                      <p style="margin: 2px 0 0; font-size: 0.8rem; color: var(--text-muted);">${t.club}</p>
+                    </div>
+                  </div>
+                  <div style="display: flex; align-items: center; gap: 8px;">
+                    <label style="font-size: 0.85rem; color: var(--text-muted);">Deduct Points:</label>
+                    <input type="number" id="deduction-input-${t.id}" min="0" max="99" value="${currentDeduction}" style="width: 70px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.15); color: #fff; padding: 6px 8px; border-radius: 6px; text-align: center; font-size: 0.95rem;" placeholder="0">
+                  </div>
+                </div>
+              `;
+            }).join('')}
+          </div>
+          
+          <div style="margin-top: 24px;">
+            <button class="btn-add-player" id="btn-save-deductions" onclick="submitDeductions()" style="padding: 10px 20px; font-weight: 600;">
+              Save Deductions
+            </button>
+          </div>
+        </div>
+      `;
+    }
+
+    async function submitDeductions() {
+      const btn = document.getElementById('btn-save-deductions');
+      if (!btn) return;
+
+      const deductions = {};
+      leagueData.teams.forEach(t => {
+        const input = document.getElementById(`deduction-input-${t.id}`);
+        if (input) {
+          const val = parseInt(input.value, 10);
+          if (!isNaN(val) && val > 0) {
+            deductions[t.id] = val;
+          }
+        }
+      });
+
+      btn.disabled = true;
+      btn.textContent = 'Saving...';
+
+      try {
+        const res = await fetch('/api/admin/season/deductions', {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Admin-Key': adminKey
+          },
+          body: JSON.stringify({ seasonId: adminSeasonId, deductions })
+        });
+        
+        const data = await res.json();
+        if (data.success) {
+          showToast(data.message, 'success');
+          await loadLeagueData(adminSeasonId);
+        } else {
+          showToast(data.error || 'Failed to save deductions', 'error');
+        }
+      } catch (err) {
+        showToast('Connection error.', 'error');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Save Deductions';
       }
     }
 
