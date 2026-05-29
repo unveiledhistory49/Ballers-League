@@ -38,7 +38,19 @@ app.use(express.static(__dirname, {
 // ── Database Helpers ───────────────────────────────────────────
 function loadDB() {
   if (!fs.existsSync(DB_PATH)) {
+    // Check if backup exists to auto-restore
+    const backupPath = path.join(__dirname, 'database.backup.json');
+    if (fs.existsSync(backupPath)) {
+      console.warn(`\n⚠️  [DATABASE RECOVERY] ⚠️`);
+      console.warn(`'database.json' was missing, but recovered database from backup file '${backupPath}'.\n`);
+      const db = JSON.parse(fs.readFileSync(backupPath, 'utf-8'));
+      saveDB(db);
+      return db;
+    }
+
     // Initialize from fixtures.json
+    console.warn('\n⚠️  [DATABASE INITIALIZATION] ⚠️');
+    console.warn(`'database.json' was not found. Initializing fresh template database from fixtures.json...\n`);
     const fixtureData = JSON.parse(fs.readFileSync(FIXTURES_PATH, 'utf-8'));
     const db = {
       league: fixtureData.league,
@@ -127,6 +139,10 @@ function loadDB() {
 
 function saveDB(db) {
   fs.writeFileSync(DB_PATH, JSON.stringify(db, null, 2), 'utf-8');
+
+  // Create backup to survive accidental deletes
+  const backupPath = path.join(__dirname, 'database.backup.json');
+  fs.writeFileSync(backupPath, JSON.stringify(db, null, 2), 'utf-8');
 }
 
 function getActiveSeason(db) {
