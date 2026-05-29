@@ -185,6 +185,8 @@ function computeStandings() {
         const home = standings[m.home.id];
         const away = standings[m.away.id];
 
+        if (!home || !away) return;
+
         home.played++;
         away.played++;
         home.goalsFor += m.homeScore;
@@ -265,6 +267,8 @@ function computeStandingsUpToMatchday(limit) {
       if (m.status === "completed" && m.homeScore !== null && m.awayScore !== null) {
         const home = standings[m.home.id];
         const away = standings[m.away.id];
+
+        if (!home || !away) return;
 
         home.played++;
         away.played++;

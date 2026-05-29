@@ -137,6 +137,60 @@ function getSeasonById(db, seasonId) {
   return db.seasons.find(s => s.id === seasonId);
 }
 
+function updateTeamDetailsInFixtures(db, teamId, player, club) {
+  if (!db.seasons) return;
+  db.seasons.forEach(season => {
+    if (season.fixtures) {
+      season.fixtures.forEach(md => {
+        if (md.matches) {
+          md.matches.forEach(m => {
+            if (m.home && m.home.id === teamId) {
+              m.home.player = player;
+              m.home.club = club;
+            }
+            if (m.away && m.away.id === teamId) {
+              m.away.player = player;
+              m.away.club = club;
+            }
+          });
+        }
+      });
+    }
+    if (season.cupFixtures) {
+      season.cupFixtures.forEach(md => {
+        if (md.matches) {
+          md.matches.forEach(m => {
+            if (m.home && m.home.id === teamId) {
+              m.home.player = player;
+              m.home.club = club;
+            }
+            if (m.away && m.away.id === teamId) {
+              m.away.player = player;
+              m.away.club = club;
+            }
+          });
+        }
+      });
+    }
+    if (season.playoffFixtures) {
+      season.playoffFixtures.forEach(md => {
+        if (md.matches) {
+          md.matches.forEach(m => {
+            if (m.home && m.home.id === teamId) {
+              m.home.player = player;
+              m.home.club = club;
+            }
+            if (m.away && m.away.id === teamId) {
+              m.away.player = player;
+              m.away.club = club;
+            }
+          });
+        }
+      });
+    }
+  });
+}
+
 // ── Auth Middleware ─────────────────────────────────────────────
 function requireAdmin(req, res, next) {
   const key = req.headers['x-admin-key'] || req.query.key;
@@ -262,6 +316,11 @@ app.put('/api/admin/player', requireAdmin, (req, res) => {
     if (photoUrl !== undefined) team.photoUrl = photoUrl ? photoUrl.trim() : null;
     if (isActive !== undefined) team.isActive = !!isActive;
 
+    // Propagate details to all match occurrences across all seasons/fixtures
+    if (player || club) {
+      updateTeamDetailsInFixtures(db, team.id, team.player, team.club);
+    }
+
     // If matches haven't started and team activation changed, regenerate fixtures
     const activeSeason = getActiveSeason(db);
     if (activeSeason) {
@@ -293,12 +352,30 @@ app.delete('/api/admin/player', requireAdmin, (req, res) => {
     if (!team) return res.status(404).json({ error: 'Player/team not found.' });
 
     const activeSeason = getActiveSeason(db);
-    const seasonStarted = activeSeason ? activeSeason.fixtures.some(md =>
+
+    // Check if team is in any other season's fixtures to avoid breaking past season history
+    const inOtherSeasons = db.seasons.some(s => {
+      if (s.id === activeSeason.id) return false;
+
+      const inFixtures = s.fixtures && s.fixtures.some(md =>
+        md.matches.some(m => m.home.id === team.id || m.away.id === team.id)
+      );
+      const inCup = s.cupFixtures && s.cupFixtures.some(md =>
+        md.matches.some(m => m.home.id === team.id || m.away.id === team.id)
+      );
+      const inPlayoffs = s.playoffFixtures && s.playoffFixtures.some(md =>
+        md.matches.some(m => m.home.id === team.id || m.away.id === team.id)
+      );
+
+      return inFixtures || inCup || inPlayoffs;
+    });
+
+    const activeSeasonStarted = activeSeason ? activeSeason.fixtures.some(md =>
       md.matches.some(m => m.status !== 'upcoming')
     ) : false;
 
-    if (!seasonStarted) {
-      // Hard delete from team list if season hasn't started
+    if (!activeSeasonStarted && !inOtherSeasons) {
+      // Hard delete from team list only if it's safe (season hasn't started and no past history)
       db.teams = db.teams.filter(t => t.id !== team.id);
       if (activeSeason) {
         const activeTeams = db.teams.filter(t => t.isActive !== false);
@@ -307,7 +384,7 @@ app.delete('/api/admin/player', requireAdmin, (req, res) => {
       saveDB(db);
       res.json({ success: true, message: `Player ${team.player} deleted and fixtures re-generated.` });
     } else {
-      // Archive if season has started
+      // Archive if season has started or player has history in previous seasons
       team.isActive = false;
       saveDB(db);
       res.json({ success: true, message: `Player ${team.player} archived (deactivated for future seasons).` });
@@ -1217,6 +1294,8 @@ function computeStandings(teams, fixtures) {
       if (m.status === 'completed' && m.homeScore !== null && m.awayScore !== null) {
         const home = standings[m.home.id];
         const away = standings[m.away.id];
+
+        if (!home || !away) return;
 
         home.played++;
         away.played++;
