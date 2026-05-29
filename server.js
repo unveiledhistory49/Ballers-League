@@ -1299,7 +1299,7 @@ app.get('/api/records', (req, res) => {
 
     res.json({
       matches: allMatches,
-      seasons: db.seasons.map(s => ({ id: s.id, name: s.name, status: s.status, headline: s.headline || null })),
+      seasons: db.seasons.map(s => ({ id: s.id, name: s.name, status: s.status, headline: s.headline || null, deductions: s.deductions || null })),
       teams: db.teams,
     });
   } catch (err) {

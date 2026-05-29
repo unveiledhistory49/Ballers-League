@@ -2708,6 +2708,16 @@ function populateRecordsSubsections(matches, seasons, teams) {
           }
         });
 
+        // Apply points deductions
+        if (s.deductions) {
+          Object.entries(s.deductions).forEach(([teamId, pts]) => {
+            const tId = parseInt(teamId, 10);
+            if (standingsMap[tId]) {
+              standingsMap[tId].points -= parseInt(pts, 10);
+            }
+          });
+        }
+
         const sortedStandings = Object.values(standingsMap).sort((a, b) => {
           if (b.points !== a.points) return b.points - a.points;
           const gdA = a.goalsFor - a.goalsAgainst;
@@ -4094,12 +4104,12 @@ async function refreshLeagueDataSilent() {
     if (!res.ok) throw new Error("Silent refresh fetch failed");
     const freshData = await res.json();
 
-    // Check if dynamic data (fixtures state or team stats) actually changed before re-rendering
     const fixturesChanged = JSON.stringify(freshData.fixtures) !== JSON.stringify(leagueData.fixtures);
     const teamsChanged = JSON.stringify(freshData.teams) !== JSON.stringify(leagueData.teams);
     const headlineChanged = freshData.headline !== leagueData.headline;
+    const deductionsChanged = JSON.stringify(freshData.deductions) !== JSON.stringify(leagueData.deductions);
 
-    if (fixturesChanged || teamsChanged || headlineChanged) {
+    if (fixturesChanged || teamsChanged || headlineChanged || deductionsChanged) {
       leagueData = freshData;
       cachedRecordsData = null; // Clear records cache when fixtures/teams change
       
