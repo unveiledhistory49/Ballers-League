@@ -1156,8 +1156,8 @@ app.post('/api/admin/season', requireAdmin, (req, res) => {
   }
 });
 
-// ── PUT /api/admin/season/deductions — Save season points deductions ──
-app.put('/api/admin/season/deductions', requireAdmin, (req, res) => {
+// ── PUT /api/admin/season — Save season points deductions ────────────
+app.put('/api/admin/season', requireAdmin, (req, res) => {
   try {
     const { seasonId, deductions } = req.body;
     if (!seasonId || !deductions) {

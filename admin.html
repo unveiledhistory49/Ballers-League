@@ -2585,7 +2585,7 @@
       btn.textContent = 'Saving...';
 
       try {
-        const res = await fetch('/api/admin/season/deductions', {
+        const res = await fetch('/api/admin/season', {
           method: 'PUT',
           headers: {
             'Content-Type': 'application/json',
