@@ -4235,11 +4235,11 @@ async function openPlayerProfile(playerId) {
 
   // Calculate gaming card ratings (Result & Skill Dependent for High-Scoring League)
   const played = currentSeasonStats ? currentSeasonStats.played : 0;
+  const ppg = played > 0 ? (currentSeasonStats.points / played) : 0;
   
   let ovr = 75, att = 75, def = 75, str = 75;
 
   if (played > 0) {
-    const ppg = currentSeasonStats.points / played;
     const gfg = currentSeasonStats.goalsFor / played;
     const gag = currentSeasonStats.goalsAgainst / played;
     const gdg = gfg - gag; // Goal Difference per Game
