@@ -4233,29 +4233,43 @@ async function openPlayerProfile(playerId) {
     </div>
   ` : "";
 
-  // Calculate gaming card ratings
-  const ppg = currentSeasonStats && currentSeasonStats.played > 0 ? (currentSeasonStats.points / currentSeasonStats.played) : 0;
-  const ovr = currentSeasonStats && currentSeasonStats.played > 0 ? Math.max(60, Math.min(99, Math.round(60 + (ppg / 3.0) * 39))) : 60;
-  const gfg = currentSeasonStats && currentSeasonStats.played > 0 ? (currentSeasonStats.goalsFor / currentSeasonStats.played) : 0;
-  const att = currentSeasonStats && currentSeasonStats.played > 0 ? Math.max(60, Math.min(99, Math.round(60 + (gfg / 3.5) * 39))) : 60;
-  const gag = currentSeasonStats && currentSeasonStats.played > 0 ? (currentSeasonStats.goalsAgainst / currentSeasonStats.played) : 0;
-  const def = currentSeasonStats && currentSeasonStats.played > 0 ? Math.max(50, Math.min(99, Math.round(99 - (gag / 3.5) * 39))) : 60;
+  // Calculate gaming card ratings (Result & Skill Dependent for High-Scoring League)
+  const played = currentSeasonStats ? currentSeasonStats.played : 0;
+  
+  let ovr = 75, att = 75, def = 75, str = 75;
 
-  const recentFormArray = currentSeasonStats ? currentSeasonStats.form : [];
-  let formScore = 0;
-  if (recentFormArray.length > 0) {
-    let sum = 0;
-    recentFormArray.forEach(r => {
-      if (r === 'W') sum += 20;
-      else if (r === 'D') sum += 10;
-      else if (r === 'L') sum += 5;
-    });
-    formScore = (sum / recentFormArray.length) * 5;
-  } else {
-    formScore = 25;
+  if (played > 0) {
+    const ppg = currentSeasonStats.points / played;
+    const gfg = currentSeasonStats.goalsFor / played;
+    const gag = currentSeasonStats.goalsAgainst / played;
+    const gdg = gfg - gag; // Goal Difference per Game
+
+    // OVR: Base 70 + up to 20 for PPG + up to 9 for Goal Difference (capped between -3 and +3 average)
+    // A perfect 3 PPG and +3 average GD gives 99 OVR.
+    const gdgScore = Math.max(-3, Math.min(3, gdg)) / 3.0; // ranges from -1 to 1
+    ovr = Math.round(70 + (ppg / 3.0) * 20 + (gdgScore * 9));
+    ovr = Math.max(60, Math.min(99, ovr));
+
+    // ATT: 99 ATT requires averaging 8 goals a game
+    att = Math.round(60 + (gfg / 8.0) * 39);
+    att = Math.max(60, Math.min(99, att));
+
+    // DEF: 99 DEF requires 0 goals against, scales down to 60 for 8+ goals against
+    def = Math.round(99 - (gag / 8.0) * 39);
+    def = Math.max(60, Math.min(99, def));
   }
 
-  const str = Math.max(60, Math.min(99, Math.round(60 + ((formScore - 25) / 75) * 39)));
+  const recentFormArray = currentSeasonStats ? currentSeasonStats.form : [];
+  if (recentFormArray.length > 0) {
+    let formPts = 0;
+    recentFormArray.forEach(r => {
+      if (r === 'W') formPts += 3;
+      else if (r === 'D') formPts += 1;
+    });
+    const maxFormPts = recentFormArray.length * 3;
+    str = Math.round(60 + (formPts / maxFormPts) * 39);
+    str = Math.max(60, Math.min(99, str));
+  }
 
   let cardAvatarHTML = photoUrl
     ? `<img src="${photoUrl}" alt="${currentTeam.player}" class="card-avatar-img">`
