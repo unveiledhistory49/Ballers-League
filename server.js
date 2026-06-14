@@ -439,7 +439,16 @@ app.delete('/api/admin/player', requireAdmin, (req, res) => {
       db.teams = db.teams.filter(t => t.id !== team.id);
       if (activeSeason) {
         const activeTeams = db.teams.filter(t => t.isActive !== false);
-        activeSeason.fixtures = generateFixtures(activeTeams);
+        const div1Teams = activeTeams.filter(t => (t.division || 1) === 1);
+        const div2Teams = activeTeams.filter(t => (t.division || 1) === 2);
+        if (div2Teams.length >= 2) {
+          activeSeason.fixtures = combineFixtures(generateFixtures(div1Teams), generateFixtures(div2Teams));
+        } else {
+          activeSeason.fixtures = generateFixtures(div1Teams).map(md => ({
+            matchday: md.matchday,
+            matches: md.matches.map(m => ({ ...m, division: 1 }))
+          }));
+        }
       }
       saveDB(db);
       res.json({ success: true, message: `Player ${team.player} deleted and fixtures re-generated.` });

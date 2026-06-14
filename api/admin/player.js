@@ -307,7 +307,34 @@ async function handleDelete(req, res, supabase) {
 
         if (teamsErr) throw teamsErr;
 
-        const fixtures = generateFixtures(teams);
+        const div1Teams = teams.filter(t => (t.division || 1) === 1);
+        const div2Teams = teams.filter(t => (t.division || 1) === 2);
+
+        let fixtures = [];
+        if (div2Teams.length >= 2) {
+          const f1 = generateFixtures(div1Teams);
+          const f2 = generateFixtures(div2Teams);
+          const combineFixtures = (a, b) => {
+            const combined = [];
+            const maxMatchday = Math.max(a.length, b.length);
+            for (let md = 1; md <= maxMatchday; md++) {
+              const mdMatches = [];
+              const div1Md = a.find(x => x.matchday === md);
+              const div2Md = b.find(x => x.matchday === md);
+              if (div1Md) mdMatches.push(...div1Md.matches.map(m => ({ ...m, division: 1 })));
+              if (div2Md) mdMatches.push(...div2Md.matches.map(m => ({ ...m, division: 2 })));
+              if (mdMatches.length > 0) combined.push({ matchday: md, matches: mdMatches });
+            }
+            return combined;
+          };
+          fixtures = combineFixtures(f1, f2);
+        } else {
+          const f1 = generateFixtures(div1Teams);
+          fixtures = f1.map(md => ({
+            matchday: md.matchday,
+            matches: md.matches.map(m => ({ ...m, division: 1 }))
+          }));
+        }
 
         const { error: deleteMatchesErr } = await supabase
           .from('matches')
@@ -331,6 +358,7 @@ async function handleDelete(req, res, supabase) {
               home_score: null,
               away_score: null,
               status: 'upcoming',
+              division: m.division || 1,
             });
           }
         }

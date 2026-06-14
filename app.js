@@ -3145,6 +3145,7 @@ function renderH2HMatrixResults(playerAId, playerBId, matches, teams) {
   // Log rows HTML
   const stageLabels = {
     'league': 'League',
+    'cup_preliminary': 'Cup Preliminary',
     'cup_r16': 'Cup R16',
     'cup_qf': 'Cup QF',
     'cup_sf': 'Cup SF',
@@ -3313,13 +3314,15 @@ function renderBallersCup() {
   const sfMatches  = sfData ? sfData.matches : [];
   const finalMatch = finalData && finalData.matches.length > 0 ? finalData.matches[0] : null;
 
-  // Split R16: first half left, second half right
-  const r16Left  = r16Matches.slice(0, 2);
-  const r16Right = r16Matches.slice(2, 4);
+  // Split R16: first half left, second half right (dynamic for 22-team brackets)
+  const r16Half = Math.ceil(r16Matches.length / 2) || 2;
+  const r16Left  = r16Matches.slice(0, r16Half);
+  const r16Right = r16Matches.slice(r16Half);
 
-  // Split QF: first half left, second half right
-  const qfLeft  = qfMatches.slice(0, 2);
-  const qfRight = qfMatches.slice(2, 4);
+  // Split QF: first half left, second half right (dynamic)
+  const qfHalf = Math.ceil(qfMatches.length / 2) || 2;
+  const qfLeft  = qfMatches.slice(0, qfHalf);
+  const qfRight = qfMatches.slice(qfHalf);
 
   // Split SF: one left, one right
   const sfLeft  = sfMatches[0] || null;
@@ -3332,10 +3335,12 @@ function renderBallersCup() {
     return result;
   };
 
-  const r16LeftPadded  = padMatches(r16Left, 2);
-  const r16RightPadded = padMatches(r16Right, 2);
-  const qfLeftPadded   = padMatches(qfLeft, 2);
-  const qfRightPadded  = padMatches(qfRight, 2);
+  const r16ExpectedPerSide = r16Matches.length > 0 ? r16Half : 4;
+  const qfExpectedPerSide  = qfMatches.length > 0 ? qfHalf : 2;
+  const r16LeftPadded  = padMatches(r16Left, r16ExpectedPerSide);
+  const r16RightPadded = padMatches(r16Right, r16ExpectedPerSide);
+  const qfLeftPadded   = padMatches(qfLeft, qfExpectedPerSide);
+  const qfRightPadded  = padMatches(qfRight, qfExpectedPerSide);
 
   const prelimData = cupFixtures.find(f => f.stage === 'cup_preliminary');
   let prelimHtml = '';
