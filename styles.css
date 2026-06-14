@@ -444,6 +444,11 @@ body {
   border-left: 2px solid var(--dot-loss);
 }
 
+/* Top 3 promotion */
+.table-row.promotion-zone {
+  border-left: 2px solid var(--dot-win);
+}
+
 @keyframes rowSlideIn {
   from {
     opacity: 0;
@@ -1154,6 +1159,10 @@ body {
 
 .snapshot-render .snap-row.snap-danger {
   border-left: 2.5px solid #e63946;
+}
+
+.snapshot-render .snap-row.snap-promotion {
+  border-left: 2.5px solid #00d26a;
 }
 
 .snapshot-render .snap-col-pos {
@@ -5194,5 +5203,73 @@ body {
   border-color: var(--accent-gold);
   color: #000;
   font-weight: 700;
+}
+
+/* ────────────────────────────────────────────────
+   DIVISION SWITCHER
+   ──────────────────────────────────────────────── */
+.division-switcher {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  margin: 16px 0 24px 0;
+  padding: 0 16px;
+}
+
+.div-tab {
+  background: var(--bg-card);
+  border: 1px solid var(--border-medium);
+  color: var(--text-secondary);
+  font-family: var(--font-display);
+  font-size: 0.85rem;
+  font-weight: 700;
+  padding: 10px 20px;
+  border-radius: 30px;
+  cursor: pointer;
+  transition: all 0.3s var(--ease-out);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.div-tab:hover {
+  background: var(--bg-card-hover);
+  border-color: var(--border-accent);
+  color: var(--text-primary);
+}
+
+.div-tab.active {
+  background: var(--accent-gold);
+  border-color: var(--accent-gold);
+  color: #000000;
+  box-shadow: 0 0 16px rgba(200, 168, 78, 0.25);
+}
+
+/* ────────────────────────────────────────────────
+   PRELIMINARY ROUND
+   ──────────────────────────────────────────────── */
+.prelim-section {
+  width: 100%;
+  max-width: 960px;
+  margin: 0 auto 32px auto;
+  padding: 0 16px;
+}
+
+.prelim-title {
+  font-family: var(--font-display);
+  font-size: 1.1rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--accent-gold);
+  margin-bottom: 16px;
+  text-align: center;
+  text-shadow: 0 0 12px rgba(200, 168, 78, 0.2);
+}
+
+.prelim-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 16px;
+  justify-content: center;
 }
 

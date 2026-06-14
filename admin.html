@@ -1165,6 +1165,12 @@
       <button id="admin-tab-deductions" class="admin-sec-tab" onclick="switchAdminSection('deductions')">Deductions</button>
     </div>
 
+    <!-- Admin Division Switcher -->
+    <div class="admin-division-switcher" id="admin-division-switcher-container" style="display: flex; justify-content: center; gap: 8px; margin: 16px 0;">
+      <button id="admin-div-btn-1" class="admin-sec-tab active" onclick="switchAdminDivision(1)">Division 1</button>
+      <button id="admin-div-btn-2" class="admin-sec-tab" onclick="switchAdminDivision(2)">Division 2</button>
+    </div>
+
     <div class="admin-matchday-nav" id="admin-matchday-nav-container">
       <button class="admin-md-arrow" id="admin-prev" onclick="adminChangeMatchday(-1)">‹</button>
       <div class="admin-md-info">
@@ -1215,6 +1221,14 @@
         <label for="new-player-photo">Profile Photo URL (Optional)</label>
         <input type="url" id="new-player-photo" placeholder="https://example.com/avatar.jpg" autocomplete="off" />
       </div>
+
+      <div class="form-group">
+        <label for="new-player-division">Division</label>
+        <select id="new-player-division">
+          <option value="1" selected>Division 1</option>
+          <option value="2">Division 2</option>
+        </select>
+      </div>
       
       <button id="btn-submit-player" onclick="submitNewPlayer()">Add Player to League</button>
       <p class="modal-error" id="modal-error"></p>
@@ -1243,6 +1257,14 @@
       <div class="form-group">
         <label for="edit-player-photo">Profile Photo URL</label>
         <input type="url" id="edit-player-photo" autocomplete="off" />
+      </div>
+
+      <div class="form-group">
+        <label for="edit-player-division">Division</label>
+        <select id="edit-player-division">
+          <option value="1">Division 1</option>
+          <option value="2">Division 2</option>
+        </select>
       </div>
 
       <div class="form-group" style="display: flex; align-items: center; gap: 8px; margin-top: 12px;">
@@ -1300,6 +1322,7 @@
     let adminMatchday = 0;
     let adminSeasonId = null;
     let activeAdminSection = 'league';
+    let adminDivision = 1;
 
     // ── Login ─────────────────────────────────────────
     document.getElementById('login-key').addEventListener('keydown', (e) => {
@@ -1472,8 +1495,20 @@
 
     // ── Matchday Navigation ───────────────────────────
     function adminChangeMatchday(delta) {
+      const rawFixtures = leagueData.fixtures || [];
+      const fixtures = rawFixtures.map(md => {
+        return {
+          matchday: md.matchday,
+          matches: md.matches.filter(m => {
+            const homeTeam = leagueData.teams.find(t => t.id === m.home.id);
+            const matchDiv = m.division || (homeTeam ? homeTeam.division : 1);
+            return matchDiv === adminDivision;
+          })
+        };
+      }).filter(md => md.matches.length > 0);
+
       const newIdx = adminMatchday + delta;
-      if (newIdx < 0 || newIdx >= leagueData.fixtures.length) return;
+      if (newIdx < 0 || newIdx >= fixtures.length) return;
       adminMatchday = newIdx;
       renderAdminActiveSection();
     }
@@ -1484,17 +1519,55 @@
       renderAdminActiveSection();
     }
 
+    function switchAdminDivision(division) {
+      if (adminDivision === division) return;
+      adminDivision = division;
+
+      const btn1 = document.getElementById('admin-div-btn-1');
+      const btn2 = document.getElementById('admin-div-btn-2');
+      if (btn1 && btn2) {
+        if (division === 1) {
+          btn1.classList.add('active');
+          btn2.classList.remove('active');
+        } else {
+          btn2.classList.add('active');
+          btn1.classList.remove('active');
+        }
+      }
+
+      adminMatchday = 0;
+      renderAdminActiveSection();
+    }
+
     function renderAdminActiveSection() {
       const matchesContainer = document.getElementById('admin-matches');
       if (!matchesContainer) return;
 
       const navContainer = document.getElementById('admin-matchday-nav-container');
       const actionsContainer = document.getElementById('admin-actions-bar-container');
+      const divSwitcher = document.getElementById('admin-division-switcher-container');
 
       // Update active state on tab buttons
       document.querySelectorAll('.admin-sec-tab').forEach(btn => btn.classList.remove('active'));
       const activeBtn = document.getElementById(`admin-tab-${activeAdminSection}`);
       if (activeBtn) activeBtn.classList.add('active');
+
+      // Sync active state on division buttons
+      const divBtn1 = document.getElementById('admin-div-btn-1');
+      const divBtn2 = document.getElementById('admin-div-btn-2');
+      if (divBtn1 && divBtn2) {
+        if (adminDivision === 1) {
+          divBtn1.classList.add('active');
+          divBtn2.classList.remove('active');
+        } else {
+          divBtn2.classList.add('active');
+          divBtn1.classList.remove('active');
+        }
+      }
+
+      if (divSwitcher) {
+        divSwitcher.style.display = activeAdminSection === 'league' ? 'flex' : 'none';
+      }
 
       if (activeAdminSection === 'roster' || activeAdminSection === 'clubs' || activeAdminSection === 'deductions') {
         matchesContainer.classList.add('management-mode');
@@ -1531,8 +1604,32 @@
 
     // ── Render League Matchday ─────────────────────────
     function renderAdminMatchday() {
-      const fixtures = leagueData.fixtures;
+      const rawFixtures = leagueData.fixtures || [];
+      const fixtures = rawFixtures.map(md => {
+        return {
+          matchday: md.matchday,
+          matches: md.matches.filter(m => {
+            const homeTeam = leagueData.teams.find(t => t.id === m.home.id);
+            const matchDiv = m.division || (homeTeam ? homeTeam.division : 1);
+            return matchDiv === adminDivision;
+          })
+        };
+      }).filter(md => md.matches.length > 0);
+
+      if (adminMatchday >= fixtures.length) {
+        adminMatchday = Math.max(0, fixtures.length - 1);
+      }
+
       const md = fixtures[adminMatchday];
+      if (!md) {
+        document.getElementById('admin-md-title').textContent = 'No Matches';
+        document.getElementById('admin-md-sub').textContent = '0 / 0';
+        document.getElementById('admin-prev').disabled = true;
+        document.getElementById('admin-next').disabled = true;
+        const container = document.getElementById('admin-matches');
+        container.innerHTML = '<div class="admin-tournament-panel"><p>No matches generated for this division.</p></div>';
+        return;
+      }
 
       document.getElementById('admin-md-title').textContent = `Matchday ${md.matchday}`;
       document.getElementById('admin-md-sub').textContent = `${adminMatchday + 1} / ${fixtures.length}`;
@@ -1554,107 +1651,133 @@
       if (!container) return;
 
       const cupFixtures = leagueData.cupFixtures || [];
+      const prelim = cupFixtures.find(f => f.stage === 'cup_preliminary');
       const r16 = cupFixtures.find(f => f.stage === 'cup_r16');
       const qf = cupFixtures.find(f => f.stage === 'cup_qf');
       const sf = cupFixtures.find(f => f.stage === 'cup_sf');
       const final = cupFixtures.find(f => f.stage === 'cup_final');
 
+      const activeTeamsCount = leagueData.teams ? leagueData.teams.filter(t => t.isActive !== false && t.is_active !== false).length : 0;
+      const needsPrelim = activeTeamsCount > 16;
+
+      const checkRoundComplete = (roundData) => {
+        return roundData && roundData.matches && roundData.matches.every(m => m.status === 'completed');
+      };
+      const checkRoundStarted = (roundData) => {
+        return roundData && roundData.matches && roundData.matches.some(m => m.status !== 'upcoming');
+      };
+
       let drawHtml = '';
-      if (!r16) {
+      if (needsPrelim && !prelim) {
+        drawHtml = `
+          <div class="admin-tournament-panel">
+            <h3>Ballers Cup — Preliminary Round</h3>
+            <p>Ready to start the cup? Generate the Preliminary Round draw. ${activeTeamsCount - 16} matches will be played, and other teams will get byes.</p>
+            <button class="admin-draw-btn" onclick="drawCupRound('cup_preliminary')">Draw Preliminary Round</button>
+          </div>
+        `;
+      } else if (needsPrelim && !checkRoundComplete(prelim)) {
+        const started = checkRoundStarted(prelim);
+        drawHtml = `
+          <div class="admin-tournament-panel">
+            <h3>Preliminary Round in Progress</h3>
+            <p>Complete all Preliminary matches to unlock the Round of 16 draw.</p>
+            ${!started ? `<button class="admin-draw-btn" style="margin-top: 12px; background: #e63946; color: #fff;" onclick="drawCupRound('cup_preliminary', true)">Re-draw Preliminary Round</button>` : ''}
+          </div>
+        `;
+      } else if (!r16) {
+        const descText = needsPrelim
+          ? 'Generate the Round of 16 draw (6 Preliminary winners + 10 bye teams).'
+          : 'Generate the Round of 16 draw. 4 random teams will get byes, and 8 teams will play.';
         drawHtml = `
           <div class="admin-tournament-panel">
             <h3>Ballers Cup — Round of 16</h3>
-            <p>Ready to start the cup? Generate the Round of 16 draw. 4 random teams will get byes, and 8 teams will play.</p>
+            <p>${descText}</p>
             <button class="admin-draw-btn" onclick="drawCupRound('cup_r16')">Draw Round of 16</button>
           </div>
         `;
+      } else if (!checkRoundComplete(r16)) {
+        const started = checkRoundStarted(r16);
+        drawHtml = `
+          <div class="admin-tournament-panel">
+            <h3>Round of 16 in Progress</h3>
+            <p>Complete all Round of 16 matches to unlock the Quarter-finals draw.</p>
+            ${!started ? `<button class="admin-draw-btn" style="margin-top: 12px; background: #e63946; color: #fff;" onclick="drawCupRound('cup_r16', true)">Re-draw Round of 16</button>` : ''}
+          </div>
+        `;
+      } else if (!qf) {
+        const descText = needsPrelim
+          ? 'All Round of 16 matches are complete! Generate the Quarter-finals draw (8 Round of 16 winners).'
+          : 'All Round of 16 matches are complete! Generate the Quarter-finals draw (4 Round of 16 winners + 4 bye teams).';
+        drawHtml = `
+          <div class="admin-tournament-panel">
+            <h3>Ballers Cup — Quarter-finals</h3>
+            <p>${descText}</p>
+            <button class="admin-draw-btn" onclick="drawCupRound('cup_qf')">Draw Quarter-finals</button>
+          </div>
+        `;
+      } else if (!checkRoundComplete(qf)) {
+        const started = checkRoundStarted(qf);
+        drawHtml = `
+          <div class="admin-tournament-panel">
+            <h3>Quarter-finals in Progress</h3>
+            <p>Complete all Quarter-final matches to unlock the Semi-finals draw.</p>
+            ${!started ? `<button class="admin-draw-btn" style="margin-top: 12px; background: #e63946; color: #fff;" onclick="drawCupRound('cup_qf', true)">Re-draw Quarter-finals</button>` : ''}
+          </div>
+        `;
+      } else if (!sf) {
+        drawHtml = `
+          <div class="admin-tournament-panel">
+            <h3>Ballers Cup — Semi-finals</h3>
+            <p>All Quarter-final matches are complete! Generate the Semi-finals draw (4 Quarter-final winners).</p>
+            <button class="admin-draw-btn" onclick="drawCupRound('cup_sf')">Draw Semi-finals</button>
+          </div>
+        `;
+      } else if (!checkRoundComplete(sf)) {
+        const started = checkRoundStarted(sf);
+        drawHtml = `
+          <div class="admin-tournament-panel">
+            <h3>Semi-finals in Progress</h3>
+            <p>Complete all Semi-final matches to unlock the Cup Final draw.</p>
+            ${!started ? `<button class="admin-draw-btn" style="margin-top: 12px; background: #e63946; color: #fff;" onclick="drawCupRound('cup_sf', true)">Re-draw Semi-finals</button>` : ''}
+          </div>
+        `;
+      } else if (!final) {
+        drawHtml = `
+          <div class="admin-tournament-panel">
+            <h3>Ballers Cup — Cup Final</h3>
+            <p>All Semi-final matches are complete! Generate the Cup Final draw (2 Semi-final winners).</p>
+            <button class="admin-draw-btn" onclick="drawCupRound('cup_final')">Draw Cup Final</button>
+          </div>
+        `;
+      } else if (!checkRoundComplete(final)) {
+        const started = checkRoundStarted(final);
+        drawHtml = `
+          <div class="admin-tournament-panel">
+            <h3>Cup Final in Progress</h3>
+            <p>Play the final match to crown the Ballers Cup Champion!</p>
+            ${!started ? `<button class="admin-draw-btn" style="margin-top: 12px; background: #e63946; color: #fff;" onclick="drawCupRound('cup_final', true)">Re-draw Cup Final</button>` : ''}
+          </div>
+        `;
       } else {
-        const checkRoundComplete = (roundData) => {
-          return roundData && roundData.matches && roundData.matches.every(m => m.status === 'completed');
-        };
-        const checkRoundStarted = (roundData) => {
-          return roundData && roundData.matches && roundData.matches.some(m => m.status !== 'upcoming');
-        };
-
-        if (!checkRoundComplete(r16)) {
-          const started = checkRoundStarted(r16);
-          drawHtml = `
-            <div class="admin-tournament-panel">
-              <h3>Round of 16 in Progress</h3>
-              <p>Complete all Round of 16 matches to unlock the Quarter-finals draw.</p>
-              ${!started ? `<button class="admin-draw-btn" style="margin-top: 12px; background: #e63946; color: #fff;" onclick="drawCupRound('cup_r16', true)">Re-draw Round of 16</button>` : ''}
-            </div>
-          `;
-        } else if (!qf) {
-          drawHtml = `
-            <div class="admin-tournament-panel">
-              <h3>Ballers Cup — Quarter-finals</h3>
-              <p>All Round of 16 matches are complete! Generate the Quarter-finals draw (4 Round of 16 winners + 4 bye teams).</p>
-              <button class="admin-draw-btn" onclick="drawCupRound('cup_qf')">Draw Quarter-finals</button>
-            </div>
-          `;
-        } else if (!checkRoundComplete(qf)) {
-          const started = checkRoundStarted(qf);
-          drawHtml = `
-            <div class="admin-tournament-panel">
-              <h3>Quarter-finals in Progress</h3>
-              <p>Complete all Quarter-final matches to unlock the Semi-finals draw.</p>
-              ${!started ? `<button class="admin-draw-btn" style="margin-top: 12px; background: #e63946; color: #fff;" onclick="drawCupRound('cup_qf', true)">Re-draw Quarter-finals</button>` : ''}
-            </div>
-          `;
-        } else if (!sf) {
-          drawHtml = `
-            <div class="admin-tournament-panel">
-              <h3>Ballers Cup — Semi-finals</h3>
-              <p>All Quarter-final matches are complete! Generate the Semi-finals draw (4 Quarter-final winners).</p>
-              <button class="admin-draw-btn" onclick="drawCupRound('cup_sf')">Draw Semi-finals</button>
-            </div>
-          `;
-        } else if (!checkRoundComplete(sf)) {
-          const started = checkRoundStarted(sf);
-          drawHtml = `
-            <div class="admin-tournament-panel">
-              <h3>Semi-finals in Progress</h3>
-              <p>Complete all Semi-final matches to unlock the Cup Final draw.</p>
-              ${!started ? `<button class="admin-draw-btn" style="margin-top: 12px; background: #e63946; color: #fff;" onclick="drawCupRound('cup_sf', true)">Re-draw Semi-finals</button>` : ''}
-            </div>
-          `;
-        } else if (!final) {
-          drawHtml = `
-            <div class="admin-tournament-panel">
-              <h3>Ballers Cup — Cup Final</h3>
-              <p>All Semi-final matches are complete! Generate the Cup Final draw (2 Semi-final winners).</p>
-              <button class="admin-draw-btn" onclick="drawCupRound('cup_final')">Draw Cup Final</button>
-            </div>
-          `;
-        } else if (!checkRoundComplete(final)) {
-          const started = checkRoundStarted(final);
-          drawHtml = `
-            <div class="admin-tournament-panel">
-              <h3>Cup Final in Progress</h3>
-              <p>Play the final match to crown the Ballers Cup Champion!</p>
-              ${!started ? `<button class="admin-draw-btn" style="margin-top: 12px; background: #e63946; color: #fff;" onclick="drawCupRound('cup_final', true)">Re-draw Cup Final</button>` : ''}
-            </div>
-          `;
-        } else {
-          const finalMatch = final.matches[0];
-          let winnerName = 'TBD';
-          if (finalMatch.homeScore > finalMatch.awayScore) winnerName = finalMatch.home.player;
-          else if (finalMatch.awayScore > finalMatch.homeScore) winnerName = finalMatch.away.player;
-          else if (finalMatch.goldenGoalWinnerId) {
-            winnerName = finalMatch.home.id === finalMatch.goldenGoalWinnerId ? finalMatch.home.player : finalMatch.away.player;
-          }
-          drawHtml = `
-            <div class="admin-tournament-panel">
-              <h3 style="color: var(--accent-gold);">🏆 Ballers Cup Complete!</h3>
-              <p>Champion: <strong>${winnerName}</strong></p>
-            </div>
-          `;
+        const finalMatch = final.matches[0];
+        let winnerName = 'TBD';
+        if (finalMatch.homeScore > finalMatch.awayScore) winnerName = finalMatch.home.player;
+        else if (finalMatch.awayScore > finalMatch.homeScore) winnerName = finalMatch.away.player;
+        else if (finalMatch.goldenGoalWinnerId) {
+          winnerName = finalMatch.home.id === finalMatch.goldenGoalWinnerId ? finalMatch.home.player : finalMatch.away.player;
         }
+        drawHtml = `
+          <div class="admin-tournament-panel">
+            <h3 style="color: var(--accent-gold);">🏆 Ballers Cup Complete!</h3>
+            <p>Champion: <strong>${winnerName}</strong></p>
+          </div>
+        `;
       }
 
       let matchesListHtml = '';
       const roundLabels = {
+        'cup_preliminary': 'Preliminary Round',
         'cup_r16': 'Round of 16',
         'cup_qf': 'Quarter-finals',
         'cup_sf': 'Semi-finals',
@@ -2192,6 +2315,7 @@
       const player = document.getElementById('new-player-username').value.trim();
       const club = document.getElementById('new-player-club-select').value;
       const photoUrl = document.getElementById('new-player-photo').value.trim();
+      const division = parseInt(document.getElementById('new-player-division').value, 10);
       const errEl = document.getElementById('modal-error');
       
       errEl.textContent = '';
@@ -2216,7 +2340,7 @@
             'Content-Type': 'application/json',
             'X-Admin-Key': adminKey
           },
-          body: JSON.stringify({ player, club, photoUrl })
+          body: JSON.stringify({ player, club, photoUrl, division })
         });
 
         const data = await res.json();
@@ -2283,13 +2407,13 @@
                     <div class="roster-details">
                       <h3>${t.player} <span class="status-badge ${isActive ? 'active' : 'inactive'}">${isActive ? 'active' : 'archived'}</span></h3>
                       <p>
-                        Club: ${t.club}
+                        Club: ${t.club} | Division: ${t.division || 1}
                         ${logoSrc ? `<img src="${logoSrc}" alt="${t.club}" style="height: 14px; vertical-align: middle; margin-left: 6px;">` : ''}
                       </p>
                     </div>
                   </div>
                   <div class="management-actions">
-                    <button class="btn-edit-action" onclick="openEditPlayerModal(${t.id}, '${t.player.replace(/'/g, "\\'")}', '${t.club.replace(/'/g, "\\'")}', '${(t.photoUrl || t.photo_url || '').replace(/'/g, "\\'")}', ${isActive})">Edit</button>
+                    <button class="btn-edit-action" onclick="openEditPlayerModal(${t.id}, '${t.player.replace(/'/g, "\\'")}', '${t.club.replace(/'/g, "\\'")}', '${(t.photoUrl || t.photo_url || '').replace(/'/g, "\\'")}', ${isActive}, ${t.division || 1})">Edit</button>
                     <button class="btn-delete-action" onclick="deletePlayer(${t.id}, '${t.player.replace(/'/g, "\\'")}')">${isActive ? 'Archive' : 'Delete'}</button>
                   </div>
                 </div>
@@ -2300,11 +2424,12 @@
       `;
     }
 
-    function openEditPlayerModal(id, player, club, photoUrl, isActive) {
+    function openEditPlayerModal(id, player, club, photoUrl, isActive, division) {
       document.getElementById('edit-player-id').value = id;
       document.getElementById('edit-player-username').value = player;
       document.getElementById('edit-player-club-select').value = club;
       document.getElementById('edit-player-photo').value = photoUrl;
+      document.getElementById('edit-player-division').value = division || 1;
       document.getElementById('edit-player-active').checked = !!isActive;
       document.getElementById('edit-player-error').textContent = '';
       document.getElementById('edit-player-overlay').style.display = 'flex';
@@ -2321,6 +2446,7 @@
       const player = document.getElementById('edit-player-username').value.trim();
       const club = document.getElementById('edit-player-club-select').value;
       const photoUrl = document.getElementById('edit-player-photo').value.trim();
+      const division = parseInt(document.getElementById('edit-player-division').value, 10);
       const isActive = document.getElementById('edit-player-active').checked;
       const errEl = document.getElementById('edit-player-error');
 
@@ -2340,7 +2466,7 @@
             'Content-Type': 'application/json',
             'X-Admin-Key': adminKey
           },
-          body: JSON.stringify({ id, player, club, photoUrl, isActive })
+          body: JSON.stringify({ id, player, club, photoUrl, division, isActive })
         });
         const data = await res.json();
         if (data.success) {

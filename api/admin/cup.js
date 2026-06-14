@@ -77,21 +77,108 @@ module.exports = async function handler(req, res) {
       return null; // Tied and no golden goal winner recorded
     };
 
-    if (round === 'cup_r16') {
+    if (round === 'cup_preliminary') {
       const N = activeTeams.length;
-      if (N <= 8) {
-        return res.status(400).json({ error: `League has ${N} active players. You should draw Quarter-finals directly.` });
+      if (N <= 16) {
+        return res.status(400).json({ error: `League has ${N} active players. You should draw Round of 16 directly.` });
       }
-      // Calculate next power of 2 (which is 16 for N > 8 and N <= 16)
-      const nextPower = Math.pow(2, Math.ceil(Math.log2(N)));
-      const numByes = nextPower - N;
-      const numPlay = N - numByes;
 
-      const shuffledTeams = shuffleArray(activeTeams);
-      const byeTeams = shuffledTeams.slice(0, numByes);
-      const playingTeams = shuffledTeams.slice(numByes);
+      // We need exactly 16 teams for Round of 16.
+      // Preliminary round will narrow the remaining spots.
+      // If we have N teams:
+      // Number of matches in preliminary = N - 16
+      // Number of playing teams = 2 * (N - 16)
+      // Number of bye teams = N - 2 * (N - 16) = 32 - N
+      const numMatches = N - 16;
+      const numPlay = 2 * numMatches;
+      const numByes = N - numPlay;
+
+      // Seed bye teams based on Division 1 standings.
+      const div1Teams = activeTeams.filter(t => (t.division || 1) === 1);
+      const div2Teams = activeTeams.filter(t => (t.division || 1) === 2);
+
+      const standingsMap = {};
+      div1Teams.forEach(t => {
+        standingsMap[t.id] = { id: t.id, player: t.player, club: t.club, points: 0, goalsFor: 0, goalsAgainst: 0, wins: 0, draws: 0, losses: 0, played: 0 };
+      });
+
+      matches.forEach(m => {
+        if (m.stage && m.stage !== 'league') return;
+        const home = standingsMap[m.home_id];
+        const away = standingsMap[m.away_id];
+        if (!home || !away) return;
+
+        if (m.status === 'completed' && m.home_score !== null && m.away_score !== null) {
+          home.played++; away.played++;
+          home.goalsFor += m.home_score; home.goalsAgainst += m.away_score;
+          away.goalsFor += m.away_score; away.goalsAgainst += m.home_score;
+          if (m.home_score > m.away_score) {
+            home.wins++; home.points += 3; away.losses++;
+          } else if (m.home_score < m.away_score) {
+            away.wins++; away.points += 3; home.losses++;
+          } else {
+            home.draws++; away.draws++; home.points += 1; away.points += 1;
+          }
+        }
+      });
+
+      const sortedDiv1 = div1Teams.sort((a, b) => {
+        const sa = standingsMap[a.id];
+        const sb = standingsMap[b.id];
+        if (sb.points !== sa.points) return sb.points - sa.points;
+        const gdA = sa.goalsFor - sa.goalsAgainst;
+        const gdB = sb.goalsFor - sb.goalsAgainst;
+        if (gdB !== gdA) return gdB - gdA;
+        if (sb.goalsFor !== sa.goalsFor) return sb.goalsFor - sa.goalsFor;
+        return a.player.localeCompare(b.player);
+      });
+
+      // Top numByes teams of Div 1 get byes. The rest of Div 1 + all of Div 2 play.
+      const byeTeams = sortedDiv1.slice(0, numByes);
+      const playingTeams = [
+        ...sortedDiv1.slice(numByes),
+        ...div2Teams
+      ];
 
       drawTeams = playingTeams;
+    } else if (round === 'cup_r16') {
+      const prelimMatches = matches.filter(m => m.stage === 'cup_preliminary');
+      if (prelimMatches.length > 0) {
+        // Check if prelim complete
+        const incomplete = prelimMatches.filter(m => m.status !== 'completed');
+        if (incomplete.length > 0) {
+          return res.status(400).json({ error: 'Cannot draw Round of 16. Some Preliminary matches are incomplete.' });
+        }
+
+        // Collect winners
+        const winners = [];
+        for (const m of prelimMatches) {
+          const w = getMatchWinner(m);
+          if (!w) {
+            return res.status(400).json({ error: `Match ${m.home_player} vs ${m.away_player} ended in a tie. Please specify a Golden Goal winner first.` });
+          }
+          winners.push(w);
+        }
+
+        // Collect bye teams (active teams who did not play in prelim)
+        const playedIds = new Set(prelimMatches.flatMap(m => [m.home_id, m.away_id]));
+        const byeTeams = activeTeams.filter(t => !playedIds.has(t.id));
+
+        drawTeams = [...winners, ...byeTeams.map(t => t.id)].map(id => activeTeams.find(t => t.id === id));
+      } else {
+        const N = activeTeams.length;
+        if (N <= 8) {
+          return res.status(400).json({ error: `League has ${N} active players. You should draw Quarter-finals directly.` });
+        }
+        const nextPower = Math.pow(2, Math.ceil(Math.log2(N)));
+        const numByes = nextPower - N;
+
+        const shuffledTeams = shuffleArray(activeTeams);
+        const byeTeams = shuffledTeams.slice(0, numByes);
+        const playingTeams = shuffledTeams.slice(numByes);
+
+        drawTeams = playingTeams;
+      }
     } else if (round === 'cup_qf') {
       const r16Matches = matches.filter(m => m.stage === 'cup_r16');
       if (r16Matches.length === 0) {
@@ -231,7 +318,7 @@ function shuffleArray(arr) {
 }
 
 function getMatchdayNumber(round) {
-  // Use mapping to separate from league matchdays (which are 1-22)
+  if (round === 'cup_preliminary') return 100;
   if (round === 'cup_r16') return 101;
   if (round === 'cup_qf') return 102;
   if (round === 'cup_sf') return 103;
@@ -240,6 +327,7 @@ function getMatchdayNumber(round) {
 }
 
 function getRoundLabel(round) {
+  if (round === 'cup_preliminary') return 'Preliminary Round';
   if (round === 'cup_r16') return 'Round of 16';
   if (round === 'cup_qf') return 'Quarter-finals';
   if (round === 'cup_sf') return 'Semi-finals';

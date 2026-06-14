@@ -77,6 +77,7 @@ module.exports = async function handler(req, res) {
         predictions: m.predictions,
         isMotw: m.is_motw || false,
         stage: m.stage || 'league',
+        division: m.division,
         goldenGoalWinnerId: m.golden_goal_winner_id || null,
       };
 

@@ -14,6 +14,7 @@ let touchEndX = 0;
 const SWIPE_THRESHOLD = 50;
 let cachedRecordsData = null;
 let recordsFetchPromise = null;
+let selectedDivision = 1;
 
 // ── Dynamic Club configurations ────────────────────────────────
 let clubColors = {};
@@ -154,11 +155,38 @@ function switchPage(page) {
   }
 }
 
+function switchDivision(division) {
+  if (selectedDivision === division) return;
+  selectedDivision = division;
+
+  // Update button active states in HTML
+  ['standings', 'fixtures'].forEach(page => {
+    const btn1 = document.getElementById(`div-btn-${page}-1`);
+    const btn2 = document.getElementById(`div-btn-${page}-2`);
+    if (btn1 && btn2) {
+      if (division === 1) {
+        btn1.classList.add('active');
+        btn2.classList.remove('active');
+      } else {
+        btn2.classList.add('active');
+        btn1.classList.remove('active');
+      }
+    }
+  });
+
+  // Reset matchday index for the new division
+  currentMatchday = 0;
+
+  // Re-render standings and fixtures
+  renderStandings();
+  renderFixtures();
+}
+
 // ═══════════════════════════════════════════════════════════════
 // STANDINGS — Computed from real match data
 // ═══════════════════════════════════════════════════════════════
 function computeStandings() {
-  const teams = leagueData.teams;
+  const teams = leagueData.teams.filter(t => (t.division || 1) === selectedDivision);
   const standings = {};
 
   // Init all teams at zero
@@ -181,6 +209,10 @@ function computeStandings() {
 
   leagueData.fixtures.forEach(md => {
     md.matches.forEach(m => {
+      const homeTeam = leagueData.teams.find(t => t.id === m.home.id);
+      const matchDiv = m.division || (homeTeam ? homeTeam.division : 1);
+      if (matchDiv !== selectedDivision) return;
+
       if (m.status === "completed" && m.homeScore !== null && m.awayScore !== null) {
         const home = standings[m.home.id];
         const away = standings[m.away.id];
@@ -255,7 +287,7 @@ function computeStandings() {
 }
 
 function computeStandingsUpToMatchday(limit) {
-  const teams = leagueData.teams;
+  const teams = leagueData.teams.filter(t => (t.division || 1) === selectedDivision);
   const standings = {};
 
   teams.forEach(t => {
@@ -274,6 +306,10 @@ function computeStandingsUpToMatchday(limit) {
   leagueData.fixtures.forEach(md => {
     if (limit !== undefined && md.matchday > limit) return;
     md.matches.forEach(m => {
+      const homeTeam = leagueData.teams.find(t => t.id === m.home.id);
+      const matchDiv = m.division || (homeTeam ? homeTeam.division : 1);
+      if (matchDiv !== selectedDivision) return;
+
       if (m.status === "completed" && m.homeScore !== null && m.awayScore !== null) {
         const home = standings[m.home.id];
         const away = standings[m.away.id];
@@ -333,9 +369,22 @@ function computeStandingsUpToMatchday(limit) {
 function renderStandings() {
   const { standings, lastCompletedMatchday } = computeStandings();
 
+  // Find division matchday count
+  const divisionFixtures = (leagueData.fixtures || []).map(md => {
+    return {
+      matchday: md.matchday,
+      matches: md.matches.filter(m => {
+        const homeTeam = leagueData.teams.find(t => t.id === m.home.id);
+        const matchDiv = m.division || (homeTeam ? homeTeam.division : 1);
+        return matchDiv === selectedDivision;
+      })
+    };
+  }).filter(md => md.matches.length > 0);
+  const totalMatchdays = divisionFixtures.length;
+
   // Update matchday label
   document.getElementById("standings-matchday").textContent =
-    `Matchday ${lastCompletedMatchday} of ${leagueData.fixtures.length}`;
+    `Matchday ${lastCompletedMatchday} of ${totalMatchdays}`;
 
   const body = document.getElementById("standings-body");
   body.innerHTML = "";
@@ -350,8 +399,14 @@ function renderStandings() {
     const row = document.createElement("div");
     row.className = "table-row";
     row.onclick = () => showTeamHistory(team.id);
-    if (pos <= 4) row.classList.add("top-zone");
-    if (pos >= standings.length - 2) row.classList.add("danger-zone");
+
+    if (selectedDivision === 1) {
+      if (pos <= 4) row.classList.add("top-zone");
+      if (pos >= standings.length - 2) row.classList.add("danger-zone");
+    } else if (selectedDivision === 2) {
+      if (pos <= 3) row.classList.add("promotion-zone");
+    }
+
     row.style.animationDelay = `${idx * 0.04}s`;
 
     // Compute status badges
@@ -483,7 +538,21 @@ function renderStandings() {
 function renderFixtures(direction = null) {
   if (!leagueData) return;
 
-  const fixtures = leagueData.fixtures;
+  const fixtures = (leagueData.fixtures || []).map(md => {
+    return {
+      matchday: md.matchday,
+      matches: md.matches.filter(m => {
+        const homeTeam = leagueData.teams.find(t => t.id === m.home.id);
+        const matchDiv = m.division || (homeTeam ? homeTeam.division : 1);
+        return matchDiv === selectedDivision;
+      })
+    };
+  }).filter(md => md.matches.length > 0);
+
+  if (currentMatchday >= fixtures.length) {
+    currentMatchday = Math.max(0, fixtures.length - 1);
+  }
+
   const md = fixtures[currentMatchday];
   if (!md) return;
 
@@ -582,8 +651,19 @@ function renderFixtures(direction = null) {
 }
 
 function changeMatchday(delta) {
+  const fixtures = (leagueData.fixtures || []).map(md => {
+    return {
+      matchday: md.matchday,
+      matches: md.matches.filter(m => {
+        const homeTeam = leagueData.teams.find(t => t.id === m.home.id);
+        const matchDiv = m.division || (homeTeam ? homeTeam.division : 1);
+        return matchDiv === selectedDivision;
+      })
+    };
+  }).filter(md => md.matches.length > 0);
+
   const newIdx = currentMatchday + delta;
-  if (newIdx < 0 || newIdx >= leagueData.fixtures.length) return;
+  if (newIdx < 0 || newIdx >= fixtures.length) return;
   currentMatchday = newIdx;
   renderFixtures(delta);
 }
@@ -680,7 +760,18 @@ function buildSnapshotHeader(subtitleText) {
 
 function buildStandingsSnapshot() {
   const { standings, lastCompletedMatchday } = computeStandings();
-  const totalMDs = leagueData.fixtures.length;
+
+  const divisionFixtures = (leagueData.fixtures || []).map(md => {
+    return {
+      matchday: md.matchday,
+      matches: md.matches.filter(m => {
+        const homeTeam = leagueData.teams.find(t => t.id === m.home.id);
+        const matchDiv = m.division || (homeTeam ? homeTeam.division : 1);
+        return matchDiv === selectedDivision;
+      })
+    };
+  }).filter(md => md.matches.length > 0);
+  const totalMDs = divisionFixtures.length;
 
   let prevStandings = [];
   if (lastCompletedMatchday > 0) {
@@ -707,7 +798,9 @@ function buildStandingsSnapshot() {
   // Rows
   standings.forEach((team, idx) => {
     const pos = idx + 1;
-    const zoneClass = pos <= 4 ? "snap-top" : (pos >= standings.length - 2 ? "snap-danger" : "");
+    const zoneClass = selectedDivision === 1
+      ? (pos <= 4 ? "snap-top" : (pos >= standings.length - 2 ? "snap-danger" : ""))
+      : (pos <= 3 ? "snap-promotion" : "");
     
     let posHTML;
     if (pos <= 3) {
@@ -3244,8 +3337,22 @@ function renderBallersCup() {
   const qfLeftPadded   = padMatches(qfLeft, 2);
   const qfRightPadded  = padMatches(qfRight, 2);
 
+  const prelimData = cupFixtures.find(f => f.stage === 'cup_preliminary');
+  let prelimHtml = '';
+  if (prelimData && prelimData.matches && prelimData.matches.length > 0) {
+    prelimHtml = `
+      <div class="prelim-section">
+        <h3 class="prelim-title">Preliminary Round</h3>
+        <div class="prelim-grid">
+          ${prelimData.matches.map(m => renderBracketMatch(m, false, 'cup_preliminary')).join('')}
+        </div>
+      </div>
+    `;
+  }
+
   // Build bracket HTML
   let html = `
+    ${prelimHtml}
     <div class="bracket-wrapper">
       <div class="bracket-grid">
         <!-- Left side: R16 → QF → SF -->
@@ -3285,13 +3392,19 @@ function renderBallersCup() {
       </div>
 
       <!-- Bye teams info for R16 -->
-      ${r16Data && qfData ? (() => {
-        const r16PlayerIds = new Set(r16Matches.flatMap(m => [m.home.id, m.away.id]));
-        const byeTeams = (leagueData.teams || []).filter(t => !r16PlayerIds.has(t.id));
+      ${(() => {
+        let byeTeams = [];
+        if (prelimData) {
+          const prelimPlayerIds = new Set(prelimData.matches.flatMap(m => [m.home.id, m.away.id]));
+          byeTeams = (leagueData.teams || []).filter(t => (t.isActive !== false && t.is_active !== false) && !prelimPlayerIds.has(t.id));
+        } else if (r16Data) {
+          const r16PlayerIds = new Set(r16Matches.flatMap(m => [m.home.id, m.away.id]));
+          byeTeams = (leagueData.teams || []).filter(t => (t.isActive !== false && t.is_active !== false) && !r16PlayerIds.has(t.id));
+        }
         if (byeTeams.length > 0) {
           return `
             <div class="bracket-bye-info">
-              <span class="bracket-bye-label">R16 Byes (auto-qualified to QF):</span>
+              <span class="bracket-bye-label">Byes (auto-qualified to Round of 16):</span>
               <div class="bracket-bye-teams">
                 ${byeTeams.map(t => {
                   const logoSrc = clubLogos[t.club];
@@ -3310,7 +3423,7 @@ function renderBallersCup() {
           `;
         }
         return '';
-      })() : ''}
+      })()}
     </div>
   `;
 
@@ -4288,7 +4401,18 @@ async function renderAwards(standings) {
   // A season is considered completed if marked "completed" OR if all matches are completed
   const currentSeasonObj = leagueData.seasons.find(s => s.id === currentSeasonId);
   const isSeasonMarkedCompleted = currentSeasonObj && currentSeasonObj.status === 'completed';
-  const allMatchesCompleted = leagueData.fixtures.length > 0 && leagueData.fixtures.every(md => md.matches.every(m => m.status === 'completed'));
+
+  const divisionFixtures = (leagueData.fixtures || []).map(md => {
+    return {
+      matchday: md.matchday,
+      matches: md.matches.filter(m => {
+        const homeTeam = leagueData.teams.find(t => t.id === m.home.id);
+        const matchDiv = m.division || (homeTeam ? homeTeam.division : 1);
+        return matchDiv === selectedDivision;
+      })
+    };
+  }).filter(md => md.matches.length > 0);
+  const allMatchesCompleted = divisionFixtures.length > 0 && divisionFixtures.every(md => md.matches.every(m => m.status === 'completed'));
 
   if (!isSeasonMarkedCompleted && !allMatchesCompleted) {
     container.style.display = "none";

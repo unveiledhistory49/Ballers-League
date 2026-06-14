@@ -257,7 +257,9 @@ app.get('/api/data', (req, res) => {
 // ── POST /api/admin/player — Add a player to the league and regenerate fixtures ──
 app.post('/api/admin/player', requireAdmin, (req, res) => {
   try {
-    const { player, club, photoUrl } = req.body;
+    const { player, club, photoUrl, division } = req.body;
+    const playerDiv = parseInt(division, 10) || 1;
+
     if (!player || !club) {
       return res.status(400).json({ error: 'Missing username (player) or club name.' });
     }
@@ -269,14 +271,18 @@ app.post('/api/admin/player', requireAdmin, (req, res) => {
       return res.status(400).json({ error: 'No active season found' });
     }
 
-    // Check if any matches have been played in the active season
+    // Check if any matches in this division have been played in the active season
     const seasonStarted = activeSeason.fixtures.some(md =>
-      md.matches.some(m => m.status !== 'upcoming')
+      md.matches.some(m => {
+        const homeTeam = db.teams.find(t => t.id === m.home.id);
+        const matchDiv = m.division || (homeTeam ? homeTeam.division : 1);
+        return matchDiv === playerDiv && m.status !== 'upcoming';
+      })
     );
 
     if (seasonStarted) {
       return res.status(400).json({ 
-        error: 'Cannot add player to the active season. Matches have already started.' 
+        error: `Cannot add player to Division ${playerDiv} in the active season. Matches have already started.` 
       });
     }
 
@@ -290,6 +296,7 @@ app.post('/api/admin/player', requireAdmin, (req, res) => {
       player: player.trim(),
       club: club.trim(),
       photoUrl: photoUrl ? photoUrl.trim() : null,
+      division: playerDiv,
       isActive: true
     };
 
@@ -297,7 +304,21 @@ app.post('/api/admin/player', requireAdmin, (req, res) => {
 
     // Regenerate active season's fixtures
     const activeTeams = db.teams.filter(t => t.isActive !== false);
-    const newFixtures = generateFixtures(activeTeams);
+    const div1Teams = activeTeams.filter(t => (t.division || 1) === 1);
+    const div2Teams = activeTeams.filter(t => (t.division || 1) === 2);
+
+    let newFixtures = [];
+    if (div2Teams.length >= 2) {
+      const f1 = generateFixtures(div1Teams);
+      const f2 = generateFixtures(div2Teams);
+      newFixtures = combineFixtures(f1, f2);
+    } else {
+      const f1 = generateFixtures(div1Teams);
+      newFixtures = f1.map(md => ({
+        matchday: md.matchday,
+        matches: md.matches.map(m => ({ ...m, division: 1 }))
+      }));
+    }
     activeSeason.fixtures = newFixtures;
 
     saveDB(db);
@@ -306,7 +327,7 @@ app.post('/api/admin/player', requireAdmin, (req, res) => {
 
     res.json({
       success: true,
-      message: `Registered ${player} (${club}) successfully. Re-generated ${totalMatches} fixtures across ${newFixtures.length} matchdays.`,
+      message: `Registered ${player} (${club}) in Division ${playerDiv} successfully. Re-generated ${totalMatches} fixtures across ${newFixtures.length} matchdays.`,
       team: newTeam,
       totalMatches,
       totalMatchdays: newFixtures.length,
@@ -321,7 +342,7 @@ app.post('/api/admin/player', requireAdmin, (req, res) => {
 // ── PUT /api/admin/player — Update a player's details ─────────────────
 app.put('/api/admin/player', requireAdmin, (req, res) => {
   try {
-    const { id, player, club, photoUrl, isActive } = req.body;
+    const { id, player, club, photoUrl, division, isActive } = req.body;
     if (!id) return res.status(400).json({ error: 'Missing team id.' });
 
     const db = loadDB();
@@ -331,6 +352,7 @@ app.put('/api/admin/player', requireAdmin, (req, res) => {
     if (player) team.player = player.trim();
     if (club) team.club = club.trim();
     if (photoUrl !== undefined) team.photoUrl = photoUrl ? photoUrl.trim() : null;
+    if (division !== undefined) team.division = parseInt(division, 10) || 1;
     if (isActive !== undefined) team.isActive = !!isActive;
 
     // Propagate details to all match occurrences across all seasons/fixtures
@@ -338,15 +360,30 @@ app.put('/api/admin/player', requireAdmin, (req, res) => {
       updateTeamDetailsInFixtures(db, team.id, team.player, team.club);
     }
 
-    // If matches haven't started and team activation changed, regenerate fixtures
+    // If matches haven't started and team activation or division changed, regenerate fixtures
     const activeSeason = getActiveSeason(db);
     if (activeSeason) {
       const seasonStarted = activeSeason.fixtures.some(md =>
         md.matches.some(m => m.status !== 'upcoming')
       );
-      if (!seasonStarted && isActive !== undefined) {
+      if (!seasonStarted && (isActive !== undefined || division !== undefined)) {
         const activeTeams = db.teams.filter(t => t.isActive !== false);
-        activeSeason.fixtures = generateFixtures(activeTeams);
+        const div1Teams = activeTeams.filter(t => (t.division || 1) === 1);
+        const div2Teams = activeTeams.filter(t => (t.division || 1) === 2);
+
+        let newFixtures = [];
+        if (div2Teams.length >= 2) {
+          const f1 = generateFixtures(div1Teams);
+          const f2 = generateFixtures(div2Teams);
+          newFixtures = combineFixtures(f1, f2);
+        } else {
+          const f1 = generateFixtures(div1Teams);
+          newFixtures = f1.map(md => ({
+            matchday: md.matchday,
+            matches: md.matches.map(m => ({ ...m, division: 1 }))
+          }));
+        }
+        activeSeason.fixtures = newFixtures;
       }
     }
 
@@ -746,19 +783,102 @@ app.post('/api/admin/cup/draw', requireAdmin, (req, res) => {
       return null;
     };
 
-    if (round === 'cup_r16') {
+    if (round === 'cup_preliminary') {
       const N = activeTeams.length;
-      if (N <= 8) {
-        return res.status(400).json({ error: `League has ${N} active players. You should draw Quarter-finals directly.` });
+      if (N <= 16) {
+        return res.status(400).json({ error: `League has ${N} active players. You should draw Round of 16 directly.` });
       }
-      const nextPower = Math.pow(2, Math.ceil(Math.log2(N)));
-      const numByes = nextPower - N;
-      const numPlay = N - numByes;
 
-      const shuffled = shuffle(activeTeams);
-      const byeTeams = shuffled.slice(0, numByes);
-      const playing = shuffled.slice(numByes);
-      drawTeams = playing;
+      const numMatches = N - 16;
+      const numPlay = 2 * numMatches;
+      const numByes = N - numPlay;
+
+      // Seed bye teams based on Division 1 standings.
+      const div1Teams = activeTeams.filter(t => (t.division || 1) === 1);
+      const div2Teams = activeTeams.filter(t => (t.division || 1) === 2);
+
+      const standingsMap = {};
+      div1Teams.forEach(t => {
+        standingsMap[t.id] = { id: t.id, player: t.player, club: t.club, points: 0, goalsFor: 0, goalsAgainst: 0, wins: 0, draws: 0, losses: 0, played: 0 };
+      });
+
+      if (season.fixtures) {
+        season.fixtures.forEach(md => {
+          md.matches.forEach(m => {
+            const homeTeam = db.teams.find(t => t.id === m.home.id);
+            const matchDiv = m.division || (homeTeam ? homeTeam.division : 1);
+            if (matchDiv !== 1) return;
+
+            if (m.status === 'completed' && m.homeScore !== null && m.awayScore !== null) {
+              const home = standingsMap[m.home.id];
+              const away = standingsMap[m.away.id];
+              if (!home || !away) return;
+              home.played++; away.played++;
+              home.goalsFor += m.homeScore; home.goalsAgainst += m.awayScore;
+              away.goalsFor += m.awayScore; away.goalsAgainst += m.homeScore;
+              if (m.homeScore > m.awayScore) {
+                home.wins++; home.points += 3; away.losses++;
+              } else if (m.homeScore < m.awayScore) {
+                away.wins++; away.points += 3; home.losses++;
+              } else {
+                home.draws++; away.draws++; home.points += 1; away.points += 1;
+              }
+            }
+          });
+        });
+      }
+
+      const sortedDiv1 = div1Teams.sort((a, b) => {
+        const sa = standingsMap[a.id];
+        const sb = standingsMap[b.id];
+        if (sb.points !== sa.points) return sb.points - sa.points;
+        const gdA = sa.goalsFor - sa.goalsAgainst;
+        const gdB = sb.goalsFor - sb.goalsAgainst;
+        if (gdB !== gdA) return gdB - gdA;
+        if (sb.goalsFor !== sa.goalsFor) return sb.goalsFor - sa.goalsFor;
+        return a.player.localeCompare(b.player);
+      });
+
+      // Top numByes teams get byes. The rest of Div 1 + all of Div 2 play.
+      const byeTeams = sortedDiv1.slice(0, numByes);
+      const playingTeams = [
+        ...sortedDiv1.slice(numByes),
+        ...div2Teams
+      ];
+
+      drawTeams = playingTeams;
+    } else if (round === 'cup_r16') {
+      const prelimRound = season.cupFixtures.find(f => f.stage === 'cup_preliminary');
+      if (prelimRound) {
+        const incomplete = prelimRound.matches.some(m => m.status !== 'completed');
+        if (incomplete) return res.status(400).json({ error: 'Cannot draw Round of 16. Some Preliminary matches are incomplete.' });
+
+        const winners = [];
+        for (const m of prelimRound.matches) {
+          const w = getMatchWinner(m);
+          if (!w) {
+            return res.status(400).json({ error: `Match ${m.home.player} vs ${m.away.player} ended in a tie. Please specify a Golden Goal winner first.` });
+          }
+          winners.push(w);
+        }
+
+        const playedIds = new Set(prelimRound.matches.flatMap(m => [m.home.id, m.away.id]));
+        const byes = activeTeams.filter(t => !playedIds.has(t.id));
+
+        drawTeams = [...winners.map(id => activeTeams.find(t => t.id === id)), ...byes];
+      } else {
+        const N = activeTeams.length;
+        if (N <= 8) {
+          return res.status(400).json({ error: `League has ${N} active players. You should draw Quarter-finals directly.` });
+        }
+        const nextPower = Math.pow(2, Math.ceil(Math.log2(N)));
+        const numByes = nextPower - N;
+
+        const shuffled = shuffle(activeTeams);
+        const byeTeams = shuffled.slice(0, numByes);
+        const playing = shuffled.slice(numByes);
+        drawTeams = playing;
+      }
     } else if (round === 'cup_qf') {
       const r16Round = season.cupFixtures.find(f => f.stage === 'cup_r16');
       if (!r16Round) {
@@ -837,7 +957,7 @@ app.post('/api/admin/cup/draw', requireAdmin, (req, res) => {
 
     const shuffledDraw = shuffle(drawTeams);
     const matches = [];
-    const matchdayNumber = round === 'cup_r16' ? 101 : round === 'cup_qf' ? 102 : round === 'cup_sf' ? 103 : 104;
+    const matchdayNumber = round === 'cup_preliminary' ? 100 : round === 'cup_r16' ? 101 : round === 'cup_qf' ? 102 : round === 'cup_sf' ? 103 : 104;
 
     for (let i = 0; i < shuffledDraw.length; i += 2) {
       const home = shuffledDraw[i];
@@ -1135,6 +1255,30 @@ app.delete('/api/admin/match', requireAdmin, (req, res) => {
   }
 });
 
+// Helper to combine fixtures for two divisions
+function combineFixtures(div1Fixtures, div2Fixtures) {
+  const combined = [];
+  const maxMatchday = Math.max(div1Fixtures.length, div2Fixtures.length);
+  for (let md = 1; md <= maxMatchday; md++) {
+    const mdMatches = [];
+    const div1Md = div1Fixtures.find(f => f.matchday === md);
+    const div2Md = div2Fixtures.find(f => f.matchday === md);
+    if (div1Md) {
+      mdMatches.push(...div1Md.matches.map(m => ({ ...m, division: 1 })));
+    }
+    if (div2Md) {
+      mdMatches.push(...div2Md.matches.map(m => ({ ...m, division: 2 })));
+    }
+    if (mdMatches.length > 0) {
+      combined.push({
+        matchday: md,
+        matches: mdMatches
+      });
+    }
+  }
+  return combined;
+}
+
 // ── POST /api/admin/season — Create a new season ─────────────
 app.post('/api/admin/season', requireAdmin, (req, res) => {
   try {
@@ -1159,18 +1303,84 @@ app.post('/api/admin/season', requireAdmin, (req, res) => {
     // Mark current season as completed
     activeSeason.status = 'completed';
 
+    // Calculate standings for division promotion/relegation
+    const activeDeductions = activeSeason.deductions || {};
+    const { standings } = computeStandings(db.teams, activeSeason.fixtures, activeDeductions);
+
+    const div1Sorted = standings.filter(t => (t.division || 1) === 1);
+    const div2Sorted = standings.filter(t => (t.division || 1) === 2);
+
+    if (div1Sorted.length >= 3 && div2Sorted.length >= 3) {
+      const relegated = div1Sorted.slice(-3); // Bottom 3 of Div 1
+      const promoted = div2Sorted.slice(0, 3); // Top 3 of Div 2
+
+      relegated.forEach(t => {
+        const team = db.teams.find(tm => tm.id === t.id);
+        if (team) team.division = 2;
+      });
+
+      promoted.forEach(t => {
+        const team = db.teams.find(tm => tm.id === t.id);
+        if (team) team.division = 1;
+      });
+
+      // Record in local database promotions_relegations
+      if (!db.promotions_relegations) {
+        db.promotions_relegations = [];
+      }
+      relegated.forEach(t => {
+        db.promotions_relegations.push({
+          id: db.promotions_relegations.length + 1,
+          season_id: activeSeason.id,
+          team_id: t.id,
+          direction: 'relegated',
+          from_division: 1,
+          to_division: 2,
+          created_at: new Date().toISOString()
+        });
+      });
+      promoted.forEach(t => {
+        db.promotions_relegations.push({
+          id: db.promotions_relegations.length + 1,
+          season_id: activeSeason.id,
+          team_id: t.id,
+          direction: 'promoted',
+          from_division: 2,
+          to_division: 1,
+          created_at: new Date().toISOString()
+        });
+      });
+    }
+
     // Filter to only include active teams for scheduling
     const activeTeams = db.teams.filter(t => t.isActive !== false);
-    if (activeTeams.length < 2) {
+    
+    // Filter active teams by division
+    const div1Teams = activeTeams.filter(t => (t.division || 1) === 1);
+    const div2Teams = activeTeams.filter(t => (t.division || 1) === 2);
+
+    if (div1Teams.length < 2) {
       return res.status(400).json({
-        error: 'Cannot start a new season — there must be at least 2 active teams to generate fixtures.'
+        error: 'Cannot start a new season — there must be at least 2 active teams in Division 1 to generate fixtures.'
       });
     }
 
     // Create new season
     const newId = db.seasons.length + 1;
     const newSeasonName = `Season ${newId}`;
-    const newFixtures = generateFixtures(activeTeams);
+    
+    let newFixtures = [];
+    if (div2Teams.length >= 2) {
+      const f1 = generateFixtures(div1Teams);
+      const f2 = generateFixtures(div2Teams);
+      newFixtures = combineFixtures(f1, f2);
+    } else {
+      const f1 = generateFixtures(div1Teams);
+      newFixtures = f1.map(md => ({
+        matchday: md.matchday,
+        matches: md.matches.map(m => ({ ...m, division: 1 }))
+      }));
+    }
 
     db.seasons.push({
       id: newId,
