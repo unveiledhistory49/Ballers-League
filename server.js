@@ -63,7 +63,9 @@ function loadDB() {
         { name: "Man City",    logoUrl: "logos/england_manchester-city_256x256.football-logos.cc.png",    primaryColor: "#6cabdd", textColor: "#1c2c5b", shortName: "MCI" },
         { name: "Arsenal FC",  logoUrl: "logos/england_arsenal_256x256.football-logos.cc.png",            primaryColor: "#ef0107", textColor: "#fff", shortName: "ARS" },
         { name: "Bayern",      logoUrl: "logos/germany_bayern-munchen_256x256.football-logos.cc.png",    primaryColor: "#dc052d", textColor: "#fff", shortName: "BAY" },
-        { name: "PSG",         logoUrl: "logos/france_paris-saint-germain_256x256.football-logos.cc.png", primaryColor: "#004170", textColor: "#fff", shortName: "PSG" }
+        { name: "PSG",         logoUrl: "logos/france_paris-saint-germain_256x256.football-logos.cc.png", primaryColor: "#004170", textColor: "#fff", shortName: "PSG" },
+        { name: "Chelsea",     logoUrl: "logos/chelsea.football-logos.cc.png",         primaryColor: "#034694", textColor: "#fff", shortName: "CHE" },
+        { name: "Real Madrid", logoUrl: "logos/spain_real-madrid_256x256.football-logos.cc.png", primaryColor: "#ffffff", textColor: "#111", shortName: "RMA" }
       ],
       seasons: [
         {
@@ -92,7 +94,9 @@ function loadDB() {
         { name: "Man City",    logoUrl: "logos/england_manchester-city_256x256.football-logos.cc.png",    primaryColor: "#6cabdd", textColor: "#1c2c5b", shortName: "MCI" },
         { name: "Arsenal FC",  logoUrl: "logos/england_arsenal_256x256.football-logos.cc.png",            primaryColor: "#ef0107", textColor: "#fff", shortName: "ARS" },
         { name: "Bayern",      logoUrl: "logos/germany_bayern-munchen_256x256.football-logos.cc.png",    primaryColor: "#dc052d", textColor: "#fff", shortName: "BAY" },
-        { name: "PSG",         logoUrl: "logos/france_paris-saint-germain_256x256.football-logos.cc.png", primaryColor: "#004170", textColor: "#fff", shortName: "PSG" }
+        { name: "PSG",         logoUrl: "logos/france_paris-saint-germain_256x256.football-logos.cc.png", primaryColor: "#004170", textColor: "#fff", shortName: "PSG" },
+        { name: "Chelsea",     logoUrl: "logos/chelsea.football-logos.cc.png",         primaryColor: "#034694", textColor: "#fff", shortName: "CHE" },
+        { name: "Real Madrid", logoUrl: "logos/spain_real-madrid_256x256.football-logos.cc.png", primaryColor: "#ffffff", textColor: "#111", shortName: "RMA" }
       ],
       seasons: [
         {
@@ -117,7 +121,9 @@ function loadDB() {
       { name: "Man City",    logoUrl: "logos/england_manchester-city_256x256.football-logos.cc.png",    primaryColor: "#6cabdd", textColor: "#1c2c5b", shortName: "MCI" },
       { name: "Arsenal FC",  logoUrl: "logos/england_arsenal_256x256.football-logos.cc.png",            primaryColor: "#ef0107", textColor: "#fff", shortName: "ARS" },
       { name: "Bayern",      logoUrl: "logos/germany_bayern-munchen_256x256.football-logos.cc.png",    primaryColor: "#dc052d", textColor: "#fff", shortName: "BAY" },
-      { name: "PSG",         logoUrl: "logos/france_paris-saint-germain_256x256.football-logos.cc.png", primaryColor: "#004170", textColor: "#fff", shortName: "PSG" }
+      { name: "PSG",         logoUrl: "logos/france_paris-saint-germain_256x256.football-logos.cc.png", primaryColor: "#004170", textColor: "#fff", shortName: "PSG" },
+      { name: "Chelsea",     logoUrl: "logos/chelsea.football-logos.cc.png",         primaryColor: "#034694", textColor: "#fff", shortName: "CHE" },
+      { name: "Real Madrid", logoUrl: "logos/spain_real-madrid_256x256.football-logos.cc.png", primaryColor: "#ffffff", textColor: "#111", shortName: "RMA" }
     ];
     saveDB(db);
   }

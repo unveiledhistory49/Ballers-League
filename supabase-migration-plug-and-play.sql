@@ -22,7 +22,9 @@ INSERT INTO clubs (name, logo_url, primary_color, text_color, short_name) VALUES
   ('Man City',    'logos/england_manchester-city_256x256.football-logos.cc.png',    '#6cabdd', '#1c2c5b', 'MCI'),
   ('Arsenal FC',  'logos/england_arsenal_256x256.football-logos.cc.png',            '#ef0107', '#fff', 'ARS'),
   ('Bayern',      'logos/germany_bayern-munchen_256x256.football-logos.cc.png',    '#dc052d', '#fff', 'BAY'),
-  ('PSG',         'logos/france_paris-saint-germain_256x256.football-logos.cc.png', '#004170', '#fff', 'PSG')
+  ('PSG',         'logos/france_paris-saint-germain_256x256.football-logos.cc.png', '#004170', '#fff', 'PSG'),
+  ('Chelsea',     'logos/chelsea.football-logos.cc.png',                           '#034694', '#fff', 'CHE'),
+  ('Real Madrid', 'logos/spain_real-madrid_256x256.football-logos.cc.png',         '#ffffff', '#111', 'RMA')
 ON CONFLICT (name) DO NOTHING;
 
 -- 3. Add active status column to teams table
