@@ -228,7 +228,7 @@ async function handleCreateSeason(req, res) {
           home_score: null,
           away_score: null,
           status: 'upcoming',
-          division: m.division || 1,
+          stage: 'league'
         });
       }
     }
