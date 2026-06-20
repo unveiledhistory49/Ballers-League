@@ -2,15 +2,15 @@
 -- Migration: Add Division 2 Teams
 -- ============================================================
 
-INSERT INTO teams (player, club, division, is_active) VALUES 
-  ('DBossSK30', 'Man U', 2, true),
-  ('Shadowdonny', 'Barcelona', 2, true),
-  ('AxDLol', 'Chelsea', 2, true),
-  ('Emmzy', 'Man U', 2, true),
-  ('YoungLegend', 'Man City', 2, true),
-  ('CUM__SHOT**', 'Real Madrid', 2, true),
-  ('Lone_Wolf', 'Arsenal FC', 2, true),
-  ('AUR4F4RM3R', 'Chelsea', 2, true);
+INSERT INTO teams (id, player, club, division, is_active) VALUES 
+  (13, 'DBossSK30', 'Man U', 2, true),
+  (14, 'Shadowdonny', 'Barcelona', 2, true),
+  (15, 'AxDLol', 'Chelsea', 2, true),
+  (16, 'Emmzy', 'Man U', 2, true),
+  (17, 'YoungLegend', 'Man City', 2, true),
+  (18, 'CUM__SHOT**', 'Real Madrid', 2, true),
+  (19, 'Lone_Wolf', 'Arsenal FC', 2, true),
+  (20, 'AUR4F4RM3R', 'Chelsea', 2, true);
 
 -- ============================================================
 -- IMPORTANT NOTE REGARDING FIXTURES:
