@@ -340,7 +340,8 @@ async function handleDelete(req, res, supabase) {
         const { error: deleteMatchesErr } = await supabase
           .from('matches')
           .delete()
-          .eq('season_id', activeSeason.id);
+          .eq('season_id', activeSeason.id)
+          .eq('stage', 'league');
 
         if (deleteMatchesErr) throw deleteMatchesErr;
 
@@ -359,7 +360,7 @@ async function handleDelete(req, res, supabase) {
               home_score: null,
               away_score: null,
               status: 'upcoming',
-              division: m.division || 1,
+              stage: 'league'
             });
           }
         }
