@@ -865,10 +865,21 @@ function buildStandingsSnapshot() {
 }
 
 function buildFixturesSnapshot() {
-  const md = leagueData.fixtures[currentMatchday];
+  const filteredFixtures = (leagueData.fixtures || []).map(md => {
+    return {
+      matchday: md.matchday,
+      matches: md.matches.filter(m => {
+        const homeTeam = leagueData.teams.find(t => t.id === m.home.id);
+        const matchDiv = m.division || (homeTeam ? homeTeam.division : 1);
+        return matchDiv === selectedDivision;
+      })
+    };
+  }).filter(md => md.matches.length > 0);
+
+  const md = filteredFixtures[currentMatchday];
   if (!md) return "";
 
-  let html = buildSnapshotHeader(`Matchday ${md.matchday} — Fixtures & Results`);
+  let html = buildSnapshotHeader(`Division ${selectedDivision} — Matchday ${md.matchday}`);
 
   html += `<div class="snap-fix-title">Matchday ${md.matchday}</div>`;
 
@@ -980,11 +991,26 @@ async function downloadSnapshot(type) {
 
     // Download
     const link = document.createElement("a");
-    const filename = type === "standings"
-      ? `ballers-league-standings.png`
-      : (type === "fixtures"
-        ? `ballers-league-matchday-${leagueData.fixtures[currentMatchday].matchday}.png`
-        : `ballers-league-${leagueData.teams.find(t => t.id === selectedTeamIdForHistory).player.toLowerCase()}-history.png`);
+    let filename;
+    if (type === "standings") {
+      filename = `ballers-league-div-${selectedDivision}-standings.png`;
+    } else if (type === "fixtures") {
+      const filteredFixtures = (leagueData.fixtures || []).map(md => {
+        return {
+          matchday: md.matchday,
+          matches: md.matches.filter(m => {
+            const homeTeam = leagueData.teams.find(t => t.id === m.home.id);
+            const matchDiv = m.division || (homeTeam ? homeTeam.division : 1);
+            return matchDiv === selectedDivision;
+          })
+        };
+      }).filter(md => md.matches.length > 0);
+      const md = filteredFixtures[currentMatchday];
+      const mdNum = md ? md.matchday : 1;
+      filename = `ballers-league-div-${selectedDivision}-matchday-${mdNum}.png`;
+    } else {
+      filename = `ballers-league-${leagueData.teams.find(t => t.id === selectedTeamIdForHistory).player.toLowerCase()}-history.png`;
+    }
     link.download = filename;
     link.href = canvas.toDataURL("image/png");
     link.click();
