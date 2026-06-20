@@ -244,7 +244,8 @@ async function handleUpdate(req, res, supabase) {
               home_score: null,
               away_score: null,
               status: 'upcoming',
-              stage: 'league'
+              stage: 'league',
+              division: m.division || 1
             });
           }
         }
@@ -360,7 +361,8 @@ async function handleDelete(req, res, supabase) {
               home_score: null,
               away_score: null,
               status: 'upcoming',
-              stage: 'league'
+              stage: 'league',
+              division: m.division || 1
             });
           }
         }
