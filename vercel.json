@@ -5,8 +5,9 @@
   "framework": null,
   "rewrites": [
     { "source": "/admin", "destination": "/admin.html" },
-    { "source": "/api/admin/cup/draw", "destination": "/api/admin/cup.js" },
-    { "source": "/api/admin/playoffs/generate", "destination": "/api/admin/playoffs.js" }
+    { "source": "/api/admin/tournament/draw", "destination": "/api/admin/tournament.js" },
+    { "source": "/api/admin/tournament/advance", "destination": "/api/admin/tournament.js" },
+    { "source": "/api/admin/headline", "destination": "/api/admin/headline.js" }
   ],
   "headers": [
     {

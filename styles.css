@@ -5273,3 +5273,258 @@ body {
   justify-content: center;
 }
 
+/* ═══════════════════════════════════════════════════════════════
+   KNOCKOUT TOURNAMENT BRACKET & TWO-LEGGED TIE STYLES
+   ═══════════════════════════════════════════════════════════════ */
+.section-subtitle {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  margin-top: 4px;
+  font-weight: 500;
+}
+
+.bracket-scroll-wrapper {
+  width: 100%;
+  overflow-x: auto;
+  padding: 16px 0 32px;
+  -webkit-overflow-scrolling: touch;
+}
+
+.tournament-bracket-tree {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(290px, 1fr));
+  gap: 28px;
+  min-width: 900px;
+  padding: 8px 4px;
+}
+
+@media (max-width: 940px) {
+  .tournament-bracket-tree {
+    grid-template-columns: 1fr;
+    min-width: auto;
+  }
+}
+
+.bracket-round-column {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.bracket-round-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 8px;
+  border-bottom: 1.5px solid var(--border-medium);
+  margin-bottom: 4px;
+}
+
+.bracket-round-header h3 {
+  font-family: var(--font-display);
+  font-size: 1.05rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--accent-gold);
+}
+
+.bracket-round-header .round-subtag {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.tie-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-medium);
+  border-radius: 14px;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  position: relative;
+  transition: all 0.3s var(--ease-out);
+}
+
+.tie-card:hover {
+  background: var(--bg-card-hover);
+  border-color: var(--border-accent);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
+}
+
+.tie-card.final-tie-card {
+  border: 1.5px solid rgba(200, 168, 78, 0.45);
+  background: linear-gradient(145deg, rgba(200, 168, 78, 0.06) 0%, var(--bg-card) 100%);
+  box-shadow: 0 0 28px rgba(200, 168, 78, 0.12);
+}
+
+.tie-card.final-tie-card:hover {
+  border-color: var(--accent-gold);
+  box-shadow: 0 0 36px rgba(200, 168, 78, 0.25), 0 10px 30px rgba(0, 0, 0, 0.6);
+}
+
+.tie-card.third-place-card {
+  border: 1.5px solid rgba(205, 127, 50, 0.35);
+  background: linear-gradient(145deg, rgba(205, 127, 50, 0.04) 0%, var(--bg-card) 100%);
+}
+
+.tie-card-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.tie-card-title {
+  font-family: var(--font-display);
+  font-size: 0.8rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+}
+
+.tie-aggregate-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid var(--border-medium);
+  border-radius: 20px;
+  padding: 3px 10px;
+  font-size: 0.75rem;
+  font-weight: 800;
+  font-family: var(--font-display);
+  color: var(--text-primary);
+}
+
+.tie-aggregate-badge.decided {
+  background: rgba(200, 168, 78, 0.15);
+  border-color: rgba(200, 168, 78, 0.4);
+  color: var(--accent-gold);
+}
+
+.tie-team-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 8px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.02);
+  transition: all 0.2s ease;
+}
+
+.tie-team-row.winner {
+  background: rgba(200, 168, 78, 0.1);
+  border-left: 3px solid var(--accent-gold);
+}
+
+.tie-team-row.loser {
+  opacity: 0.5;
+}
+
+.tie-team-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.tie-team-logo {
+  width: 26px;
+  height: 26px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.tie-team-logo img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+
+.tie-team-names {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.tie-player-name {
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tie-club-name {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+}
+
+.tie-team-scores {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-display);
+}
+
+.tie-leg-score {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  background: rgba(0, 0, 0, 0.3);
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.tie-total-score {
+  font-size: 1.1rem;
+  font-weight: 900;
+  color: var(--text-primary);
+  min-width: 22px;
+  text-align: center;
+}
+
+.tie-team-row.winner .tie-total-score {
+  color: var(--accent-gold);
+}
+
+.tie-footer-details {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.74rem;
+  color: var(--text-muted);
+  padding-top: 6px;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.tie-golden-goal-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: #ffb703;
+  font-weight: 700;
+  font-size: 0.72rem;
+  background: rgba(255, 183, 3, 0.12);
+  padding: 2px 8px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 183, 3, 0.3);
+}
+
+.bracket-extra-section {
+  max-width: 600px;
+  margin: 36px auto 0 auto;
+}
+
+.third-place-wrapper {
+  margin-top: 12px;
+}
+
+

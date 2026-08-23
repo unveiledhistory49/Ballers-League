@@ -12,7 +12,7 @@ module.exports = async function handler(req, res) {
 
     const supabase = getSupabase();
 
-    // Fetch all seasons
+    // Fetch seasons
     const { data: seasons, error: seasonsErr } = await supabase
       .from('seasons')
       .select('*')
@@ -20,12 +20,10 @@ module.exports = async function handler(req, res) {
 
     if (seasonsErr) throw seasonsErr;
 
-    // Determine which season to show
     let seasonId;
     if (req.query.season) {
       seasonId = parseInt(req.query.season, 10);
     } else {
-      // Default to the active season, or the latest one
       const activeSeason = seasons.find(s => s.status === 'active');
       seasonId = activeSeason ? activeSeason.id : seasons[seasons.length - 1]?.id || 1;
     }
@@ -48,7 +46,7 @@ module.exports = async function handler(req, res) {
 
     if (clubsErr) throw clubsErr;
 
-    // Fetch matches for the selected season
+    // Fetch matches for this season
     const { data: matches, error: matchesErr } = await supabase
       .from('matches')
       .select('*')
@@ -58,15 +56,24 @@ module.exports = async function handler(req, res) {
 
     if (matchesErr) throw matchesErr;
 
-    // Group matches by tournament stage and matchday
-    const leagueFixtureMap = {};
-    const cupFixtureMap = {};
-    const playoffFixtureMap = {};
-
+    // Group matches by matchday
+    const fixtureMap = {};
     for (const m of matches) {
-      const matchObj = {
+      const md = m.matchday;
+      if (!fixtureMap[md]) {
+        fixtureMap[md] = {
+          matchday: md,
+          stage: m.stage || 'quarterfinals',
+          name: getMatchdayName(md),
+          matches: []
+        };
+      }
+
+      fixtureMap[md].matches.push({
         id: m.id,
-        matchday: m.matchday,
+        stage: m.stage || 'quarterfinals',
+        tieId: m.tie_id || m.tieId || 1,
+        leg: m.leg || (md % 2 === 1 ? 1 : 2),
         home: { id: m.home_id, player: m.home_player, club: m.home_club },
         away: { id: m.away_id, player: m.away_player, club: m.away_club },
         homeScore: m.home_score,
@@ -74,50 +81,38 @@ module.exports = async function handler(req, res) {
         status: m.status,
         homeStreamUrl: m.home_stream_url,
         awayStreamUrl: m.away_stream_url,
-        predictions: m.predictions,
+        predictions: m.predictions || { home: 0, draw: 0, away: 0, ips: [], voters: [] },
         isMotw: m.is_motw || false,
-        stage: m.stage || 'league',
-        division: m.division,
         goldenGoalWinnerId: m.golden_goal_winner_id || null,
-      };
-
-      if (!m.stage || m.stage === 'league') {
-        if (!leagueFixtureMap[m.matchday]) {
-          leagueFixtureMap[m.matchday] = { matchday: m.matchday, matches: [] };
-        }
-        leagueFixtureMap[m.matchday].matches.push(matchObj);
-      } else if (m.stage.startsWith('cup_')) {
-        if (!cupFixtureMap[m.stage]) {
-          cupFixtureMap[m.stage] = { stage: m.stage, matchday: m.matchday, matches: [] };
-        }
-        cupFixtureMap[m.stage].matches.push(matchObj);
-      } else if (m.stage.startsWith('champions_')) {
-        if (!playoffFixtureMap[m.stage]) {
-          playoffFixtureMap[m.stage] = { stage: m.stage, matchday: m.matchday, matches: [] };
-        }
-        playoffFixtureMap[m.stage].matches.push(matchObj);
-      }
+      });
     }
 
-    const fixtures = Object.values(leagueFixtureMap).sort((a, b) => a.matchday - b.matchday);
-    const cupFixtures = Object.values(cupFixtureMap).sort((a, b) => a.matchday - b.matchday);
-    const playoffFixtures = Object.values(playoffFixtureMap).sort((a, b) => a.matchday - b.matchday);
+    const fixtures = Object.values(fixtureMap).sort((a, b) => a.matchday - b.matchday);
 
     res.status(200).json({
       league: 'Ballers League',
       season: currentSeason ? currentSeason.name : 'Season 1',
       seasonId: seasonId,
-      seasons: seasons.map(s => ({ id: s.id, name: s.name, status: s.status, headline: s.headline, deductions: s.deductions || null })),
+      seasons: seasons.map(s => ({ id: s.id, name: s.name, status: s.status, headline: s.headline })),
       teams,
       clubs,
       fixtures,
-      cupFixtures,
-      playoffFixtures,
       headline: currentSeason ? currentSeason.headline : null,
-      deductions: currentSeason ? (currentSeason.deductions || {}) : {},
     });
   } catch (err) {
     console.error('API /data error:', err);
-    res.status(500).json({ error: 'Failed to load data' });
+    res.status(500).json({ error: 'Failed to load tournament data' });
   }
 };
+
+function getMatchdayName(md) {
+  switch (md) {
+    case 1: return 'Quarter-finals (Leg 1)';
+    case 2: return 'Quarter-finals (Leg 2)';
+    case 3: return 'Semi-finals (Leg 1)';
+    case 4: return 'Semi-finals (Leg 2)';
+    case 5: return 'Final & 3rd Place (Leg 1)';
+    case 6: return 'Final & 3rd Place (Leg 2)';
+    default: return `Matchday ${md}`;
+  }
+}

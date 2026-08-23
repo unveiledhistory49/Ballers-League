@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-  <meta name="description" content="Ballers League Admin Panel — Manage fixtures and results">
+  <meta name="description" content="Ballers League Admin Panel — Manage Knockout Matches, Brackets and Scores">
   <title>Ballers League — Admin</title>
 
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -12,7 +12,6 @@
   <link rel="icon" type="image/png" href="logo.png">
 
   <style>
-    /* ── Reset ──────────────────────────────────────────── */
     *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
 
     :root {
@@ -64,45 +63,10 @@
       width: 100%;
       max-width: 380px;
       text-align: center;
-      animation: fadeIn 0.5s ease;
-    }
-
-    @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(16px); }
-      to { opacity: 1; transform: translateY(0); }
     }
 
     .login-card .logo-icon {
       width: 56px; height: 56px; margin: 0 auto 16px;
-    }
-
-    .admin-login-logo {
-      width: 56px;
-      height: 56px;
-      object-fit: contain;
-      transition: transform 0.4s var(--ease-out);
-    }
-
-    .logo-icon:hover .admin-login-logo {
-      transform: rotate(15deg) scale(1.1);
-    }
-
-    .admin-header-logo {
-      width: 28px;
-      height: 28px;
-      object-fit: contain;
-      display: block;
-      transition: transform 0.4s var(--ease-out);
-    }
-
-    .admin-header-logo-link {
-      display: flex;
-      align-items: center;
-      text-decoration: none;
-    }
-
-    .admin-header-logo-link:hover .admin-header-logo {
-      transform: rotate(15deg) scale(1.1);
     }
 
     .login-card h1 {
@@ -125,21 +89,10 @@
       border: 1px solid var(--border-medium);
       border-radius: 12px;
       color: var(--text-primary);
-      font-family: var(--font-body);
       font-size: 0.9rem;
       text-align: center;
       letter-spacing: 0.15em;
       outline: none;
-      transition: border-color 0.3s ease;
-    }
-
-    .login-card input:focus {
-      border-color: var(--border-focus);
-    }
-
-    .login-card input::placeholder {
-      color: var(--text-muted);
-      letter-spacing: 0.05em;
     }
 
     .login-card button {
@@ -150,28 +103,18 @@
       color: #000;
       border: none;
       border-radius: 12px;
-      font-family: var(--font-body);
       font-size: 0.85rem;
       font-weight: 700;
       cursor: pointer;
-      transition: all 0.25s ease;
     }
-
-    .login-card button:hover {
-      background: #d4b65c;
-      transform: translateY(-1px);
-    }
-
-    .login-card button:active { transform: translateY(0); }
 
     .login-error {
       color: var(--dot-loss);
       font-size: 0.75rem;
       margin-top: 12px;
-      min-height: 20px;
     }
 
-    /* ── Admin Panel ──────────────────────────────────── */
+    /* ── Admin Main Panel ──────────────────────────────── */
     #admin-panel { display: none; }
 
     .admin-header {
@@ -180,7 +123,7 @@
       z-index: 100;
       background: var(--bg-primary);
       border-bottom: 1px solid var(--border-subtle);
-      padding: 16px 20px;
+      padding: 16px 24px;
       display: flex;
       align-items: center;
       justify-content: space-between;
@@ -190,2557 +133,1029 @@
     .admin-header-left {
       display: flex;
       align-items: center;
-      gap: 12px;
+      gap: 16px;
     }
 
     .admin-header h1 {
       font-family: var(--font-display);
-      font-size: 1.15rem;
-      font-weight: 700;
+      font-size: 1.2rem;
+      font-weight: 800;
     }
 
-    .admin-season-selector select {
+    .admin-season-select {
       background: var(--bg-card);
       border: 1px solid var(--border-medium);
       color: var(--accent-gold);
-      font-family: var(--font-body);
-      font-size: 0.7rem;
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 0.08em;
-      padding: 4px 10px;
-      border-radius: 6px;
+      font-size: 0.8rem;
+      font-weight: 700;
+      padding: 6px 12px;
+      border-radius: 8px;
       cursor: pointer;
-      transition: all 0.2s ease;
     }
 
-    .admin-season-selector select:hover {
-      border-color: var(--accent-gold);
-    }
-
-    .admin-season-selector select:focus {
-      outline: none;
-      border-color: var(--accent-gold);
-      box-shadow: 0 0 0 2px var(--accent-gold-dim);
-    }
-
-    .admin-new-season-banner {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 16px;
-      padding: 16px 20px;
-      margin-bottom: 16px;
-      background: linear-gradient(135deg, rgba(200, 168, 78, 0.1) 0%, rgba(200, 168, 78, 0.05) 100%);
-      border: 1px solid rgba(200, 168, 78, 0.25);
-      border-radius: 12px;
-      animation: adminSlideIn 0.3s ease;
-    }
-
-    .admin-new-season-info {
+    .admin-header-right {
       display: flex;
       align-items: center;
       gap: 12px;
     }
 
-    .admin-new-season-icon {
-      font-size: 1.5rem;
-    }
-
-    .admin-new-season-info strong {
-      display: block;
-      color: var(--accent-gold);
-      font-family: var(--font-display);
-      font-size: 0.85rem;
-    }
-
-    .admin-new-season-info p {
+    .btn-secondary {
+      background: var(--bg-card);
+      border: 1px solid var(--border-medium);
       color: var(--text-secondary);
-      font-size: 0.72rem;
-      margin-top: 2px;
+      padding: 6px 14px;
+      border-radius: 8px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      cursor: pointer;
     }
 
-    .btn-new-season {
-      background: linear-gradient(135deg, var(--accent-gold) 0%, #b8943c 100%);
+    .btn-gold {
+      background: var(--accent-gold);
       color: #000;
       border: none;
-      padding: 10px 20px;
+      padding: 6px 14px;
       border-radius: 8px;
-      font-family: var(--font-body);
-      font-size: 0.75rem;
+      font-size: 0.8rem;
       font-weight: 700;
       cursor: pointer;
-      transition: all 0.2s ease;
+    }
+
+    /* Navigation */
+    .admin-nav {
+      display: flex;
+      gap: 8px;
+      padding: 12px 24px;
+      background: var(--bg-secondary);
+      border-bottom: 1px solid var(--border-subtle);
+      overflow-x: auto;
+    }
+
+    .admin-nav-tab {
+      background: transparent;
+      border: 1px solid transparent;
+      color: var(--text-secondary);
+      padding: 8px 16px;
+      border-radius: 8px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
       white-space: nowrap;
     }
 
-    .btn-new-season:hover {
-      transform: translateY(-1px);
-      box-shadow: 0 4px 16px rgba(200, 168, 78, 0.3);
+    .admin-nav-tab.active {
+      background: var(--bg-card);
+      border-color: var(--border-medium);
+      color: var(--accent-gold);
     }
 
-    .btn-new-season:disabled {
-      opacity: 0.5;
-      cursor: wait;
-      transform: none;
+    /* Content */
+    .admin-content {
+      max-width: 1000px;
+      margin: 0 auto;
+      padding: 24px;
     }
 
-    /* ── Banter Board / Headline Banner ────────────────── */
-    .admin-headline-banner {
+    /* Matchday Switcher */
+    .admin-stage-nav {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: var(--bg-card);
+      border: 1px solid var(--border-medium);
+      border-radius: 12px;
+      padding: 12px 16px;
+      margin-bottom: 24px;
+    }
+
+    .admin-stage-title {
+      font-family: var(--font-display);
+      font-size: 1.1rem;
+      font-weight: 800;
+      color: var(--accent-gold);
+      text-transform: uppercase;
+    }
+
+    /* Match Editor Cards */
+    .admin-match-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-medium);
+      border-radius: 14px;
+      padding: 20px;
+      margin-bottom: 20px;
+    }
+
+    .admin-match-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+
+    .admin-match-tie-title {
+      font-weight: 800;
+      font-size: 0.85rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text-muted);
+    }
+
+    .admin-match-scores-grid {
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      gap: 16px;
+      align-items: center;
+      margin-bottom: 16px;
+    }
+
+    .admin-team-col {
       display: flex;
       flex-direction: column;
       gap: 4px;
-      padding: 20px;
-      margin-bottom: 24px;
-      background: var(--bg-card);
-      border: 1px solid rgba(255, 255, 255, 0.05);
-      border-radius: 12px;
-      margin-top: 16px;
     }
-    .admin-headline-title {
-      font-family: var(--font-display);
-      color: var(--text-primary);
-      font-size: 0.95rem;
+
+    .admin-team-col.home { text-align: left; }
+    .admin-team-col.away { text-align: right; }
+
+    .admin-team-name {
+      font-size: 1.05rem;
       font-weight: 700;
-      margin-bottom: 2px;
-    }
-    .admin-headline-subtitle {
-      color: var(--text-secondary);
-      font-size: 0.72rem;
-      margin-bottom: 12px;
-    }
-    .admin-headline-row {
-      display: flex;
-      gap: 12px;
-      align-items: center;
-      width: 100%;
-    }
-    .admin-headline-input {
-      flex: 1;
-      background: rgba(255, 255, 255, 0.03);
-      border: 1px solid rgba(255, 255, 255, 0.08);
-      border-radius: 8px;
-      padding: 10px 14px;
       color: var(--text-primary);
-      font-family: var(--font-body);
-      font-size: 0.8rem;
-      transition: all 0.2s ease;
-      resize: vertical;
-      min-height: 80px;
     }
-    .admin-headline-input:focus {
-      outline: none;
-      border-color: var(--accent-gold);
-      box-shadow: 0 0 0 2px var(--accent-gold-dim);
-      background: rgba(255, 255, 255, 0.05);
-    }
-    .btn-save-headline {
-      background: var(--accent-gold);
-      color: #000;
-      border: none;
-      padding: 10px 20px;
-      border-radius: 8px;
-      font-family: var(--font-body);
+
+    .admin-team-club {
       font-size: 0.78rem;
-      font-weight: 700;
-      cursor: pointer;
-      transition: all 0.2s ease;
-      white-space: nowrap;
-    }
-    .btn-save-headline:hover {
-      opacity: 0.9;
-      transform: translateY(-1px);
-      box-shadow: 0 4px 12px rgba(200, 168, 78, 0.2);
-    }
-    .btn-save-headline:active {
-      transform: translateY(0);
-    }
-
-    .btn-logout {
-      background: none;
-      border: 1px solid var(--border-medium);
-      color: var(--text-secondary);
-      padding: 8px 16px;
-      border-radius: 8px;
-      font-family: var(--font-body);
-      font-size: 0.75rem;
-      font-weight: 600;
-      cursor: pointer;
-      transition: all 0.2s ease;
-    }
-
-    .btn-logout:hover {
-      border-color: var(--dot-loss);
-      color: var(--dot-loss);
-    }
-
-    .btn-back {
-      background: none;
-      border: 1px solid var(--border-medium);
-      color: var(--text-secondary);
-      padding: 8px 16px;
-      border-radius: 8px;
-      font-family: var(--font-body);
-      font-size: 0.75rem;
-      font-weight: 600;
-      cursor: pointer;
-      transition: all 0.2s ease;
-      text-decoration: none;
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-    }
-
-    .btn-back:hover {
-      border-color: var(--accent-gold);
-      color: var(--accent-gold);
-    }
-
-    .admin-header-actions {
-      display: flex;
-      gap: 8px;
-      align-items: center;
-    }
-
-    /* ── Matchday Navigation ──────────────────────────── */
-    .admin-matchday-nav {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 20px;
-      gap: 12px;
-    }
-
-    .admin-md-arrow {
-      width: 40px;
-      height: 40px;
-      border-radius: 12px;
-      background: var(--bg-card);
-      border: 1px solid var(--border-medium);
-      color: var(--text-primary);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      cursor: pointer;
-      transition: all 0.25s var(--ease-out);
-      flex-shrink: 0;
-      font-size: 1.1rem;
-    }
-
-    .admin-md-arrow:hover {
-      background: var(--bg-elevated);
-      border-color: var(--border-accent);
-    }
-
-    .admin-md-arrow:disabled {
-      opacity: 0.2;
-      pointer-events: none;
-    }
-
-    .admin-md-info {
-      text-align: center;
-      flex: 1;
-    }
-
-    .admin-md-info .md-title {
-      font-family: var(--font-display);
-      font-weight: 700;
-      font-size: 1.1rem;
-    }
-
-    .admin-md-info .md-sub {
-      font-size: 0.7rem;
       color: var(--text-muted);
-      margin-top: 2px;
     }
 
-    /* ── Actions Bar ───────────────────────────────────── */
-    .admin-actions-bar {
-      display: flex;
-      justify-content: center;
-      margin-bottom: 20px;
-      padding: 0 20px;
-    }
-
-    .btn-reset-all {
-      background: none;
-      border: 1px solid var(--border-medium);
-      color: var(--text-secondary);
-      padding: 10px 20px;
-      border-radius: 10px;
-      font-family: var(--font-body);
-      font-size: 0.8rem;
-      font-weight: 600;
-      cursor: pointer;
-      transition: all 0.2s ease;
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-    }
-
-    .btn-reset-all:hover {
-      border-color: var(--dot-loss);
-      color: var(--dot-loss);
-      background: rgba(230, 57, 70, 0.05);
-    }
-
-    .btn-reset-all svg {
-      transition: transform 0.3s var(--ease-out);
-    }
-
-    .btn-reset-all:hover svg {
-      transform: rotate(-180deg);
-    }
-
-    /* ── Match Cards ──────────────────────────────────── */
-    .admin-matches {
-      padding: 0 20px 100px;
-      display: flex;
-      flex-direction: column;
-      gap: 12px;
-    }
-
-    .match-card {
-      background: var(--bg-card);
-      border: 1px solid var(--border-subtle);
-      border-radius: 16px;
-      padding: 20px;
-      transition: all 0.25s ease;
-      animation: cardFade 0.3s ease;
-    }
-
-    @keyframes cardFade {
-      from { opacity: 0; transform: translateY(8px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
-
-    .match-card.completed {
-      border-color: rgba(0, 210, 106, 0.15);
-    }
-
-    .match-teams {
+    .admin-score-inputs {
       display: flex;
       align-items: center;
-      justify-content: space-between;
-      margin-bottom: 16px;
+      gap: 10px;
     }
 
-    .match-team-info {
-      flex: 1;
-      text-align: center;
-    }
-
-    .match-team-name {
-      font-weight: 700;
-      font-size: 0.85rem;
-      line-height: 1.2;
-    }
-
-    .match-team-club {
-      font-size: 0.65rem;
-      color: var(--text-muted);
-      margin-top: 2px;
-    }
-
-    .match-vs {
-      padding: 0 16px;
-      font-size: 0.7rem;
-      font-weight: 600;
-      color: var(--text-muted);
-      text-transform: uppercase;
-      letter-spacing: 0.1em;
-    }
-
-    /* Score Inputs */
-    .match-score-row {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 12px;
-    }
-
-    .score-input {
-      width: 56px;
+    .admin-score-input {
+      width: 54px;
       height: 48px;
       background: var(--bg-input);
-      border: 1px solid var(--border-medium);
+      border: 1.5px solid var(--border-medium);
       border-radius: 10px;
-      color: var(--text-primary);
+      color: #fff;
       font-family: var(--font-display);
-      font-size: 1.3rem;
+      font-size: 1.4rem;
       font-weight: 800;
       text-align: center;
       outline: none;
-      transition: border-color 0.3s ease;
-      -moz-appearance: textfield;
     }
 
-    .score-input::-webkit-outer-spin-button,
-    .score-input::-webkit-inner-spin-button {
-      -webkit-appearance: none;
-      margin: 0;
+    .admin-score-input:focus {
+      border-color: var(--accent-gold);
     }
 
-    .score-input:focus {
-      border-color: var(--border-focus);
-    }
-
-    .score-dash {
-      font-size: 1.2rem;
+    .admin-score-sep {
+      font-size: 1.4rem;
+      font-weight: 800;
       color: var(--text-muted);
-      font-weight: 300;
     }
 
-    /* Action Buttons */
-    .match-actions {
-      display: flex;
-      gap: 8px;
-      margin-top: 16px;
-    }
-
-    .btn-save {
-      flex: 1;
+    .admin-match-options {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 12px;
+      margin-bottom: 16px;
+      background: rgba(255,255,255,0.02);
       padding: 12px;
-      background: var(--dot-win);
-      color: #000;
-      border: none;
       border-radius: 10px;
-      font-family: var(--font-body);
-      font-size: 0.78rem;
-      font-weight: 700;
-      cursor: pointer;
-      transition: all 0.2s ease;
     }
 
-    .btn-save:hover { background: #00e676; transform: translateY(-1px); }
-    .btn-save:active { transform: translateY(0); }
-    .btn-save:disabled {
-      opacity: 0.4;
-      pointer-events: none;
-    }
-
-    .btn-reset {
-      padding: 12px 16px;
-      background: none;
-      border: 1px solid var(--border-medium);
-      color: var(--text-secondary);
-      border-radius: 10px;
-      font-family: var(--font-body);
-      font-size: 0.78rem;
-      font-weight: 600;
-      cursor: pointer;
-      transition: all 0.2s ease;
-    }
-
-    .btn-reset:hover {
-      border-color: var(--dot-loss);
-      color: var(--dot-loss);
-    }
-
-    /* Match of the Week Button */
-    .match-motw-row {
-      margin-top: 12px;
+    .admin-input-group {
       display: flex;
+      flex-direction: column;
+      gap: 4px;
     }
 
-    .btn-motw {
-      width: 100%;
-      padding: 10px;
-      background: none;
-      border: 1px dashed rgba(200, 168, 78, 0.4);
-      color: rgba(200, 168, 78, 0.8);
-      border-radius: 10px;
-      font-family: var(--font-body);
+    .admin-input-group label {
       font-size: 0.72rem;
       font-weight: 700;
-      cursor: pointer;
-      transition: all 0.2s ease;
       text-transform: uppercase;
-      letter-spacing: 0.05em;
+      color: var(--text-muted);
     }
 
-    .btn-motw:hover {
-      background: rgba(200, 168, 78, 0.05);
-      border-color: rgba(200, 168, 78, 0.7);
-      color: rgba(200, 168, 78, 1);
+    .admin-text-input, .admin-select-input {
+      background: var(--bg-input);
+      border: 1px solid var(--border-medium);
+      border-radius: 8px;
+      padding: 8px 10px;
+      color: #fff;
+      font-size: 0.82rem;
+      outline: none;
     }
 
-    .btn-motw.active {
-      background: rgba(200, 168, 78, 0.15);
-      border: 1px solid var(--accent-gold);
-      color: var(--accent-gold);
-      box-shadow: 0 0 10px rgba(200, 168, 78, 0.1);
-    }
-
-    /* Status indicator */
-    .match-status {
+    .admin-match-actions {
       display: flex;
       align-items: center;
-      justify-content: center;
-      gap: 6px;
-      margin-top: 12px;
-      font-size: 0.7rem;
-      font-weight: 600;
+      justify-content: flex-end;
+      gap: 10px;
     }
 
-    .status-dot {
-      width: 6px;
-      height: 6px;
-      border-radius: 50%;
-    }
-
-    .status-upcoming .status-dot { background: var(--text-muted); }
-    .status-upcoming { color: var(--text-muted); }
-
-    .status-completed .status-dot { background: var(--dot-win); }
-    .status-completed { color: var(--dot-win); }
-
-    .status-live .status-dot { 
-      background: var(--dot-loss); 
-      animation: livePulse 1.8s infinite ease-in-out;
-    }
-    .status-live { color: var(--dot-loss); }
-    
-    @keyframes livePulse {
-      0%, 100% { opacity: 1; transform: scale(1); }
-      50% { opacity: 0.6; transform: scale(0.95); }
-    }
-
-    /* Status & Stream Inputs inside Admin Match Cards */
-    .match-status-select-row {
+    /* Golden Goal Box */
+    .golden-goal-selector-box {
+      background: rgba(255, 183, 3, 0.08);
+      border: 1.5px dashed rgba(255, 183, 3, 0.4);
+      border-radius: 10px;
+      padding: 12px 16px;
+      margin-bottom: 16px;
       display: flex;
       align-items: center;
       justify-content: space-between;
-      margin-top: 14px;
       gap: 12px;
     }
 
-    .match-status-select-row label {
-      font-size: 0.75rem;
-      font-weight: 600;
-      color: var(--text-secondary);
-    }
-
-    .status-select {
-      flex: 1;
-      height: 34px;
-      background: var(--bg-input);
-      border: 1px solid var(--border-medium);
-      border-radius: 8px;
-      color: var(--text-primary);
-      padding: 0 8px;
-      font-family: var(--font-body);
-      font-size: 0.75rem;
-      font-weight: 600;
-      outline: none;
-      transition: border-color 0.3s ease;
-      cursor: pointer;
-    }
-
-    .status-select:focus {
-      border-color: var(--border-focus);
-    }
-
-    .match-stream-url-row {
-      margin-top: 10px;
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
-    }
-
-    .stream-url-input-group {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-
-    .stream-url-label {
-      font-size: 0.65rem;
-      font-weight: 600;
-      color: var(--text-muted);
-      min-width: 38px;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-    }
-
-    .stream-url-input {
-      flex: 1;
-      height: 34px;
-      background: var(--bg-input);
-      border: 1px solid var(--border-medium);
-      border-radius: 8px;
-      color: var(--text-primary);
-      padding: 0 10px;
-      font-family: var(--font-body);
-      font-size: 0.75rem;
-      outline: none;
-      transition: border-color 0.3s ease;
-    }
-
-    .stream-url-input:focus {
-      border-color: var(--border-focus);
+    .golden-goal-label {
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: #ffb703;
     }
 
     /* Toast */
-    .toast {
+    #toast {
       position: fixed;
       bottom: 24px;
-      left: 50%;
-      transform: translateX(-50%) translateY(100px);
-      background: var(--bg-elevated);
-      border: 1px solid var(--border-medium);
-      color: var(--text-primary);
-      padding: 14px 24px;
-      border-radius: 12px;
-      font-size: 0.8rem;
-      font-weight: 600;
+      right: 24px;
+      background: var(--bg-card);
+      border: 1px solid var(--border-accent);
+      color: #fff;
+      padding: 12px 20px;
+      border-radius: 10px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.6);
+      display: none;
       z-index: 1000;
-      transition: transform 0.4s var(--ease-out), opacity 0.4s ease;
-      opacity: 0;
-      pointer-events: none;
     }
 
-    .toast.show {
-      transform: translateX(-50%) translateY(0);
-      opacity: 1;
+    /* Modal */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.8);
+      backdrop-filter: blur(8px);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 200;
+      padding: 20px;
     }
 
-    .toast.success { border-color: rgba(0,210,106,0.3); }
-    .toast.error { border-color: rgba(230,57,70,0.3); }
-
-    /* ── Responsive ──────────────────────────────────── */
-    @media (min-width: 600px) {
-      html { font-size: 15px; }
-      .admin-matches { padding: 0 24px 100px; }
-      .admin-matchday-nav { padding: 20px 24px; }
-      .login-card { padding: 48px 40px; }
-    }
-
-    @media (min-width: 960px) {
-      .admin-matches {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 12px;
-      }
-    }
-
-    .btn-add-player {
-      background: var(--dot-win);
-      color: #000;
-      border: none;
-      padding: 8px 16px;
-      border-radius: 8px;
-      font-family: var(--font-body);
-      font-size: 0.75rem;
-      font-weight: 700;
-      cursor: pointer;
-      transition: all 0.2s ease;
-    }
-    .btn-add-player:hover {
-      background: #00e676;
-      transform: translateY(-1px);
-    }
-
-    /* ── Roster & Club Management ──────────────────────── */
-    .admin-matches.management-mode {
-      display: flex !important;
-      flex-direction: column !important;
-      grid-template-columns: none !important;
-    }
-    .management-card {
+    .modal-box {
       background: var(--bg-card);
       border: 1px solid var(--border-medium);
       border-radius: 16px;
-      padding: 24px;
-      margin-bottom: 24px;
       width: 100%;
+      max-width: 440px;
+      padding: 24px;
     }
-    .management-header {
+
+    .modal-header {
       display: flex;
-      justify-content: space-between;
       align-items: center;
+      justify-content: space-between;
       margin-bottom: 20px;
     }
-    .management-grid {
-      display: flex;
-      flex-direction: column;
-      gap: 12px;
-      width: 100%;
-    }
-    .roster-item, .club-item {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      background: rgba(255,255,255,0.02);
-      border: 1px solid var(--border-subtle);
-      border-radius: 12px;
-      padding: 16px 20px;
-    }
-    .roster-info, .club-info {
-      display: flex;
-      align-items: center;
-      gap: 16px;
-    }
-    .roster-avatar {
-      width: 44px;
-      height: 44px;
-      border-radius: 50%;
-      object-fit: cover;
-      border: 1px solid var(--border-medium);
-      background: #111;
-    }
-    .club-logo-preview {
-      width: 40px;
-      height: 40px;
-      object-fit: contain;
-    }
-    .roster-details h3, .club-details h3 {
-      font-size: 0.95rem;
-      font-weight: 600;
-      color: var(--text-primary);
-    }
-    .roster-details p, .club-details p {
-      font-size: 0.8rem;
-      color: var(--text-secondary);
-      margin-top: 2px;
-    }
-    .status-badge {
-      display: inline-block;
-      padding: 3px 8px;
-      border-radius: 6px;
-      font-size: 0.7rem;
-      font-weight: 700;
-      text-transform: uppercase;
-      margin-left: 8px;
-    }
-    .status-badge.active {
-      background: rgba(0,210,106,0.15);
-      color: var(--dot-win);
-    }
-    .status-badge.inactive {
-      background: rgba(255,255,255,0.08);
-      color: var(--text-muted);
-    }
-    .management-actions {
-      display: flex;
-      gap: 8px;
-    }
-    .btn-edit-action {
-      background: var(--accent-gold-dim);
-      border: 1px solid rgba(200,168,78,0.3);
+
+    .modal-header h3 {
+      font-family: var(--font-display);
+      font-size: 1.2rem;
+      font-weight: 800;
       color: var(--accent-gold);
-      padding: 6px 12px;
-      border-radius: 6px;
-      font-size: 0.75rem;
-      font-weight: 600;
-      cursor: pointer;
-      transition: all 0.2s ease;
-    }
-    .btn-edit-action:hover {
-      background: var(--accent-gold);
-      color: #000;
-    }
-    .btn-delete-action {
-      background: rgba(230,57,70,0.1);
-      border: 1px solid rgba(230,57,70,0.3);
-      color: #e63946;
-      padding: 6px 12px;
-      border-radius: 6px;
-      font-size: 0.75rem;
-      font-weight: 600;
-      cursor: pointer;
-      transition: all 0.2s ease;
-    }
-    .btn-delete-action:hover {
-      background: #e63946;
-      color: #fff;
-    }
-    .club-color-dot {
-      display: inline-block;
-      width: 12px;
-      height: 12px;
-      border-radius: 50%;
-      border: 1px solid rgba(255,255,255,0.2);
-      vertical-align: middle;
-      margin-left: 6px;
-    }
-
-    /* ── Add Player Modal ──────────────────────────────── */
-    .modal-overlay {
-      position: fixed;
-      top: 0; left: 0; width: 100%; height: 100%;
-      background: rgba(0,0,0,0.8);
-      backdrop-filter: blur(8px);
-      z-index: 1000;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      padding: 20px;
-      animation: modalFadeIn 0.3s ease;
-    }
-
-    @keyframes modalFadeIn {
-      from { opacity: 0; }
-      to { opacity: 1; }
-    }
-
-    .modal-card {
-      background: var(--bg-card);
-      border: 1px solid var(--border-medium);
-      border-radius: 20px;
-      padding: 32px;
-      width: 100%;
-      max-width: 400px;
-      position: relative;
-      animation: modalSlideUp 0.3s var(--ease-out);
-    }
-
-    @keyframes modalSlideUp {
-      from { transform: translateY(20px); }
-      to { transform: translateY(0); }
     }
 
     .modal-close {
-      position: absolute;
-      top: 20px; right: 20px;
-      background: none; border: none;
-      color: var(--text-muted);
-      font-size: 1.1rem;
-      cursor: pointer;
-      transition: color 0.2s ease;
-    }
-
-    .modal-close:hover {
-      color: var(--text-primary);
-    }
-
-    .modal-card h2 {
-      font-family: var(--font-display);
-      font-size: 1.35rem;
-      font-weight: 700;
-      margin-bottom: 4px;
-    }
-
-    .modal-subtitle {
-      color: var(--text-muted);
-      font-size: 0.72rem;
-      margin-bottom: 24px;
-    }
-
-    .form-group {
-      margin-bottom: 18px;
-      text-align: left;
-    }
-
-    .form-group label {
-      display: block;
-      font-size: 0.75rem;
-      font-weight: 600;
-      color: var(--text-secondary);
-      margin-bottom: 6px;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-    }
-
-    .form-group input, .form-group select {
-      width: 100%;
-      padding: 10px 12px;
-      background: var(--bg-input);
-      border: 1px solid var(--border-medium);
-      border-radius: 8px;
-      color: var(--text-primary);
-      font-family: var(--font-body);
-      font-size: 0.82rem;
-      outline: none;
-      transition: border-color 0.3s ease;
-    }
-
-    .form-group input:focus, .form-group select:focus {
-      border-color: var(--border-focus);
-    }
-
-    .modal-card button#btn-submit-player {
-      width: 100%;
-      padding: 12px;
-      margin-top: 8px;
-      background: var(--dot-win);
-      color: #000;
+      background: none;
       border: none;
-      border-radius: 8px;
-      font-family: var(--font-body);
-      font-size: 0.8rem;
-      font-weight: 700;
+      color: var(--text-muted);
+      font-size: 1.2rem;
       cursor: pointer;
-      transition: all 0.2s ease;
-    }
-
-    .modal-card button#btn-submit-player:hover {
-      background: #00e676;
-      transform: translateY(-1px);
-    }
-
-    .modal-card button#btn-submit-player:disabled {
-      opacity: 0.5;
-      cursor: wait;
-      transform: none;
-    }
-
-    .modal-error {
-      color: var(--dot-loss);
-      font-size: 0.75rem;
-      margin-top: 10px;
-      min-height: 18px;
-      text-align: center;
     }
   </style>
 </head>
 <body>
 
-  <!-- ═══════════════════ LOGIN SCREEN ═══════════════════ -->
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- LOGIN SCREEN -->
+  <!-- ═══════════════════════════════════════════ -->
   <div id="login-screen">
     <div class="login-card">
-      <div class="logo-icon" onclick="window.location.href='/'" style="cursor: pointer;">
-        <img src="logo.png" alt="Ballers League Logo" class="admin-login-logo">
-      </div>
-      <h1>Admin Panel</h1>
-      <p class="subtitle">Ballers League — Season 1</p>
-      <input type="password" id="login-key" placeholder="Enter admin key" autocomplete="off" />
-      <button id="btn-login" onclick="handleLogin()">Sign In</button>
-      <p class="login-error" id="login-error"></p>
+      <img src="logo.png" alt="Logo" class="logo-icon">
+      <h1>Tournament Admin</h1>
+      <p class="subtitle">Ballers League Knockout Control</p>
+      <form onsubmit="handleLogin(event)">
+        <input type="password" id="admin-key-input" placeholder="Enter Admin Password" autocomplete="current-password" autofocus>
+        <button type="submit">Unlock Admin Panel</button>
+        <div id="login-error" class="login-error"></div>
+      </form>
     </div>
   </div>
 
-  <!-- ═══════════════════ ADMIN PANEL ═══════════════════ -->
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- ADMIN PANEL -->
+  <!-- ═══════════════════════════════════════════ -->
   <div id="admin-panel">
     <header class="admin-header">
       <div class="admin-header-left">
-        <a href="/" class="admin-header-logo-link" title="Go to main site">
-          <img src="logo.png" alt="Ballers League Logo" class="admin-header-logo">
-        </a>
-        <h1>Admin Panel</h1>
-        <div class="admin-season-selector">
-          <select id="admin-season-select" onchange="adminChangeSeason(this.value)">
-          </select>
-        </div>
+        <img src="logo.png" alt="Logo" style="width: 32px; height: 32px; object-fit: contain;">
+        <h1>Ballers League Admin</h1>
+        <select id="admin-season-dropdown" class="admin-season-select" onchange="loadAdminSeason(parseInt(this.value, 10))">
+          <!-- Injected by JS -->
+        </select>
       </div>
-      <div class="admin-header-actions">
-        <button class="btn-add-player" onclick="openAddPlayerModal()">Add Player</button>
-        <a href="/" class="btn-back">
-          <span>← Site</span>
-        </a>
-        <button class="btn-logout" onclick="handleLogout()">Sign Out</button>
+      <div class="admin-header-right">
+        <a href="/" target="_blank" class="btn-secondary">View Site ↗</a>
+        <button class="btn-secondary" onclick="handleLogout()">Logout</button>
       </div>
     </header>
 
-    <div id="admin-new-season-banner" class="admin-new-season-banner" style="display:none;">
-      <div class="admin-new-season-info">
-        <span class="admin-new-season-icon">🏆</span>
-        <div>
-          <strong>Season Complete!</strong>
-          <p>All matches have been played. Ready to start the next season?</p>
+    <nav class="admin-nav">
+      <button class="admin-nav-tab active" onclick="switchAdminSection('matches')">⚽ Matches & Scoring</button>
+      <button class="admin-nav-tab" onclick="switchAdminSection('bracket-tools')">🏆 Bracket Tools</button>
+      <button class="admin-nav-tab" onclick="switchAdminSection('roster')">👥 8-Team Roster</button>
+      <button class="admin-nav-tab" onclick="switchAdminSection('clubs')">🛡️ Clubs</button>
+      <button class="admin-nav-tab" onclick="switchAdminSection('headline')">📢 News Banner</button>
+    </nav>
+
+    <main class="admin-content">
+
+      <!-- SECTION: MATCHES -->
+      <section id="admin-section-matches">
+        <div class="admin-stage-nav">
+          <button class="btn-secondary" onclick="changeAdminMatchday(-1)" id="btn-admin-prev-md">◀ Previous Round</button>
+          <div class="admin-stage-title" id="admin-stage-label">Quarter-finals (Leg 1)</div>
+          <button class="btn-secondary" onclick="changeAdminMatchday(1)" id="btn-admin-next-md">Next Round ▶</button>
         </div>
+
+        <div id="admin-matches-container">
+          <!-- Match Cards Injected by JS -->
+        </div>
+      </section>
+
+      <!-- SECTION: BRACKET TOOLS -->
+      <section id="admin-section-bracket-tools" style="display:none;">
+        <div class="admin-match-card">
+          <h2 style="font-family: var(--font-display); color: var(--accent-gold); margin-bottom: 12px;">Tournament Bracket Control</h2>
+          <p style="color: var(--text-secondary); margin-bottom: 20px; font-size: 0.9rem;">
+            Manage and advance the 8-team knockout tournament bracket.
+          </p>
+
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px;">
+            <div style="background: rgba(255,255,255,0.03); border: 1px solid var(--border-medium); border-radius: 12px; padding: 16px;">
+              <h3 style="font-size: 1rem; margin-bottom: 8px;">🎲 Draw Quarter-finals</h3>
+              <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 12px;">Generate fresh QF pairings from the 8 active teams.</p>
+              <div style="display: flex; gap: 8px;">
+                <button class="btn-gold" onclick="drawTournament(false)">Seeded Draw (1v8, 4v5...)</button>
+                <button class="btn-secondary" onclick="drawTournament(true)">Random Draw</button>
+              </div>
+            </div>
+
+            <div style="background: rgba(255,255,255,0.03); border: 1px solid var(--border-medium); border-radius: 12px; padding: 16px;">
+              <h3 style="font-size: 1rem; margin-bottom: 8px;">⚡ Advance Bracket</h3>
+              <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 12px;">Recalculate completed tie winners and advance them to Semis / Finals.</p>
+              <button class="btn-gold" onclick="advanceBracket()">Update Progression</button>
+            </div>
+
+            <div style="background: rgba(255,255,255,0.03); border: 1px solid var(--border-medium); border-radius: 12px; padding: 16px;">
+              <h3 style="font-size: 1rem; margin-bottom: 8px;">🆕 New Tournament Season</h3>
+              <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 12px;">Archive current season and generate next season bracket.</p>
+              <button class="btn-secondary" onclick="createNewSeason()">Start New Season</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- SECTION: ROSTER -->
+      <section id="admin-section-roster" style="display:none;">
+        <div class="admin-match-card">
+          <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px;">
+            <h2 style="font-family: var(--font-display); color: var(--accent-gold);">Tournament Roster (8 Active Players)</h2>
+            <button class="btn-gold" onclick="openAddPlayerModal()">+ Add Player</button>
+          </div>
+          <div id="admin-roster-list">
+            <!-- Roster table injected by JS -->
+          </div>
+        </div>
+      </section>
+
+      <!-- SECTION: CLUBS -->
+      <section id="admin-section-clubs" style="display:none;">
+        <div class="admin-match-card">
+          <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px;">
+            <h2 style="font-family: var(--font-display); color: var(--accent-gold);">Club Profiles & Colors</h2>
+            <button class="btn-gold" onclick="openAddClubModal()">+ Add Club</button>
+          </div>
+          <div id="admin-clubs-list">
+            <!-- Clubs list injected by JS -->
+          </div>
+        </div>
+      </section>
+
+      <!-- SECTION: HEADLINE -->
+      <section id="admin-section-headline" style="display:none;">
+        <div class="admin-match-card">
+          <h2 style="font-family: var(--font-display); color: var(--accent-gold); margin-bottom: 12px;">News Marquee / Banter Board</h2>
+          <p style="color: var(--text-secondary); margin-bottom: 16px; font-size: 0.9rem;">
+            Set a breaking news announcement ticker displayed across the tournament app.
+          </p>
+          <div style="display: flex; gap: 12px;">
+            <input type="text" id="admin-headline-input" class="admin-text-input" style="flex: 1; padding: 12px;" placeholder="Breaking news announcement...">
+            <button class="btn-gold" onclick="saveHeadline()">Save Banner</button>
+          </div>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- MODALS -->
+  <!-- ═══════════════════════════════════════════ -->
+  <div id="player-modal" class="modal-overlay">
+    <div class="modal-box">
+      <div class="modal-header">
+        <h3 id="player-modal-title">Add Player</h3>
+        <button class="modal-close" onclick="closePlayerModal()">✕</button>
       </div>
-      <button class="btn-new-season" id="btn-new-season" onclick="createNewSeason()">
-        Continue to Next Season →
-      </button>
-    </div>
-
-    <!-- Banter Board / Headlines of the Matchday -->
-    <div class="admin-headline-banner">
-      <div class="admin-headline-title">📣 Banter Board</div>
-      <div class="admin-headline-subtitle">Manager Headlines (Enter one headline per line. Displays as an animated news ticker on the homepage)</div>
-      <div class="admin-headline-row">
-        <textarea id="admin-headline-input" class="admin-headline-input" placeholder="Enter one headline per line. e.g.&#10;BTCDOCTOR claims MrLbc is 'past his prime' ahead of tonight's derby!&#10;KONJI_WARLORD clinches top-4 finish!" rows="3"></textarea>
-        <button class="btn-save-headline" id="btn-save-headline" onclick="saveHeadline()">Update Headlines</button>
-      </div>
-    </div>
-
-    <!-- Admin Section Tabs -->
-    <div class="admin-section-tabs">
-      <button id="admin-tab-league" class="admin-sec-tab active" onclick="switchAdminSection('league')">League Matches</button>
-      <button id="admin-tab-cup" class="admin-sec-tab" onclick="switchAdminSection('cup')">Ballers Cup</button>
-      <button id="admin-tab-playoffs" class="admin-sec-tab" onclick="switchAdminSection('playoffs')">Champions Cup</button>
-      <button id="admin-tab-roster" class="admin-sec-tab" onclick="switchAdminSection('roster')">Roster</button>
-      <button id="admin-tab-clubs" class="admin-sec-tab" onclick="switchAdminSection('clubs')">Clubs</button>
-      <button id="admin-tab-deductions" class="admin-sec-tab" onclick="switchAdminSection('deductions')">Deductions</button>
-    </div>
-
-    <!-- Admin Division Switcher -->
-    <div class="admin-division-switcher" id="admin-division-switcher-container" style="display: flex; justify-content: center; gap: 8px; margin: 16px 0;">
-      <button id="admin-div-btn-1" class="admin-sec-tab active" onclick="switchAdminDivision(1)">Division 1</button>
-      <button id="admin-div-btn-2" class="admin-sec-tab" onclick="switchAdminDivision(2)">Division 2</button>
-    </div>
-
-    <div class="admin-matchday-nav" id="admin-matchday-nav-container">
-      <button class="admin-md-arrow" id="admin-prev" onclick="adminChangeMatchday(-1)">‹</button>
-      <div class="admin-md-info">
-        <div class="md-title" id="admin-md-title">Matchday 1</div>
-        <div class="md-sub" id="admin-md-sub">1 / 22</div>
-      </div>
-      <button class="admin-md-arrow" id="admin-next" onclick="adminChangeMatchday(1)">›</button>
-    </div>
-
-    <div class="admin-actions-bar" id="admin-actions-bar-container">
-      <button class="btn-reset-all" onclick="resetMatchday()">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
-          <polyline points="3 3 3 8 8 8"/>
-        </svg>
-        <span>Reset Matchday Results</span>
-      </button>
-    </div>
-
-    <div class="admin-matches" id="admin-matches">
-      <!-- Injected by JS -->
+      <form onsubmit="submitPlayer(event)">
+        <input type="hidden" id="player-edit-id">
+        <div class="admin-input-group" style="margin-bottom: 12px;">
+          <label>Player Username</label>
+          <input type="text" id="player-name-input" class="admin-text-input" required>
+        </div>
+        <div class="admin-input-group" style="margin-bottom: 16px;">
+          <label>Club</label>
+          <select id="player-club-select" class="admin-select-input" required></select>
+        </div>
+        <button type="submit" class="btn-gold" style="width:100%; padding: 12px;">Save Player</button>
+      </form>
     </div>
   </div>
 
-  <!-- Toast -->
-  <div class="toast" id="toast"></div>
-
-  <!-- Add Player Modal Overlay -->
-  <div id="add-player-overlay" class="modal-overlay" style="display:none;" onclick="closeAddPlayerModal(event)">
-    <div class="modal-card" onclick="event.stopPropagation()">
-      <button class="modal-close" onclick="closeAddPlayerModal(null)">✕</button>
-      <h2>Add New Player</h2>
-      <p class="modal-subtitle">Register a player and regenerate the active season's fixtures.</p>
-      
-      <div class="form-group">
-        <label for="new-player-username">Player Username</label>
-        <input type="text" id="new-player-username" placeholder="e.g. MrLbc" autocomplete="off" />
+  <div id="club-modal" class="modal-overlay">
+    <div class="modal-box">
+      <div class="modal-header">
+        <h3>Add Club</h3>
+        <button class="modal-close" onclick="closeClubModal()">✕</button>
       </div>
-      
-      <div class="form-group">
-        <label for="new-player-club-select">Club</label>
-        <select id="new-player-club-select">
-          <option value="" disabled selected>Select Club...</option>
-        </select>
-      </div>
-      
-      <div class="form-group">
-        <label for="new-player-photo">Profile Photo URL (Optional)</label>
-        <input type="url" id="new-player-photo" placeholder="https://example.com/avatar.jpg" autocomplete="off" />
-      </div>
-
-      <div class="form-group">
-        <label for="new-player-division">Division</label>
-        <select id="new-player-division">
-          <option value="1" selected>Division 1</option>
-          <option value="2">Division 2</option>
-        </select>
-      </div>
-      
-      <button id="btn-submit-player" onclick="submitNewPlayer()">Add Player to League</button>
-      <p class="modal-error" id="modal-error"></p>
+      <form onsubmit="submitClub(event)">
+        <div class="admin-input-group" style="margin-bottom: 12px;">
+          <label>Club Name</label>
+          <input type="text" id="club-name-input" class="admin-text-input" required>
+        </div>
+        <div class="admin-input-group" style="margin-bottom: 12px;">
+          <label>Short Name (3 letters)</label>
+          <input type="text" id="club-short-input" class="admin-text-input" maxlength="3" required>
+        </div>
+        <div class="admin-input-group" style="margin-bottom: 12px;">
+          <label>Logo URL (relative or https)</label>
+          <input type="text" id="club-logo-input" class="admin-text-input" required>
+        </div>
+        <div class="admin-input-group" style="margin-bottom: 16px;">
+          <label>Primary Color</label>
+          <input type="color" id="club-color-input" value="#da020e" style="width:100%; height:40px; border:none; background:none; cursor:pointer;">
+        </div>
+        <button type="submit" class="btn-gold" style="width:100%; padding: 12px;">Save Club</button>
+      </form>
     </div>
   </div>
 
-  <!-- Edit Player Modal Overlay -->
-  <div id="edit-player-overlay" class="modal-overlay" style="display:none;" onclick="closeEditPlayerModal(event)">
-    <div class="modal-card" onclick="event.stopPropagation()">
-      <button class="modal-close" onclick="closeEditPlayerModal(null)">✕</button>
-      <h2>Edit Player Details</h2>
-      <p class="modal-subtitle">Update player information or archive them.</p>
-      <input type="hidden" id="edit-player-id" />
-      
-      <div class="form-group">
-        <label for="edit-player-username">Player Username</label>
-        <input type="text" id="edit-player-username" autocomplete="off" />
-      </div>
-      
-      <div class="form-group">
-        <label for="edit-player-club-select">Club</label>
-        <select id="edit-player-club-select">
-        </select>
-      </div>
-      
-      <div class="form-group">
-        <label for="edit-player-photo">Profile Photo URL</label>
-        <input type="url" id="edit-player-photo" autocomplete="off" />
-      </div>
+  <div id="toast"></div>
 
-      <div class="form-group">
-        <label for="edit-player-division">Division</label>
-        <select id="edit-player-division">
-          <option value="1">Division 1</option>
-          <option value="2">Division 2</option>
-        </select>
-      </div>
-
-      <div class="form-group" style="display: flex; align-items: center; gap: 8px; margin-top: 12px;">
-        <input type="checkbox" id="edit-player-active" style="width: auto;" />
-        <label for="edit-player-active" style="margin: 0;">Active in upcoming seasons</label>
-      </div>
-      
-      <button id="btn-save-player" onclick="submitEditPlayer()">Save Changes</button>
-      <p class="modal-error" id="edit-player-error"></p>
-    </div>
-  </div>
-
-  <!-- Add/Edit Club Modal Overlay -->
-  <div id="add-club-overlay" class="modal-overlay" style="display:none;" onclick="closeAddClubModal(event)">
-    <div class="modal-card" onclick="event.stopPropagation()">
-      <button class="modal-close" onclick="closeAddClubModal(null)">✕</button>
-      <h2 id="club-modal-title">Add New Club</h2>
-      <p class="modal-subtitle">Configure the club's name, brand logo, colors, and abbreviations.</p>
-      <input type="hidden" id="club-modal-mode" value="add" />
-      
-      <div class="form-group">
-        <label for="club-name">Club Name</label>
-        <input type="text" id="club-name" placeholder="e.g. Chelsea" autocomplete="off" />
-      </div>
-      
-      <div class="form-group">
-        <label for="club-short">Short Name / Abbreviation</label>
-        <input type="text" id="club-short" placeholder="e.g. CHE (max 3 chars)" maxlength="3" autocomplete="off" />
-      </div>
-
-      <div class="form-group">
-        <label for="club-logo">Logo Image URL</label>
-        <input type="text" id="club-logo" placeholder="e.g. logos/chelsea.png" autocomplete="off" />
-      </div>
-
-      <div class="form-group">
-        <label for="club-primary-color">Primary Color (HEX)</label>
-        <input type="color" id="club-primary-color" value="#0000ff" style="height: 40px; padding: 4px;" />
-      </div>
-
-      <div class="form-group">
-        <label for="club-text-color">Text Color on Brand (HEX)</label>
-        <input type="color" id="club-text-color" value="#ffffff" style="height: 40px; padding: 4px;" />
-      </div>
-      
-      <button id="btn-submit-club" onclick="submitClub()">Save Club</button>
-      <p class="modal-error" id="club-modal-error"></p>
-    </div>
-  </div>
-
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- ADMIN APP LOGIC -->
+  <!-- ═══════════════════════════════════════════ -->
   <script>
-    // ── State ──────────────────────────────────────────
-    let adminKey = '';
-    let leagueData = null;
-    let adminMatchday = 0;
-    let adminSeasonId = null;
-    let activeAdminSection = 'league';
-    let adminDivision = 1;
+    let adminData = null;
+    let adminMatchday = 0; // 0-indexed (0 = MD1, 5 = MD6)
+    let adminKey = localStorage.getItem('ballers_admin_key') || '';
 
-    // ── Login ─────────────────────────────────────────
-    document.getElementById('login-key').addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') handleLogin();
+    document.addEventListener('DOMContentLoaded', () => {
+      if (adminKey) {
+        verifyAndLoad();
+      }
     });
 
-    async function handleLogin() {
-      const key = document.getElementById('login-key').value.trim();
-      if (!key) return;
+    async function handleLogin(e) {
+      e.preventDefault();
+      const input = document.getElementById('admin-key-input').value.trim();
+      const errBox = document.getElementById('login-error');
 
       try {
         const res = await fetch('/api/admin/login', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ key }),
+          body: JSON.stringify({ key: input })
         });
+        if (!res.ok) throw new Error('Invalid Admin Key');
 
-        const data = await res.json();
-
-        if (data.success) {
-          adminKey = key;
-          document.getElementById('login-screen').style.display = 'none';
-          document.getElementById('admin-panel').style.display = 'block';
-          await loadLeagueData();
-        } else {
-          document.getElementById('login-error').textContent = 'Invalid admin key';
-          document.getElementById('login-key').value = '';
-          document.getElementById('login-key').focus();
-        }
+        adminKey = input;
+        localStorage.setItem('ballers_admin_key', adminKey);
+        errBox.textContent = '';
+        verifyAndLoad();
       } catch (err) {
-        document.getElementById('login-error').textContent = 'Server connection failed';
+        errBox.textContent = err.message;
       }
     }
 
     function handleLogout() {
+      localStorage.removeItem('ballers_admin_key');
       adminKey = '';
-      leagueData = null;
       document.getElementById('admin-panel').style.display = 'none';
       document.getElementById('login-screen').style.display = 'flex';
-      document.getElementById('login-key').value = '';
-      document.getElementById('login-error').textContent = '';
     }
 
-    // ── Load Data ─────────────────────────────────────
-    async function loadLeagueData(seasonId) {
+    async function verifyAndLoad(seasonId = null) {
       try {
         const url = seasonId ? `/api/data?season=${seasonId}&_t=${Date.now()}` : `/api/data?_t=${Date.now()}`;
         const res = await fetch(url);
-        leagueData = await res.json();
-        adminSeasonId = leagueData.seasonId || null;
-        populateClubsDropdowns();
-        renderAdminSeasonSelector();
-        renderAdminActiveSection();
-        checkSeasonComplete();
-        
-        // Update headline input
+        if (!res.ok) throw new Error('Failed to load data');
+        adminData = await res.json();
+
+        document.getElementById('login-screen').style.display = 'none';
+        document.getElementById('admin-panel').style.display = 'block';
+
+        renderSeasonSelector();
+        renderAdminMatches();
+        renderAdminRoster();
+        renderAdminClubs();
+
         const headlineInput = document.getElementById('admin-headline-input');
-        if (headlineInput) {
-          headlineInput.value = leagueData.headline || '';
+        if (headlineInput && adminData.headline) {
+          headlineInput.value = adminData.headline;
         }
       } catch (err) {
-        showToast('Failed to load data', 'error');
+        console.error('Load error:', err);
+        handleLogout();
       }
     }
 
-    function renderAdminSeasonSelector() {
-      const select = document.getElementById('admin-season-select');
-      if (!select || !leagueData.seasons) return;
-      select.innerHTML = '';
-      leagueData.seasons.forEach(s => {
-        const opt = document.createElement('option');
-        opt.value = s.id;
-        opt.textContent = s.name + (s.status === 'active' ? ' (Active)' : '');
-        if (s.id === adminSeasonId) opt.selected = true;
-        select.appendChild(opt);
-      });
+    function renderSeasonSelector() {
+      const select = document.getElementById('admin-season-dropdown');
+      if (!select || !adminData.seasons) return;
+      select.innerHTML = adminData.seasons.map(s => `
+        <option value="${s.id}" ${s.id === adminData.seasonId ? 'selected' : ''}>${s.name} ${s.status === 'active' ? '(Active)' : ''}</option>
+      `).join('');
     }
 
-    function adminChangeSeason(seasonId) {
-      adminMatchday = 0;
-      loadLeagueData(parseInt(seasonId, 10));
+    function loadAdminSeason(seasonId) {
+      verifyAndLoad(seasonId);
     }
 
-    function checkSeasonComplete() {
-      const banner = document.getElementById('admin-new-season-banner');
-      if (!banner || !leagueData.fixtures) return;
-      const activeSeason = leagueData.seasons && leagueData.seasons.find(s => s.status === 'active');
-      if (!activeSeason || activeSeason.id !== adminSeasonId) {
-        banner.style.display = 'none';
+    function switchAdminSection(sec) {
+      document.querySelectorAll('.admin-nav-tab').forEach(t => t.classList.remove('active'));
+      const activeTab = Array.from(document.querySelectorAll('.admin-nav-tab')).find(t => t.textContent.toLowerCase().includes(sec));
+      if (activeTab) activeTab.classList.add('active');
+
+      document.getElementById('admin-section-matches').style.display = sec === 'matches' ? 'block' : 'none';
+      document.getElementById('admin-section-bracket-tools').style.display = sec === 'bracket-tools' ? 'block' : 'none';
+      document.getElementById('admin-section-roster').style.display = sec === 'roster' ? 'block' : 'none';
+      document.getElementById('admin-section-clubs').style.display = sec === 'clubs' ? 'block' : 'none';
+      document.getElementById('admin-section-headline').style.display = sec === 'headline' ? 'block' : 'none';
+    }
+
+    function changeAdminMatchday(delta) {
+      const fixtures = adminData?.fixtures || [];
+      const newMd = adminMatchday + delta;
+      if (newMd >= 0 && newMd < fixtures.length) {
+        adminMatchday = newMd;
+        renderAdminMatches();
+      }
+    }
+
+    function renderAdminMatches() {
+      const container = document.getElementById('admin-matches-container');
+      const label = document.getElementById('admin-stage-label');
+      const prevBtn = document.getElementById('btn-admin-prev-md');
+      const nextBtn = document.getElementById('btn-admin-next-md');
+
+      if (!container || !adminData || !adminData.fixtures) return;
+
+      const fixtures = adminData.fixtures;
+      if (adminMatchday < 0) adminMatchday = 0;
+      if (adminMatchday >= fixtures.length) adminMatchday = fixtures.length - 1;
+
+      const round = fixtures[adminMatchday];
+      if (!round) {
+        container.innerHTML = '<div style="color:var(--text-muted); text-align:center; padding:30px;">No matches in this round.</div>';
         return;
       }
-      const allCompleted = leagueData.fixtures.every(md =>
-        md.matches.every(m => m.status === 'completed')
-      );
-      banner.style.display = allCompleted ? 'flex' : 'none';
+
+      if (label) label.textContent = round.name || `Matchday ${adminMatchday + 1}`;
+      if (prevBtn) prevBtn.disabled = adminMatchday === 0;
+      if (nextBtn) nextBtn.disabled = adminMatchday === fixtures.length - 1;
+
+      let html = '';
+      round.matches.forEach((m, idx) => {
+        const homePlayer = m.home?.player || 'TBD';
+        const awayPlayer = m.away?.player || 'TBD';
+        const homeClub = m.home?.club || 'TBD';
+        const awayClub = m.away?.club || 'TBD';
+
+        const isLeg2 = m.leg === 2;
+        let goldenGoalBox = '';
+
+        // If Leg 2, find Leg 1 to calculate aggregate score
+        if (isLeg2) {
+          const leg1Round = fixtures[adminMatchday - 1];
+          const leg1Match = leg1Round ? leg1Round.matches.find(x => x.tieId === m.tieId && x.stage === m.stage) : null;
+          if (leg1Match && leg1Match.homeScore !== null && m.awayScore !== null && m.homeScore !== null) {
+            const aggHome = (m.homeScore || 0) + (leg1Match.awayScore || 0); // Current Home = Leg 1 Away
+            const aggAway = (m.awayScore || 0) + (leg1Match.homeScore || 0); // Current Away = Leg 1 Home
+
+            if (aggHome === aggAway) {
+              goldenGoalBox = `
+                <div class="golden-goal-selector-box">
+                  <span class="golden-goal-label">⚽ Aggregate Tied (${aggHome} - ${aggAway})! Select Golden Goal Winner:</span>
+                  <select id="match-gg-${m.id}" class="admin-select-input" style="font-weight:700; color:#ffb703;">
+                    <option value="">-- Choose Golden Goal Winner --</option>
+                    <option value="${m.home?.id}" ${m.goldenGoalWinnerId === m.home?.id ? 'selected' : ''}>${homePlayer} (${homeClub})</option>
+                    <option value="${m.away?.id}" ${m.goldenGoalWinnerId === m.away?.id ? 'selected' : ''}>${awayPlayer} (${awayClub})</option>
+                  </select>
+                </div>
+              `;
+            }
+          }
+        }
+
+        html += `
+          <div class="admin-match-card">
+            <div class="admin-match-header">
+              <span class="admin-match-tie-title">${m.stage.toUpperCase()} • TIE ${m.tieId} (LEG ${m.leg})</span>
+              <span style="font-size:0.75rem; color:var(--text-muted);">Match ID: ${m.id}</span>
+            </div>
+
+            <div class="admin-match-scores-grid">
+              <div class="admin-team-col home">
+                <span class="admin-team-name">${homePlayer}</span>
+                <span class="admin-team-club">${homeClub} (Home)</span>
+              </div>
+              <div class="admin-score-inputs">
+                <input type="number" id="match-home-score-${m.id}" class="admin-score-input" value="${m.homeScore !== null ? m.homeScore : ''}" min="0" placeholder="-">
+                <span class="admin-score-sep">:</span>
+                <input type="number" id="match-away-score-${m.id}" class="admin-score-input" value="${m.awayScore !== null ? m.awayScore : ''}" min="0" placeholder="-">
+              </div>
+              <div class="admin-team-col away">
+                <span class="admin-team-name">${awayPlayer}</span>
+                <span class="admin-team-club">${awayClub} (Away)</span>
+              </div>
+            </div>
+
+            ${goldenGoalBox}
+
+            <div class="admin-match-options">
+              <div class="admin-input-group">
+                <label>Match Status</label>
+                <select id="match-status-${m.id}" class="admin-select-input">
+                  <option value="upcoming" ${m.status === 'upcoming' ? 'selected' : ''}>Upcoming</option>
+                  <option value="live" ${m.status === 'live' ? 'selected' : ''}>Live Now</option>
+                  <option value="completed" ${m.status === 'completed' ? 'selected' : ''}>Completed</option>
+                </select>
+              </div>
+              <div class="admin-input-group">
+                <label>Match of the Week</label>
+                <select id="match-motw-${m.id}" class="admin-select-input">
+                  <option value="false" ${!m.isMotw ? 'selected' : ''}>No</option>
+                  <option value="true" ${m.isMotw ? 'selected' : ''}>★ MOTW</option>
+                </select>
+              </div>
+              <div class="admin-input-group">
+                <label>Home Stream URL</label>
+                <input type="text" id="match-home-stream-${m.id}" class="admin-text-input" placeholder="https://twitch.tv/..." value="${m.homeStreamUrl || ''}">
+              </div>
+              <div class="admin-input-group">
+                <label>Away Stream URL</label>
+                <input type="text" id="match-away-stream-${m.id}" class="admin-text-input" placeholder="https://youtube.com/..." value="${m.awayStreamUrl || ''}">
+              </div>
+            </div>
+
+            <div class="admin-match-actions">
+              <button class="btn-secondary" onclick="resetMatch(${m.id})">Reset Match</button>
+              <button class="btn-gold" onclick="saveMatch(${m.id}, ${m.matchday || adminMatchday + 1}, ${m.home?.id}, ${m.away?.id})">Save Match Result</button>
+            </div>
+          </div>
+        `;
+      });
+
+      container.innerHTML = html;
+    }
+
+    async function saveMatch(matchId, matchday, homeId, awayId) {
+      const homeScore = document.getElementById(`match-home-score-${matchId}`).value;
+      const awayScore = document.getElementById(`match-away-score-${matchId}`).value;
+      const status = document.getElementById(`match-status-${matchId}`).value;
+      const isMotw = document.getElementById(`match-motw-${matchId}`).value === 'true';
+      const homeStreamUrl = document.getElementById(`match-home-stream-${matchId}`).value.trim();
+      const awayStreamUrl = document.getElementById(`match-away-stream-${matchId}`).value.trim();
+      const ggEl = document.getElementById(`match-gg-${matchId}`);
+      const goldenGoalWinnerId = ggEl ? ggEl.value : null;
+
+      try {
+        const res = await fetch('/api/admin/match', {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-admin-key': adminKey,
+          },
+          body: JSON.stringify({
+            matchId,
+            matchday,
+            homeId,
+            awayId,
+            homeScore: homeScore !== '' ? parseInt(homeScore, 10) : null,
+            awayScore: awayScore !== '' ? parseInt(awayScore, 10) : null,
+            status,
+            isMotw,
+            homeStreamUrl,
+            awayStreamUrl,
+            goldenGoalWinnerId,
+            seasonId: adminData.seasonId,
+          })
+        });
+
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Failed to save match');
+
+        showToast('Match updated successfully!');
+        verifyAndLoad(adminData.seasonId);
+      } catch (err) {
+        alert('Save failed: ' + err.message);
+      }
+    }
+
+    async function resetMatch(matchId) {
+      if (!confirm('Are you sure you want to reset this match?')) return;
+      try {
+        const res = await fetch('/api/admin/match', {
+          method: 'DELETE',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-admin-key': adminKey,
+          },
+          body: JSON.stringify({
+            matchId,
+            seasonId: adminData.seasonId,
+          })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Failed to reset match');
+
+        showToast('Match reset.');
+        verifyAndLoad(adminData.seasonId);
+      } catch (err) {
+        alert('Reset failed: ' + err.message);
+      }
+    }
+
+    async function drawTournament(randomize) {
+      if (!confirm(`Are you sure you want to generate a new Quarter-finals draw${randomize ? ' (randomly)' : ''}? This will reset match scores.`)) return;
+
+      try {
+        const res = await fetch('/api/admin/tournament/draw', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-admin-key': adminKey,
+          },
+          body: JSON.stringify({
+            seasonId: adminData.seasonId,
+            randomize,
+          })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Draw failed');
+
+        showToast(data.message);
+        verifyAndLoad(adminData.seasonId);
+      } catch (err) {
+        alert('Draw failed: ' + err.message);
+      }
+    }
+
+    async function advanceBracket() {
+      try {
+        const res = await fetch('/api/admin/tournament/advance', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-admin-key': adminKey,
+          },
+          body: JSON.stringify({ seasonId: adminData.seasonId })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Advance failed');
+
+        showToast('Bracket progression updated!');
+        verifyAndLoad(adminData.seasonId);
+      } catch (err) {
+        alert('Advance failed: ' + err.message);
+      }
     }
 
     async function createNewSeason() {
-      if (!confirm('Start a new season? This will generate a fresh set of fixtures. The current season will be archived.')) {
-        return;
-      }
-      const btn = document.getElementById('btn-new-season');
-      btn.disabled = true;
-      btn.textContent = 'Creating...';
+      const name = prompt('Enter name for the new tournament season:', `Season ${(adminData?.seasons?.length || 1) + 1}`);
+      if (!name) return;
+
       try {
         const res = await fetch('/api/admin/season', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'X-Admin-Key': adminKey,
+            'x-admin-key': adminKey,
           },
+          body: JSON.stringify({ name })
         });
         const data = await res.json();
-        if (data.success) {
-          showToast(data.message, 'success');
-          adminMatchday = 0;
-          await loadLeagueData(data.season.id);
-        } else {
-          showToast(data.error || 'Failed to create season', 'error');
-        }
+        if (!res.ok) throw new Error(data.error || 'Failed to create season');
+
+        showToast('New season created!');
+        verifyAndLoad(data.season?.id);
       } catch (err) {
-        showToast('Server error creating season', 'error');
-      } finally {
-        btn.disabled = false;
-        btn.textContent = 'Continue to Next Season →';
+        alert('Create season failed: ' + err.message);
       }
     }
 
     async function saveHeadline() {
-      const input = document.getElementById('admin-headline-input');
-      const btn = document.getElementById('btn-save-headline');
-      if (!input || !btn) return;
-
-      const headlineVal = input.value.trim();
-
-      btn.disabled = true;
-      btn.textContent = 'Updating...';
-
+      const headline = document.getElementById('admin-headline-input').value.trim();
       try {
         const res = await fetch('/api/admin/headline', {
           method: 'PUT',
           headers: {
             'Content-Type': 'application/json',
-            'X-Admin-Key': adminKey,
+            'x-admin-key': adminKey,
           },
-          body: JSON.stringify({
-            seasonId: adminSeasonId,
-            headline: headlineVal || null
-          })
-        });
-
-        const data = await res.json();
-        if (data.success) {
-          showToast(data.message, 'success');
-          if (leagueData) {
-            leagueData.headline = data.headline;
-            const season = leagueData.seasons.find(s => s.id === adminSeasonId);
-            if (season) season.headline = data.headline;
-          }
-        } else {
-          showToast(data.error || 'Failed to update headline', 'error');
-        }
-      } catch (err) {
-        showToast('Server error updating headline', 'error');
-      } finally {
-        btn.disabled = false;
-        btn.textContent = 'Update Headline';
-      }
-    }
-
-    // ── Matchday Navigation ───────────────────────────
-    function adminChangeMatchday(delta) {
-      const rawFixtures = leagueData.fixtures || [];
-      const fixtures = rawFixtures.map(md => {
-        return {
-          matchday: md.matchday,
-          matches: md.matches.filter(m => {
-            const homeTeam = leagueData.teams.find(t => t.id === m.home.id);
-            const matchDiv = m.division || (homeTeam ? homeTeam.division : 1);
-            return matchDiv === adminDivision;
-          })
-        };
-      }).filter(md => md.matches.length > 0);
-
-      const newIdx = adminMatchday + delta;
-      if (newIdx < 0 || newIdx >= fixtures.length) return;
-      adminMatchday = newIdx;
-      renderAdminActiveSection();
-    }
-
-    // ── Render Admin Section Switcher ──────────────────
-    function switchAdminSection(section) {
-      activeAdminSection = section;
-      renderAdminActiveSection();
-    }
-
-    function switchAdminDivision(division) {
-      if (adminDivision === division) return;
-      adminDivision = division;
-
-      const btn1 = document.getElementById('admin-div-btn-1');
-      const btn2 = document.getElementById('admin-div-btn-2');
-      if (btn1 && btn2) {
-        if (division === 1) {
-          btn1.classList.add('active');
-          btn2.classList.remove('active');
-        } else {
-          btn2.classList.add('active');
-          btn1.classList.remove('active');
-        }
-      }
-
-      adminMatchday = 0;
-      renderAdminActiveSection();
-    }
-
-    function renderAdminActiveSection() {
-      const matchesContainer = document.getElementById('admin-matches');
-      if (!matchesContainer) return;
-
-      const navContainer = document.getElementById('admin-matchday-nav-container');
-      const actionsContainer = document.getElementById('admin-actions-bar-container');
-      const divSwitcher = document.getElementById('admin-division-switcher-container');
-
-      // Update active state on tab buttons
-      document.querySelectorAll('.admin-sec-tab').forEach(btn => btn.classList.remove('active'));
-      const activeBtn = document.getElementById(`admin-tab-${activeAdminSection}`);
-      if (activeBtn) activeBtn.classList.add('active');
-
-      // Sync active state on division buttons
-      const divBtn1 = document.getElementById('admin-div-btn-1');
-      const divBtn2 = document.getElementById('admin-div-btn-2');
-      if (divBtn1 && divBtn2) {
-        if (adminDivision === 1) {
-          divBtn1.classList.add('active');
-          divBtn2.classList.remove('active');
-        } else {
-          divBtn2.classList.add('active');
-          divBtn1.classList.remove('active');
-        }
-      }
-
-      if (divSwitcher) {
-        divSwitcher.style.display = activeAdminSection === 'league' ? 'flex' : 'none';
-      }
-
-      if (activeAdminSection === 'roster' || activeAdminSection === 'clubs' || activeAdminSection === 'deductions') {
-        matchesContainer.classList.add('management-mode');
-      } else {
-        matchesContainer.classList.remove('management-mode');
-      }
-
-      if (activeAdminSection === 'league') {
-        if (navContainer) navContainer.style.display = 'flex';
-        if (actionsContainer) actionsContainer.style.display = 'flex';
-        renderAdminMatchday();
-      } else if (activeAdminSection === 'cup') {
-        if (navContainer) navContainer.style.display = 'none';
-        if (actionsContainer) actionsContainer.style.display = 'none';
-        renderAdminCup();
-      } else if (activeAdminSection === 'playoffs') {
-        if (navContainer) navContainer.style.display = 'none';
-        if (actionsContainer) actionsContainer.style.display = 'none';
-        renderAdminPlayoffs();
-      } else if (activeAdminSection === 'roster') {
-        if (navContainer) navContainer.style.display = 'none';
-        if (actionsContainer) actionsContainer.style.display = 'none';
-        renderAdminRoster();
-      } else if (activeAdminSection === 'clubs') {
-        if (navContainer) navContainer.style.display = 'none';
-        if (actionsContainer) actionsContainer.style.display = 'none';
-        renderAdminClubs();
-      } else if (activeAdminSection === 'deductions') {
-        if (navContainer) navContainer.style.display = 'none';
-        if (actionsContainer) actionsContainer.style.display = 'none';
-        renderAdminDeductions();
-      }
-    }
-
-    // ── Render League Matchday ─────────────────────────
-    function renderAdminMatchday() {
-      const rawFixtures = leagueData.fixtures || [];
-      const fixtures = rawFixtures.map(md => {
-        return {
-          matchday: md.matchday,
-          matches: md.matches.filter(m => {
-            const homeTeam = leagueData.teams.find(t => t.id === m.home.id);
-            const matchDiv = m.division || (homeTeam ? homeTeam.division : 1);
-            return matchDiv === adminDivision;
-          })
-        };
-      }).filter(md => md.matches.length > 0);
-
-      if (adminMatchday >= fixtures.length) {
-        adminMatchday = Math.max(0, fixtures.length - 1);
-      }
-
-      const md = fixtures[adminMatchday];
-      if (!md) {
-        document.getElementById('admin-md-title').textContent = 'No Matches';
-        document.getElementById('admin-md-sub').textContent = '0 / 0';
-        document.getElementById('admin-prev').disabled = true;
-        document.getElementById('admin-next').disabled = true;
-        const container = document.getElementById('admin-matches');
-        container.innerHTML = '<div class="admin-tournament-panel"><p>No matches generated for this division.</p></div>';
-        return;
-      }
-
-      document.getElementById('admin-md-title').textContent = `Matchday ${md.matchday}`;
-      document.getElementById('admin-md-sub').textContent = `${adminMatchday + 1} / ${fixtures.length}`;
-      document.getElementById('admin-prev').disabled = adminMatchday === 0;
-      document.getElementById('admin-next').disabled = adminMatchday === fixtures.length - 1;
-
-      const container = document.getElementById('admin-matches');
-      container.innerHTML = '';
-
-      md.matches.forEach((match, idx) => {
-        const cardHTML = buildAdminMatchCardHTML(match, md.matchday, 'league', idx);
-        container.innerHTML += cardHTML;
-      });
-    }
-
-    // ── Render Ballers Cup ─────────────────────────────
-    function renderAdminCup() {
-      const container = document.getElementById('admin-matches');
-      if (!container) return;
-
-      const cupFixtures = leagueData.cupFixtures || [];
-      const prelim = cupFixtures.find(f => f.stage === 'cup_preliminary');
-      const r16 = cupFixtures.find(f => f.stage === 'cup_r16');
-      const qf = cupFixtures.find(f => f.stage === 'cup_qf');
-      const sf = cupFixtures.find(f => f.stage === 'cup_sf');
-      const final = cupFixtures.find(f => f.stage === 'cup_final');
-
-      const activeTeamsCount = leagueData.teams ? leagueData.teams.filter(t => t.isActive !== false && t.is_active !== false).length : 0;
-      const needsPrelim = activeTeamsCount > 16;
-
-      const checkRoundComplete = (roundData) => {
-        return roundData && roundData.matches && roundData.matches.every(m => m.status === 'completed');
-      };
-      const checkRoundStarted = (roundData) => {
-        return roundData && roundData.matches && roundData.matches.some(m => m.status !== 'upcoming');
-      };
-
-      let drawHtml = '';
-      if (needsPrelim && !prelim) {
-        drawHtml = `
-          <div class="admin-tournament-panel">
-            <h3>Ballers Cup — Preliminary Round</h3>
-            <p>Ready to start the cup? Generate the Preliminary Round draw. ${activeTeamsCount - 16} matches will be played, and other teams will get byes.</p>
-            <button class="admin-draw-btn" onclick="drawCupRound('cup_preliminary')">Draw Preliminary Round</button>
-          </div>
-        `;
-      } else if (needsPrelim && !checkRoundComplete(prelim)) {
-        const started = checkRoundStarted(prelim);
-        drawHtml = `
-          <div class="admin-tournament-panel">
-            <h3>Preliminary Round in Progress</h3>
-            <p>Complete all Preliminary matches to unlock the Round of 16 draw.</p>
-            ${!started ? `<button class="admin-draw-btn" style="margin-top: 12px; background: #e63946; color: #fff;" onclick="drawCupRound('cup_preliminary', true)">Re-draw Preliminary Round</button>` : ''}
-          </div>
-        `;
-      } else if (!r16) {
-        const descText = needsPrelim
-          ? 'Generate the Round of 16 draw (6 Preliminary winners + 10 bye teams).'
-          : 'Generate the Round of 16 draw. 4 random teams will get byes, and 8 teams will play.';
-        drawHtml = `
-          <div class="admin-tournament-panel">
-            <h3>Ballers Cup — Round of 16</h3>
-            <p>${descText}</p>
-            <button class="admin-draw-btn" onclick="drawCupRound('cup_r16')">Draw Round of 16</button>
-          </div>
-        `;
-      } else if (!checkRoundComplete(r16)) {
-        const started = checkRoundStarted(r16);
-        drawHtml = `
-          <div class="admin-tournament-panel">
-            <h3>Round of 16 in Progress</h3>
-            <p>Complete all Round of 16 matches to unlock the Quarter-finals draw.</p>
-            ${!started ? `<button class="admin-draw-btn" style="margin-top: 12px; background: #e63946; color: #fff;" onclick="drawCupRound('cup_r16', true)">Re-draw Round of 16</button>` : ''}
-          </div>
-        `;
-      } else if (!qf) {
-        const descText = needsPrelim
-          ? 'All Round of 16 matches are complete! Generate the Quarter-finals draw (8 Round of 16 winners).'
-          : 'All Round of 16 matches are complete! Generate the Quarter-finals draw (4 Round of 16 winners + 4 bye teams).';
-        drawHtml = `
-          <div class="admin-tournament-panel">
-            <h3>Ballers Cup — Quarter-finals</h3>
-            <p>${descText}</p>
-            <button class="admin-draw-btn" onclick="drawCupRound('cup_qf')">Draw Quarter-finals</button>
-          </div>
-        `;
-      } else if (!checkRoundComplete(qf)) {
-        const started = checkRoundStarted(qf);
-        drawHtml = `
-          <div class="admin-tournament-panel">
-            <h3>Quarter-finals in Progress</h3>
-            <p>Complete all Quarter-final matches to unlock the Semi-finals draw.</p>
-            ${!started ? `<button class="admin-draw-btn" style="margin-top: 12px; background: #e63946; color: #fff;" onclick="drawCupRound('cup_qf', true)">Re-draw Quarter-finals</button>` : ''}
-          </div>
-        `;
-      } else if (!sf) {
-        drawHtml = `
-          <div class="admin-tournament-panel">
-            <h3>Ballers Cup — Semi-finals</h3>
-            <p>All Quarter-final matches are complete! Generate the Semi-finals draw (4 Quarter-final winners).</p>
-            <button class="admin-draw-btn" onclick="drawCupRound('cup_sf')">Draw Semi-finals</button>
-          </div>
-        `;
-      } else if (!checkRoundComplete(sf)) {
-        const started = checkRoundStarted(sf);
-        drawHtml = `
-          <div class="admin-tournament-panel">
-            <h3>Semi-finals in Progress</h3>
-            <p>Complete all Semi-final matches to unlock the Cup Final draw.</p>
-            ${!started ? `<button class="admin-draw-btn" style="margin-top: 12px; background: #e63946; color: #fff;" onclick="drawCupRound('cup_sf', true)">Re-draw Semi-finals</button>` : ''}
-          </div>
-        `;
-      } else if (!final) {
-        drawHtml = `
-          <div class="admin-tournament-panel">
-            <h3>Ballers Cup — Cup Final</h3>
-            <p>All Semi-final matches are complete! Generate the Cup Final draw (2 Semi-final winners).</p>
-            <button class="admin-draw-btn" onclick="drawCupRound('cup_final')">Draw Cup Final</button>
-          </div>
-        `;
-      } else if (!checkRoundComplete(final)) {
-        const started = checkRoundStarted(final);
-        drawHtml = `
-          <div class="admin-tournament-panel">
-            <h3>Cup Final in Progress</h3>
-            <p>Play the final match to crown the Ballers Cup Champion!</p>
-            ${!started ? `<button class="admin-draw-btn" style="margin-top: 12px; background: #e63946; color: #fff;" onclick="drawCupRound('cup_final', true)">Re-draw Cup Final</button>` : ''}
-          </div>
-        `;
-      } else {
-        const finalMatch = final.matches[0];
-        let winnerName = 'TBD';
-        if (finalMatch.homeScore > finalMatch.awayScore) winnerName = finalMatch.home.player;
-        else if (finalMatch.awayScore > finalMatch.homeScore) winnerName = finalMatch.away.player;
-        else if (finalMatch.goldenGoalWinnerId) {
-          winnerName = finalMatch.home.id === finalMatch.goldenGoalWinnerId ? finalMatch.home.player : finalMatch.away.player;
-        }
-        drawHtml = `
-          <div class="admin-tournament-panel">
-            <h3 style="color: var(--accent-gold);">🏆 Ballers Cup Complete!</h3>
-            <p>Champion: <strong>${winnerName}</strong></p>
-          </div>
-        `;
-      }
-
-      let matchesListHtml = '';
-      const roundLabels = {
-        'cup_preliminary': 'Preliminary Round',
-        'cup_r16': 'Round of 16',
-        'cup_qf': 'Quarter-finals',
-        'cup_sf': 'Semi-finals',
-        'cup_final': 'Cup Final'
-      };
-
-      cupFixtures.forEach(round => {
-        matchesListHtml += `
-          <div class="cup-admin-round-section" style="margin-top: 24px;">
-            <h4 style="margin: 0 20px 10px; font-family: var(--font-display); border-left: 3px solid var(--accent-gold); padding-left: 8px; font-size: 1.1rem; text-transform: uppercase;">
-              ${roundLabels[round.stage]}
-            </h4>
-            <div class="admin-matches-list" style="display: flex; flex-direction: column; gap: 16px; padding: 0 20px;">
-        `;
-
-        round.matches.forEach((match, idx) => {
-          matchesListHtml += buildAdminMatchCardHTML(match, round.matchday, round.stage, idx);
-        });
-
-        matchesListHtml += `
-            </div>
-          </div>
-        `;
-      });
-
-      container.innerHTML = drawHtml + matchesListHtml;
-    }
-
-    // ── Render Champions Cup (Playoffs) ──────────────────
-    function renderAdminPlayoffs() {
-      const container = document.getElementById('admin-matches');
-      if (!container) return;
-
-      const playoffFixtures = leagueData.playoffFixtures || [];
-      const semi1 = playoffFixtures.find(f => f.stage === 'champions_semi_1');
-      const semi2 = playoffFixtures.find(f => f.stage === 'champions_semi_2');
-      const final = playoffFixtures.find(f => f.stage === 'champions_final');
-
-      const leagueMatchesComplete = leagueData.fixtures && leagueData.fixtures.every(md => md.matches.every(m => m.status === 'completed'));
-
-      let drawHtml = '';
-      if (!leagueMatchesComplete) {
-        drawHtml = `
-          <div class="admin-tournament-panel">
-            <h3 style="color: var(--dot-loss);">League Season in Progress</h3>
-            <p>The regular season must be completely finished before the Champions Cup Playoffs can be generated.</p>
-          </div>
-        `;
-      } else if (!semi1 || !semi2) {
-        drawHtml = `
-          <div class="admin-tournament-panel">
-            <h3>Champions Cup — Semi-finals</h3>
-            <p>Regular season is complete! Ready to generate the 2-legged semi-finals (1st vs 4th, 2nd vs 3rd)?</p>
-            <button class="admin-draw-btn" onclick="generatePlayoffs('generate_semis')">Generate Semi-finals</button>
-          </div>
-        `;
-      } else {
-        const checkRoundComplete = (roundData) => {
-          return roundData && roundData.matches && roundData.matches.every(m => m.status === 'completed');
-        };
-
-        const semisComplete = checkRoundComplete(semi1) && checkRoundComplete(semi2);
-
-        if (!semisComplete) {
-          drawHtml = `
-            <div class="admin-tournament-panel">
-              <h3>Semi-finals in Progress</h3>
-              <p>Complete both Legs of the semi-finals to unlock the Champions Cup Final generation.</p>
-            </div>
-          `;
-        } else if (!final) {
-          drawHtml = `
-            <div class="admin-tournament-panel">
-              <h3>Champions Cup — Final</h3>
-              <p>All Semi-final ties are resolved! Generate the Champions Cup Final match.</p>
-              <button class="admin-draw-btn" onclick="generatePlayoffs('generate_final')">Generate Final</button>
-            </div>
-          `;
-        } else if (!checkRoundComplete(final)) {
-          drawHtml = `
-            <div class="admin-tournament-panel">
-              <h3>Champions Cup Final in Progress</h3>
-              <p>Play the final match to crown the Champions Cup Winner!</p>
-            </div>
-          `;
-        } else {
-          const finalMatch = final.matches[0];
-          let winnerName = 'TBD';
-          if (finalMatch.homeScore > finalMatch.awayScore) winnerName = finalMatch.home.player;
-          else if (finalMatch.awayScore > finalMatch.homeScore) winnerName = finalMatch.away.player;
-          else if (finalMatch.goldenGoalWinnerId) {
-            winnerName = finalMatch.home.id === finalMatch.goldenGoalWinnerId ? finalMatch.home.player : finalMatch.away.player;
-          }
-          drawHtml = `
-            <div class="admin-tournament-panel">
-              <h3 style="color: #00d2ff; text-shadow: 0 0 10px rgba(0, 210, 255, 0.3);">🏆 Champions Cup Complete!</h3>
-              <p>Champion: <strong>${winnerName}</strong></p>
-            </div>
-          `;
-        }
-      }
-
-      let matchesListHtml = '';
-      if (semi1) {
-        matchesListHtml += `
-          <div class="playoffs-admin-section" style="margin-top: 24px;">
-            <h4 style="margin: 0 20px 10px; font-family: var(--font-display); border-left: 3px solid #00d2ff; padding-left: 8px; font-size: 1.1rem; text-transform: uppercase; color: #00d2ff;">
-              Semi-finals — Leg 1
-            </h4>
-            <div class="admin-matches-list" style="display: flex; flex-direction: column; gap: 16px; padding: 0 20px;">
-        `;
-        semi1.matches.forEach((match, idx) => {
-          matchesListHtml += buildAdminMatchCardHTML(match, semi1.matchday, 'champions_semi_1', idx);
-        });
-        matchesListHtml += `</div></div>`;
-      }
-
-      if (semi2) {
-        matchesListHtml += `
-          <div class="playoffs-admin-section" style="margin-top: 24px;">
-            <h4 style="margin: 0 20px 10px; font-family: var(--font-display); border-left: 3px solid #00d2ff; padding-left: 8px; font-size: 1.1rem; text-transform: uppercase; color: #00d2ff;">
-              Semi-finals — Leg 2 (Decider)
-            </h4>
-            <div class="admin-matches-list" style="display: flex; flex-direction: column; gap: 16px; padding: 0 20px;">
-        `;
-        semi2.matches.forEach((match, idx) => {
-          matchesListHtml += buildAdminMatchCardHTML(match, semi2.matchday, 'champions_semi_2', idx);
-        });
-        matchesListHtml += `</div></div>`;
-      }
-
-      if (final) {
-        matchesListHtml += `
-          <div class="playoffs-admin-section" style="margin-top: 24px;">
-            <h4 style="margin: 0 20px 10px; font-family: var(--font-display); border-left: 3px solid var(--accent-gold); padding-left: 8px; font-size: 1.1rem; text-transform: uppercase; color: var(--accent-gold);">
-              Champions Cup Final
-            </h4>
-            <div class="admin-matches-list" style="display: flex; flex-direction: column; gap: 16px; padding: 0 20px;">
-        `;
-        final.matches.forEach((match, idx) => {
-          matchesListHtml += buildAdminMatchCardHTML(match, final.matchday, 'champions_final', idx);
-        });
-        matchesListHtml += `</div></div>`;
-      }
-
-      container.innerHTML = drawHtml + matchesListHtml;
-    }
-
-    // ── Build Match Card HTML Helper ────────────────────
-    function buildAdminMatchCardHTML(match, matchday, stage = 'league', idx = 0) {
-      const homeVal = match.homeScore !== null ? match.homeScore : '';
-      const awayVal = match.awayScore !== null ? match.awayScore : '';
-      
-      let statusClass = 'status-upcoming';
-      let statusLabel = 'Upcoming';
-      if (match.status === 'completed') {
-        statusClass = 'status-completed';
-        statusLabel = 'Completed';
-      } else if (match.status === 'live') {
-        statusClass = 'status-live';
-        statusLabel = 'Live';
-      }
-
-      const isKnockout = stage.startsWith('cup_') || stage === 'champions_semi_2' || stage === 'champions_final';
-      
-      let showGG = false;
-      if (isKnockout) {
-        if (stage.startsWith('cup_') || stage === 'champions_final') {
-          showGG = (homeVal !== '' && awayVal !== '' && parseInt(homeVal, 10) === parseInt(awayVal, 10));
-        } else if (stage === 'champions_semi_2') {
-          const semi1Round = leagueData.playoffFixtures.find(f => f.stage === 'champions_semi_1');
-          if (semi1Round) {
-            const leg1Match = semi1Round.matches.find(m => (m.home.id === match.home.id && m.away.id === match.away.id) || (m.home.id === match.away.id && m.away.id === match.home.id));
-            if (leg1Match) {
-              const leg1Home = leg1Match.home.id === match.home.id ? leg1Match.homeScore : leg1Match.awayScore;
-              const leg1Away = leg1Match.home.id === match.away.id ? leg1Match.homeScore : leg1Match.awayScore;
-              if (leg1Home !== null && leg1Away !== null && homeVal !== '' && awayVal !== '') {
-                const totalHome = leg1Home + parseInt(homeVal, 10);
-                const totalAway = leg1Away + parseInt(awayVal, 10);
-                showGG = (totalHome === totalAway);
-              }
-            }
-          }
-        }
-      }
-
-      let ggHTML = '';
-      if (isKnockout) {
-        const optHomeSelected = match.goldenGoalWinnerId === match.home.id ? 'selected' : '';
-        const optAwaySelected = match.goldenGoalWinnerId === match.away.id ? 'selected' : '';
-        
-        ggHTML = `
-          <div class="gg-container" id="gg-container-${match.home.id}-${match.away.id}" style="${showGG ? 'display: flex;' : 'display: none;'}">
-            <label>⚡ Golden Goal Winner</label>
-            <select class="gg-select" id="gg-winner-${match.home.id}-${match.away.id}">
-              <option value="">Select Winner...</option>
-              <option value="${match.home.id}" ${optHomeSelected}>${match.home.player} (${match.home.club})</option>
-              <option value="${match.away.id}" ${optAwaySelected}>${match.away.player} (${match.away.club})</option>
-            </select>
-          </div>
-        `;
-      }
-
-      const motwHTML = (stage === 'league') ? `
-        <div class="match-motw-row">
-          <button id="motw-${match.home.id}-${match.away.id}" 
-            class="btn-motw ${match.isMotw ? 'active' : ''}" 
-            onclick="toggleMotwUI(${match.home.id}, ${match.away.id})">
-            ⚡ ${match.isMotw ? 'Match of the Week' : 'Set Match of the Week'}
-          </button>
-        </div>
-      ` : '';
-
-      const checkTieCall = isKnockout ? `oninput="checkMatchTie(${match.home.id}, ${match.away.id}, '${stage}')"` : '';
-
-      return `
-        <div class="match-card ${match.status === 'completed' ? 'completed' : ''}" style="animation-delay: ${idx * 0.05}s;">
-          <div class="match-teams">
-            <div class="match-team-info">
-              <div class="match-team-name">${match.home.player}</div>
-              <div class="match-team-club">${match.home.club}</div>
-            </div>
-            <div class="match-vs">VS</div>
-            <div class="match-team-info">
-              <div class="match-team-name">${match.away.player}</div>
-              <div class="match-team-club">${match.away.club}</div>
-            </div>
-          </div>
-          <div class="match-score-row">
-            <input type="number" class="score-input" id="home-${match.home.id}-${match.away.id}"
-              value="${homeVal}" min="0" max="99" placeholder="0" ${checkTieCall}>
-            <span class="score-dash">—</span>
-            <input type="number" class="score-input" id="away-${match.home.id}-${match.away.id}"
-              value="${awayVal}" min="0" max="99" placeholder="0" ${checkTieCall}>
-          </div>
-          
-          ${ggHTML}
-
-          <div class="match-status-select-row">
-            <label for="status-${match.home.id}-${match.away.id}">Status:</label>
-            <select class="status-select" id="status-${match.home.id}-${match.away.id}" onchange="checkMatchTie(${match.home.id}, ${match.away.id}, '${stage}')">
-              <option value="upcoming" ${match.status === 'upcoming' ? 'selected' : ''}>Upcoming</option>
-              <option value="live" ${match.status === 'live' ? 'selected' : ''}>Live</option>
-              <option value="completed" ${match.status === 'completed' ? 'selected' : ''}>Completed</option>
-            </select>
-          </div>
-
-          <div class="match-stream-url-row">
-            <div class="stream-url-input-group">
-              <span class="stream-url-label">Home</span>
-              <input type="url" class="stream-url-input" id="home-stream-${match.home.id}-${match.away.id}"
-                placeholder="Twitch or Kick URL" value="${match.homeStreamUrl || ''}">
-            </div>
-            <div class="stream-url-input-group">
-              <span class="stream-url-label">Away</span>
-              <input type="url" class="stream-url-input" id="away-stream-${match.home.id}-${match.away.id}"
-                placeholder="Twitch or Kick URL" value="${match.awayStreamUrl || ''}">
-            </div>
-          </div>
-
-          ${motwHTML}
-
-          <div class="match-actions">
-            <button class="btn-save" onclick="saveMatch(${matchday}, ${match.home.id}, ${match.away.id}, '${stage}')">
-              Save Match
-            </button>
-            <button class="btn-reset" onclick="resetMatch(${matchday}, ${match.home.id}, ${match.away.id}, '${stage}')">
-              Reset
-            </button>
-          </div>
-          <div class="match-status ${statusClass}">
-            <span class="status-dot"></span>
-            <span>${statusLabel}</span>
-          </div>
-        </div>
-      `;
-    }
-
-    // ── Check Match Tie Dynamically ─────────────────────
-    function checkMatchTie(homeId, awayId, stage) {
-      const container = document.getElementById(`gg-container-${homeId}-${awayId}`);
-      if (!container) return;
-
-      const homeScoreVal = document.getElementById(`home-${homeId}-${awayId}`).value;
-      const awayScoreVal = document.getElementById(`away-${homeId}-${awayId}`).value;
-
-      let isTie = false;
-      if (homeScoreVal !== '' && awayScoreVal !== '') {
-        const homeVal = parseInt(homeScoreVal, 10);
-        const awayVal = parseInt(awayScoreVal, 10);
-
-        if (stage.startsWith('cup_') || stage === 'champions_final') {
-          isTie = (homeVal === awayVal);
-        } else if (stage === 'champions_semi_2') {
-          const semi1Round = leagueData.playoffFixtures.find(f => f.stage === 'champions_semi_1');
-          if (semi1Round) {
-            const leg1Match = semi1Round.matches.find(m => (m.home.id === homeId && m.away.id === awayId) || (m.home.id === awayId && m.away.id === homeId));
-            if (leg1Match) {
-              const leg1Home = leg1Match.home.id === homeId ? leg1Match.homeScore : leg1Match.awayScore;
-              const leg1Away = leg1Match.home.id === awayId ? leg1Match.homeScore : leg1Match.awayScore;
-              if (leg1Home !== null && leg1Away !== null) {
-                const totalHome = leg1Home + homeVal;
-                const totalAway = leg1Away + awayVal;
-                isTie = (totalHome === totalAway);
-              }
-            }
-          }
-        }
-      }
-
-      if (isTie) {
-        container.style.display = 'flex';
-      } else {
-        container.style.display = 'none';
-      }
-    }
-
-    // ── Toggle MOTW selection in UI ─────────────────────
-    function toggleMotwUI(homeId, awayId) {
-      const activeBtn = document.getElementById(`motw-${homeId}-${awayId}`);
-      if (!activeBtn) return;
-      const wasActive = activeBtn.classList.contains('active');
-
-      const buttons = document.querySelectorAll('.btn-motw');
-      buttons.forEach(btn => {
-        btn.classList.remove('active');
-        btn.innerHTML = '⚡ Set Match of the Week';
-      });
-
-      if (!wasActive) {
-        activeBtn.classList.add('active');
-        activeBtn.innerHTML = '⚡ Match of the Week';
-      }
-    }
-
-    // ── Save Match ─────────────────────────────────────
-    async function saveMatch(matchday, homeId, awayId, stage = 'league') {
-      const homeScore = document.getElementById(`home-${homeId}-${awayId}`).value;
-      const awayScore = document.getElementById(`away-${homeId}-${awayId}`).value;
-      const status = document.getElementById(`status-${homeId}-${awayId}`).value;
-      const homeStreamUrl = document.getElementById(`home-stream-${homeId}-${awayId}`).value.trim();
-      const awayStreamUrl = document.getElementById(`away-stream-${homeId}-${awayId}`).value.trim();
-      
-      const motwEl = document.getElementById(`motw-${homeId}-${awayId}`);
-      const isMotw = motwEl ? motwEl.classList.contains('active') : false;
-
-      if (status === 'completed' && (homeScore === '' || awayScore === '')) {
-        showToast('Enter both scores to mark match as completed', 'error');
-        return;
-      }
-
-      let goldenGoalWinnerId = null;
-      const ggContainer = document.getElementById(`gg-container-${homeId}-${awayId}`);
-      if (ggContainer && ggContainer.style.display !== 'none') {
-        const ggSelect = document.getElementById(`gg-winner-${homeId}-${awayId}`);
-        if (status === 'completed') {
-          if (!ggSelect || !ggSelect.value) {
-            showToast('Please select a Golden Goal winner for the tied match', 'error');
-            return;
-          }
-          goldenGoalWinnerId = parseInt(ggSelect.value, 10);
-        }
-      }
-
-      try {
-        const res = await fetch('/api/admin/match', {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-            'X-Admin-Key': adminKey,
-          },
-          body: JSON.stringify({
-            matchday,
-            homeId,
-            awayId,
-            homeScore: homeScore !== '' ? parseInt(homeScore) : null,
-            awayScore: awayScore !== '' ? parseInt(awayScore) : null,
-            status,
-            homeStreamUrl: homeStreamUrl || null,
-            awayStreamUrl: awayStreamUrl || null,
-            seasonId: adminSeasonId,
-            isMotw,
-            stage,
-            goldenGoalWinnerId
-          }),
-        });
-
-        const data = await res.json();
-
-        if (data.success) {
-          showToast(data.message, 'success');
-          await loadLeagueData(adminSeasonId);
-        } else {
-          showToast(data.error || 'Failed to save', 'error');
-        }
-      } catch (err) {
-        showToast('Server error', 'error');
-      }
-    }
-
-    // ── Reset Match ────────────────────────────────────
-    async function resetMatch(matchday, homeId, awayId, stage = 'league') {
-      try {
-        const res = await fetch('/api/admin/match', {
-          method: 'DELETE',
-          headers: {
-            'Content-Type': 'application/json',
-            'X-Admin-Key': adminKey,
-          },
-          body: JSON.stringify({ matchday, homeId, awayId, seasonId: adminSeasonId, stage }),
-        });
-
-        const data = await res.json();
-
-        if (data.success) {
-          showToast('Match reset', 'success');
-          await loadLeagueData(adminSeasonId);
-        } else {
-          showToast(data.error || 'Failed to reset', 'error');
-        }
-      } catch (err) {
-        showToast('Server error', 'error');
-      }
-    }
-
-    // ── Draw Cup Round ─────────────────────────────────
-    async function drawCupRound(round, force = false) {
-      const confirmMsg = force 
-        ? `Are you sure you want to RE-DRAW the matches for ${round}? This will clear the current pairings.`
-        : `Are you sure you want to draw the matches for ${round}?`;
-      if (!confirm(confirmMsg)) {
-        return;
-      }
-      try {
-        const res = await fetch('/api/admin/cup/draw', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'X-Admin-Key': adminKey,
-          },
-          body: JSON.stringify({ round, seasonId: adminSeasonId, force }),
+          body: JSON.stringify({ headline, seasonId: adminData.seasonId })
         });
         const data = await res.json();
-        if (data.success) {
-          showToast(data.message, 'success');
-          await loadLeagueData(adminSeasonId);
-        } else {
-          showToast(data.error || 'Failed to draw cup round', 'error');
-        }
+        if (!res.ok) throw new Error(data.error || 'Failed to save headline');
+
+        showToast('News headline updated!');
+        verifyAndLoad(adminData.seasonId);
       } catch (err) {
-        showToast('Server error drawing cup round', 'error');
+        alert('Save headline failed: ' + err.message);
       }
     }
 
-    // ── Generate Playoffs ──────────────────────────────
-    async function generatePlayoffs(action) {
-      const confirmMsg = action === 'generate_semis' 
-        ? 'Generate Champions Cup semi-finals from the top 4 teams?' 
-        : 'Generate Champions Cup final between the semi-final winners?';
-      if (!confirm(confirmMsg)) {
-        return;
-      }
-      try {
-        const res = await fetch('/api/admin/playoffs/generate', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'X-Admin-Key': adminKey,
-          },
-          body: JSON.stringify({ action, seasonId: adminSeasonId }),
-        });
-        const data = await res.json();
-        if (data.success) {
-          showToast(data.message, 'success');
-          await loadLeagueData(adminSeasonId);
-        } else {
-          showToast(data.error || 'Failed to generate playoffs', 'error');
-        }
-      } catch (err) {
-        showToast('Server error generating playoffs', 'error');
-      }
-    }
-
-
-    // ── Reset Entire Matchday ──────────────────────────
-    async function resetMatchday() {
-      const fixtures = leagueData.fixtures;
-      const md = fixtures[adminMatchday];
-      if (!md) return;
-
-      if (!confirm(`Are you sure you want to reset all match results for Matchday ${md.matchday}? This will clear all scorelines for this matchday.`)) {
-        return;
-      }
-
-      try {
-        const res = await fetch('/api/admin/match', {
-          method: 'DELETE',
-          headers: {
-            'Content-Type': 'application/json',
-            'X-Admin-Key': adminKey,
-          },
-          body: JSON.stringify({ matchday: md.matchday, seasonId: adminSeasonId }),
-        });
-
-        const data = await res.json();
-
-        if (data.success) {
-          showToast(`Matchday ${md.matchday} reset`, 'success');
-          await loadLeagueData();
-        } else {
-          showToast(data.error || 'Failed to reset matchday', 'error');
-        }
-      } catch (err) {
-        showToast('Server error', 'error');
-      }
-    }
-
-    // ── Add Player ─────────────────────────────────────
-    function openAddPlayerModal() {
-      // Form fields reset
-      document.getElementById('new-player-username').value = '';
-      document.getElementById('new-player-club-select').selectedIndex = 0;
-      document.getElementById('new-player-photo').value = '';
-      document.getElementById('modal-error').textContent = '';
-      
-      document.getElementById('add-player-overlay').style.display = 'flex';
-    }
-
-    function closeAddPlayerModal(event) {
-      if (event && event.target !== event.currentTarget) return;
-      document.getElementById('add-player-overlay').style.display = 'none';
-    }
-
-    async function submitNewPlayer() {
-      const player = document.getElementById('new-player-username').value.trim();
-      const club = document.getElementById('new-player-club-select').value;
-      const photoUrl = document.getElementById('new-player-photo').value.trim();
-      const division = parseInt(document.getElementById('new-player-division').value, 10);
-      const errEl = document.getElementById('modal-error');
-      
-      errEl.textContent = '';
-      
-      if (!player) {
-        errEl.textContent = 'Please enter a player username.';
-        return;
-      }
-      if (!club) {
-        errEl.textContent = 'Please select a club.';
-        return;
-      }
-
-      const btn = document.getElementById('btn-submit-player');
-      btn.disabled = true;
-      btn.textContent = 'Adding Player...';
-
-      try {
-        const res = await fetch('/api/admin/player', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'X-Admin-Key': adminKey
-          },
-          body: JSON.stringify({ player, club, photoUrl, division })
-        });
-
-        const data = await res.json();
-        if (data.success) {
-          showToast(data.message, 'success');
-          document.getElementById('add-player-overlay').style.display = 'none';
-          // Refresh data
-          await loadLeagueData(adminSeasonId);
-        } else {
-          errEl.textContent = data.error || 'Failed to add player';
-        }
-      } catch (err) {
-        errEl.textContent = 'Connection error. Please try again.';
-      } finally {
-        btn.disabled = false;
-        btn.textContent = 'Add Player to League';
-      }
-    }
-
-    // ── Roster & Club Management ────────────────────────
-    function populateClubsDropdowns() {
-      const newSelect = document.getElementById('new-player-club-select');
-      const editSelect = document.getElementById('edit-player-club-select');
-      if (!newSelect || !editSelect || !leagueData.clubs) return;
-
-      const newVal = newSelect.value;
-      const editVal = editSelect.value;
-
-      newSelect.innerHTML = '<option value="" disabled selected>Select Club...</option>';
-      editSelect.innerHTML = '<option value="" disabled selected>Select Club...</option>';
-
-      leagueData.clubs.forEach(c => {
-        const opt1 = document.createElement('option');
-        opt1.value = c.name;
-        opt1.textContent = c.name;
-        newSelect.appendChild(opt1);
-
-        const opt2 = document.createElement('option');
-        opt2.value = c.name;
-        opt2.textContent = c.name;
-        editSelect.appendChild(opt2);
-      });
-
-      if (newVal) newSelect.value = newVal;
-      if (editVal) editSelect.value = editVal;
-    }
-
+    // ── Roster & Clubs UI ──────────────────────────────────────
     function renderAdminRoster() {
-      const container = document.getElementById('admin-matches');
-      container.innerHTML = `
-        <div class="management-card" style="width: 100%;">
-          <div class="management-header">
-            <h2>Player Roster &amp; Teams</h2>
-            <button class="btn-add-player" onclick="openAddPlayerModal()">Add Player</button>
-          </div>
-          <div class="management-grid">
-            ${leagueData.teams.map(t => {
-              const logoSrc = leagueData.clubs.find(c => c.name === t.club)?.logoUrl || leagueData.clubs.find(c => c.name === t.club)?.logo_url || '';
-              const isActive = t.isActive !== false && t.is_active !== false;
-              return `
-                <div class="roster-item">
-                  <div class="roster-info">
-                    <img class="roster-avatar" src="${t.photoUrl || t.photo_url || 'https://raw.githubusercontent.com/multiavatar/multiavatar/main/svg/' + encodeURIComponent(t.player) + '.svg'}" alt="${t.player}">
-                    <div class="roster-details">
-                      <h3>${t.player} <span class="status-badge ${isActive ? 'active' : 'inactive'}">${isActive ? 'active' : 'archived'}</span></h3>
-                      <p>
-                        Club: ${t.club} | Division: ${t.division || 1}
-                        ${logoSrc ? `<img src="${logoSrc}" alt="${t.club}" style="height: 14px; vertical-align: middle; margin-left: 6px;">` : ''}
-                      </p>
-                    </div>
-                  </div>
-                  <div class="management-actions">
-                    <button class="btn-edit-action" onclick="openEditPlayerModal(${t.id}, '${t.player.replace(/'/g, "\\'")}', '${t.club.replace(/'/g, "\\'")}', '${(t.photoUrl || t.photo_url || '').replace(/'/g, "\\'")}', ${isActive}, ${t.division || 1})">Edit</button>
-                    <button class="btn-delete-action" onclick="deletePlayer(${t.id}, '${t.player.replace(/'/g, "\\'")}')">${isActive ? 'Archive' : 'Delete'}</button>
-                  </div>
-                </div>
-              `;
-            }).join('')}
-          </div>
-        </div>
+      const container = document.getElementById('admin-roster-list');
+      if (!container || !adminData?.teams) return;
+
+      const activeTeams = adminData.teams.filter(t => t.isActive !== false);
+
+      let html = `
+        <table style="width:100%; border-collapse: collapse; text-align:left;">
+          <thead>
+            <tr style="border-bottom: 1.5px solid var(--border-medium); color:var(--text-muted); font-size:0.75rem; text-transform:uppercase;">
+              <th style="padding:10px;">#</th>
+              <th style="padding:10px;">Player</th>
+              <th style="padding:10px;">Club</th>
+              <th style="padding:10px; text-align:right;">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
       `;
-    }
 
-    function openEditPlayerModal(id, player, club, photoUrl, isActive, division) {
-      document.getElementById('edit-player-id').value = id;
-      document.getElementById('edit-player-username').value = player;
-      document.getElementById('edit-player-club-select').value = club;
-      document.getElementById('edit-player-photo').value = photoUrl;
-      document.getElementById('edit-player-division').value = division || 1;
-      document.getElementById('edit-player-active').checked = !!isActive;
-      document.getElementById('edit-player-error').textContent = '';
-      document.getElementById('edit-player-overlay').style.display = 'flex';
-    }
+      activeTeams.forEach((t, i) => {
+        html += `
+          <tr style="border-bottom: 1px solid var(--border-subtle);">
+            <td style="padding:12px 10px; font-weight:700; color:var(--accent-gold);">${i + 1}</td>
+            <td style="padding:12px 10px; font-weight:700;">${t.player}</td>
+            <td style="padding:12px 10px; color:var(--text-secondary);">${t.club}</td>
+            <td style="padding:12px 10px; text-align:right;">
+              <button class="btn-secondary" style="padding:4px 8px; font-size:0.75rem;" onclick="openEditPlayerModal(${t.id}, '${t.player}', '${t.club}')">Edit</button>
+            </td>
+          </tr>
+        `;
+      });
 
-    function closeEditPlayerModal(event) {
-      if (event === null || event.target.id === 'edit-player-overlay') {
-        document.getElementById('edit-player-overlay').style.display = 'none';
-      }
-    }
-
-    async function submitEditPlayer() {
-      const id = parseInt(document.getElementById('edit-player-id').value, 10);
-      const player = document.getElementById('edit-player-username').value.trim();
-      const club = document.getElementById('edit-player-club-select').value;
-      const photoUrl = document.getElementById('edit-player-photo').value.trim();
-      const division = parseInt(document.getElementById('edit-player-division').value, 10);
-      const isActive = document.getElementById('edit-player-active').checked;
-      const errEl = document.getElementById('edit-player-error');
-
-      if (!player || !club) {
-        errEl.textContent = 'Username and club are required.';
-        return;
-      }
-
-      const btn = document.getElementById('btn-save-player');
-      btn.disabled = true;
-      btn.textContent = 'Saving...';
-
-      try {
-        const res = await fetch('/api/admin/player', {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-            'X-Admin-Key': adminKey
-          },
-          body: JSON.stringify({ id, player, club, photoUrl, division, isActive })
-        });
-        const data = await res.json();
-        if (data.success) {
-          showToast(data.message, 'success');
-          document.getElementById('edit-player-overlay').style.display = 'none';
-          await loadLeagueData(adminSeasonId);
-        } else {
-          errEl.textContent = data.error || 'Failed to edit player';
-        }
-      } catch (err) {
-        errEl.textContent = 'Connection error.';
-      } finally {
-        btn.disabled = false;
-        btn.textContent = 'Save Changes';
-      }
-    }
-
-    async function deletePlayer(id, name) {
-      if (!confirm(`Are you sure you want to archive or delete player ${name}?`)) return;
-
-      try {
-        const res = await fetch('/api/admin/player', {
-          method: 'DELETE',
-          headers: {
-            'Content-Type': 'application/json',
-            'X-Admin-Key': adminKey
-          },
-          body: JSON.stringify({ id })
-        });
-        const data = await res.json();
-        if (data.success) {
-          showToast(data.message, 'success');
-          await loadLeagueData(adminSeasonId);
-        } else {
-          showToast(data.error || 'Failed to delete player', 'error');
-        }
-      } catch (err) {
-        showToast('Server error', 'error');
-      }
+      html += `</tbody></table>`;
+      container.innerHTML = html;
     }
 
     function renderAdminClubs() {
-      const container = document.getElementById('admin-matches');
-      container.innerHTML = `
-        <div class="management-card" style="width: 100%;">
-          <div class="management-header">
-            <h2>Clubs Settings</h2>
-            <button class="btn-add-player" onclick="openAddClubModal()">Add New Club</button>
+      const container = document.getElementById('admin-clubs-list');
+      if (!container || !adminData?.clubs) return;
+
+      let html = `<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px;">`;
+      adminData.clubs.forEach(c => {
+        html += `
+          <div style="background: rgba(255,255,255,0.02); border:1px solid var(--border-medium); border-radius:10px; padding:12px; display:flex; align-items:center; gap:12px;">
+            <img src="${c.logoUrl}" alt="${c.name}" style="width:32px; height:32px; object-fit:contain;">
+            <div style="flex:1; min-width:0;">
+              <div style="font-weight:700; font-size:0.9rem;">${c.name}</div>
+              <div style="font-size:0.75rem; color:var(--text-muted);">${c.shortName}</div>
+            </div>
+            <div style="width:14px; height:14px; border-radius:50%; background:${c.primaryColor}; border:1px solid rgba(255,255,255,0.2);"></div>
           </div>
-          <div class="management-grid">
-            ${leagueData.clubs.map(c => {
-              const nameSafe = c.name.replace(/'/g, "\\'");
-              const logoSafe = (c.logoUrl || c.logo_url || '').replace(/'/g, "\\'");
-              const pColor = c.primaryColor || c.primary_color || '#333';
-              const tColor = c.textColor || c.text_color || '#fff';
-              const sName = c.shortName || c.short_name || '';
-              return `
-                <div class="club-item">
-                  <div class="club-info">
-                    ${c.logoUrl || c.logo_url ? `<img class="club-logo-preview" src="${c.logoUrl || c.logo_url}" alt="${c.name}">` : `<span class="club-logo-preview" style="display:flex;align-items:center;justify-content:center;background:#222;border-radius:6px;font-size:10px;font-weight:700;color:#aaa">${sName || 'CLUB'}</span>`}
-                    <div class="club-details">
-                      <h3>
-                        ${c.name} (${sName || '???'})
-                        <span class="club-color-dot" style="background: ${pColor}"></span>
-                      </h3>
-                      <p>Color: ${pColor} · Text: ${tColor}</p>
-                    </div>
-                  </div>
-                  <div class="management-actions">
-                    <button class="btn-edit-action" onclick="openEditClubModal('${nameSafe}', '${logoSafe}', '${pColor}', '${tColor}', '${sName}')">Edit</button>
-                    <button class="btn-delete-action" onclick="deleteClub('${nameSafe}')">Delete</button>
-                  </div>
-                </div>
-              `;
-            }).join('')}
-          </div>
-        </div>
-      `;
+        `;
+      });
+      html += `</div>`;
+      container.innerHTML = html;
+    }
+
+    function populateClubsDropdown(selectedClub = '') {
+      const select = document.getElementById('player-club-select');
+      if (!select || !adminData?.clubs) return;
+      select.innerHTML = adminData.clubs.map(c => `
+        <option value="${c.name}" ${c.name === selectedClub ? 'selected' : ''}>${c.name}</option>
+      `).join('');
+    }
+
+    function openAddPlayerModal() {
+      document.getElementById('player-modal-title').textContent = 'Add Player';
+      document.getElementById('player-edit-id').value = '';
+      document.getElementById('player-name-input').value = '';
+      populateClubsDropdown();
+      document.getElementById('player-modal').style.display = 'flex';
+    }
+
+    function openEditPlayerModal(id, player, club) {
+      document.getElementById('player-modal-title').textContent = 'Edit Player';
+      document.getElementById('player-edit-id').value = id;
+      document.getElementById('player-name-input').value = player;
+      populateClubsDropdown(club);
+      document.getElementById('player-modal').style.display = 'flex';
+    }
+
+    function closePlayerModal() {
+      document.getElementById('player-modal').style.display = 'none';
+    }
+
+    async function submitPlayer(e) {
+      e.preventDefault();
+      const id = document.getElementById('player-edit-id').value;
+      const player = document.getElementById('player-name-input').value.trim();
+      const club = document.getElementById('player-club-select').value;
+
+      try {
+        const method = id ? 'PUT' : 'POST';
+        const res = await fetch('/api/admin/player', {
+          method,
+          headers: {
+            'Content-Type': 'application/json',
+            'x-admin-key': adminKey,
+          },
+          body: JSON.stringify({ id: id ? parseInt(id, 10) : undefined, player, club })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Failed to save player');
+
+        closePlayerModal();
+        showToast('Player saved!');
+        verifyAndLoad(adminData.seasonId);
+      } catch (err) {
+        alert('Error: ' + err.message);
+      }
     }
 
     function openAddClubModal() {
-      document.getElementById('club-modal-mode').value = 'add';
-      document.getElementById('club-modal-title').textContent = 'Add New Club';
-      document.getElementById('club-name').value = '';
-      document.getElementById('club-name').disabled = false;
-      document.getElementById('club-short').value = '';
-      document.getElementById('club-logo').value = '';
-      document.getElementById('club-primary-color').value = '#0000ff';
-      document.getElementById('club-text-color').value = '#ffffff';
-      document.getElementById('club-modal-error').textContent = '';
-      document.getElementById('add-club-overlay').style.display = 'flex';
+      document.getElementById('club-modal').style.display = 'flex';
     }
 
-    function openEditClubModal(name, logoUrl, primaryColor, textColor, shortName) {
-      document.getElementById('club-modal-mode').value = 'edit';
-      document.getElementById('club-modal-title').textContent = 'Edit Club Details';
-      document.getElementById('club-name').value = name;
-      document.getElementById('club-name').disabled = true;
-      document.getElementById('club-short').value = shortName;
-      document.getElementById('club-logo').value = logoUrl;
-      document.getElementById('club-primary-color').value = primaryColor;
-      document.getElementById('club-text-color').value = textColor;
-      document.getElementById('club-modal-error').textContent = '';
-      document.getElementById('add-club-overlay').style.display = 'flex';
+    function closeClubModal() {
+      document.getElementById('club-modal').style.display = 'none';
     }
 
-    function closeAddClubModal(event) {
-      if (event === null || event.target.id === 'add-club-overlay') {
-        document.getElementById('add-club-overlay').style.display = 'none';
-      }
-    }
-
-    async function submitClub() {
-      const mode = document.getElementById('club-modal-mode').value;
-      const name = document.getElementById('club-name').value.trim();
-      const shortName = document.getElementById('club-short').value.trim().toUpperCase();
-      const logoUrl = document.getElementById('club-logo').value.trim();
-      const primaryColor = document.getElementById('club-primary-color').value;
-      const textColor = document.getElementById('club-text-color').value;
-      const errEl = document.getElementById('club-modal-error');
-
-      if (!name || !shortName || !logoUrl) {
-        errEl.textContent = 'Name, abbreviation, and logo URL are required.';
-        return;
-      }
-
-      const btn = document.getElementById('btn-submit-club');
-      btn.disabled = true;
-      btn.textContent = 'Saving...';
+    async function submitClub(e) {
+      e.preventDefault();
+      const name = document.getElementById('club-name-input').value.trim();
+      const shortName = document.getElementById('club-short-input').value.trim().toUpperCase();
+      const logoUrl = document.getElementById('club-logo-input').value.trim();
+      const primaryColor = document.getElementById('club-color-input').value;
 
       try {
         const res = await fetch('/api/admin/club', {
-          method: mode === 'add' ? 'POST' : 'PUT',
+          method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'X-Admin-Key': adminKey
+            'x-admin-key': adminKey,
           },
-          body: JSON.stringify({ name, shortName, logoUrl, primaryColor, textColor })
+          body: JSON.stringify({ name, shortName, logoUrl, primaryColor, textColor: '#fff' })
         });
         const data = await res.json();
-        if (data.success) {
-          showToast(data.message, 'success');
-          document.getElementById('add-club-overlay').style.display = 'none';
-          await loadLeagueData(adminSeasonId);
-        } else {
-          errEl.textContent = data.error || 'Failed to save club';
-        }
+        if (!res.ok) throw new Error(data.error || 'Failed to add club');
+
+        closeClubModal();
+        showToast('Club added!');
+        verifyAndLoad(adminData.seasonId);
       } catch (err) {
-        errEl.textContent = 'Connection error.';
-      } finally {
-        btn.disabled = false;
-        btn.textContent = 'Save Club';
+        alert('Error: ' + err.message);
       }
     }
 
-    async function deleteClub(name) {
-      if (!confirm(`Are you sure you want to delete club ${name}?`)) return;
-
-      try {
-        const res = await fetch('/api/admin/club', {
-          method: 'DELETE',
-          headers: {
-            'Content-Type': 'application/json',
-            'X-Admin-Key': adminKey
-          },
-          body: JSON.stringify({ name })
-        });
-        const data = await res.json();
-        if (data.success) {
-          showToast(data.message, 'success');
-          await loadLeagueData(adminSeasonId);
-        } else {
-          showToast(data.error || 'Failed to delete club', 'error');
-        }
-      } catch (err) {
-        showToast('Server error', 'error');
-      }
-    }
-
-    // ── Points Deductions Management ────────────────────
-    function renderAdminDeductions() {
-      const container = document.getElementById('admin-matches');
-      container.innerHTML = `
-        <div class="management-card" style="width: 100%;">
-          <div class="management-header">
-            <h2>Points Deductions — ${leagueData.season || 'Active Season'}</h2>
-            <p style="color: var(--text-muted); font-size: 0.9rem; margin-top: 4px;">
-              Deduct points from players for forfeits, rules violations, or default losses in the current season.
-            </p>
-          </div>
-          
-          <div style="margin-top: 20px; display: flex; flex-direction: column; gap: 12px; max-width: 600px;">
-            ${leagueData.teams.map(t => {
-              const currentDeduction = (leagueData.deductions && leagueData.deductions[t.id]) || 0;
-              const isActive = t.isActive !== false && t.is_active !== false;
-              // Skip archived/inactive players that haven't played this season, to keep it clean
-              if (!isActive) return '';
-              
-              return `
-                <div style="display: flex; align-items: center; justify-content: space-between; padding: 12px; background: rgba(255,255,255,0.03); border-radius: 8px; border: 1px dashed rgba(255,255,255,0.1);">
-                  <div style="display: flex; align-items: center; gap: 12px;">
-                    <img class="roster-avatar" src="${t.photoUrl || t.photo_url || 'https://raw.githubusercontent.com/multiavatar/multiavatar/main/svg/' + encodeURIComponent(t.player) + '.svg'}" alt="${t.player}" style="width: 36px; height: 36px; border-radius: 50%;">
-                    <div>
-                      <h4 style="margin: 0; font-family: var(--font-display); font-size: 1rem;">${t.player}</h4>
-                      <p style="margin: 2px 0 0; font-size: 0.8rem; color: var(--text-muted);">${t.club}</p>
-                    </div>
-                  </div>
-                  <div style="display: flex; align-items: center; gap: 8px;">
-                    <label style="font-size: 0.85rem; color: var(--text-muted);">Deduct Points:</label>
-                    <input type="number" id="deduction-input-${t.id}" min="0" max="99" value="${currentDeduction}" style="width: 70px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.15); color: #fff; padding: 6px 8px; border-radius: 6px; text-align: center; font-size: 0.95rem;" placeholder="0">
-                  </div>
-                </div>
-              `;
-            }).join('')}
-          </div>
-          
-          <div style="margin-top: 24px;">
-            <button class="btn-add-player" id="btn-save-deductions" onclick="submitDeductions()" style="padding: 10px 20px; font-weight: 600;">
-              Save Deductions
-            </button>
-          </div>
-        </div>
-      `;
-    }
-
-    async function submitDeductions() {
-      const btn = document.getElementById('btn-save-deductions');
-      if (!btn) return;
-
-      const deductions = {};
-      leagueData.teams.forEach(t => {
-        const input = document.getElementById(`deduction-input-${t.id}`);
-        if (input) {
-          const val = parseInt(input.value, 10);
-          if (!isNaN(val) && val > 0) {
-            deductions[t.id] = val;
-          }
-        }
-      });
-
-      btn.disabled = true;
-      btn.textContent = 'Saving...';
-
-      try {
-        const res = await fetch('/api/admin/season', {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-            'X-Admin-Key': adminKey
-          },
-          body: JSON.stringify({ seasonId: adminSeasonId, deductions })
-        });
-        
-        const data = await res.json();
-        if (data.success) {
-          showToast(data.message, 'success');
-          await loadLeagueData(adminSeasonId);
-        } else {
-          showToast(data.error || 'Failed to save deductions', 'error');
-        }
-      } catch (err) {
-        showToast('Connection error.', 'error');
-      } finally {
-        btn.disabled = false;
-        btn.textContent = 'Save Deductions';
-      }
-    }
-
-    // ── Toast ──────────────────────────────────────────
-    function showToast(message, type = 'success') {
+    function showToast(msg) {
       const toast = document.getElementById('toast');
-      toast.textContent = message;
-      toast.className = `toast ${type} show`;
-      setTimeout(() => toast.classList.remove('show'), 2500);
+      if (!toast) return;
+      toast.textContent = msg;
+      toast.style.display = 'block';
+      setTimeout(() => { toast.style.display = 'none'; }, 3000);
     }
   </script>
 </body>
